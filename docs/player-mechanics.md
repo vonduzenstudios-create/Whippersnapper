@@ -1,0 +1,131 @@
+# Player mechanics
+
+All of this lives in `src/game/player.ts` unless noted.
+
+## Run
+
+Tap left or right, then press the same direction again within 15 frames and hold it: the hero runs at 1.5× walking speed (`RUN_MUL`, `RUN_TAP`). Releasing or turning drops back to a walk. The run carries into jumps, so running jumps go farther (about 1.2× the old 1.25× run).
+
+- Afterimages: `Player.echoes` is a pool of `ECHOES` hero sprites (render order 11). `tickEchoes()` (end of `update()`) drops one every `ECHO_EVERY` frames while moving at run speed, and `renderEchoes()` draws them tinted blue, fading out. `loadRoom` clears them.
+- While `running` is set, `takeDamage` ignores armor (defense counts as 0).
+
+## Swimming
+
+In water (`Player.inWater`), pressing Jump off the ground is a swim stroke (`SWIM_V`, -2.4) instead of nothing. If the hero's head is at or above the surface (`y - hh <= water.y + 6`), it is a leap instead: `JUMP_V × 1.1`, a little stronger than a jump. That's about 67 px of feet above the surface. Water halves gravity, so strokes add up. Swimming doesn't use up the double jump. Tidal rooms are built around this (see level-design.md).
+
+## Grapple
+
+- The whip latches if a ring is within whip length + 32 px and within 48° of the strike direction, or within 30 px at any angle.
+- The swing is an angular pendulum (`theta` and `omega` on Player). It was slowed after playtesting:
+  - `SWING_G` (0.65) scales gravity on the rope.
+  - Pumping is gentle.
+  - `SWING_MAX_V` caps arc speed at 3.6 px/frame.
+- Up/Down change the rope length, down to a minimum of 8.
+- Jump releases with an upward boost: 7.6, or 9.4 while holding Up, and horizontal speed ×1.35 (max 4.6). The Wisp Gallery climb needs that boost to get up through the grate into the Corridor of Bones.
+
+## Double jump (Raven Mantle)
+
+- `Hunter.doubleJump`. Pressing jump in midair (not in water) after the coyote window fires a second jump at `DJUMP_V` (-6.2, about 60 px on its own). Holding jump still controls the height.
+- It uses `inp.pressed('jump')` rather than the jump buffer, so a jump pressed just before landing is still a normal ground jump.
+- `Player.djumped` resets on landing and when catching a grapple ring. The hero somersaults (`tuck` frame rotated by `Player.spin`).
+
+## Slide (Frostrunner Greaves)
+
+- `Hunter.slide`. Hold down and press dash on the ground (not in water) to slide forward instead of backdashing.
+- The slide starts at 4.4 px/frame and slows down. The hitbox is 14 px tall (`SLIDE_HH` 7), so it fits under a one-tile gap.
+- It only ends where she can stand (`Player.fits(18)`). Under a low ceiling she keeps scooting at `SLIDE_MIN`; left/right picks the direction and a wall turns her around. Jump cancels the slide only where there is room.
+- Taking damage inside a low gap skips the knockback, because standing up there would wedge her in the ceiling.
+
+## Experimental relics (0.4.0)
+
+Not placed in the world yet. Try them in the `#lab` room. Each has a `Hunter` flag (defaults to false, so old saves load) set by `addItem()`.
+
+- **Duskwing Shroud** (`relic_shroud`, `Hunter.glide`): holding Jump while falling (normal state, not in water) glides. Gravity drops to 0.3×, the fall speed is capped at `GLIDE_FALL` (0.75 px/frame) and air speed is ×`GLIDE_MUL` (1.2). Moth wings (`relicfx` sheet, render order 11) show behind her. Gliding off the lab pillar carries her ~450 px while dropping 80. It doesn't use up the double jump, so double jump, then hold to glide.
+- **Undertow Pearl** (`relic_pearl`, `Hunter.swim`): in water there's no 0.6× slowdown (walk and run at full speed: 99 px/s instead of 59), she barely sinks (gravity 0.2×, max fall 1.2), Up/Down swim at `FREE_SWIM_V` (2.2), swim strokes are 1.4× stronger, the floor jump isn't weakened, and the slide works underwater. The surface leap is unchanged, so tidal-room gates that rely on the leap height still hold.
+- **Ashglass Ward** (`relic_ward`, `Hunter.ward`): the new **SHIELD** action (F / I, pad RT, rebindable) spends `WARD_COST` (3) hearts to raise a bubble for `WARD_TIME` (180 frames). While it's up, `takeDamage` ignores every hit from a monster (`fromEnemy`), with sparks via `blockHit()`; spikes still hurt. Enemy shots that touch it are destroyed as usual. It flickers in its last 45 frames, then can't be raised again for `WARD_COOL` (60). A Gloomcaster hex **pops** it outright (`popWard()`, 30 frames of grace), and a Hookjaw hook bounces off it.
+
+Enemy effects on the hero, also new in 0.4.0:
+- `Player.yank(targetX)`: the `yank` state drags her toward a Hookjaw (no damage, no invulnerability), ending when she arrives, after 40 frames, or at a wall. It uses the hurt frame.
+- `Player.hex(frames)` / `slowT`: walking speed ×`SLOW_MUL` (0.55) and a violet tint while hexed.
+
+## Dangle
+
+Holding attack after a strike dangles the chain. A newly pressed direction flicks it once (12-frame cooldown). Holding a direction does nothing, so it always flops back down. It deals 15% damage (`DANGLE_DMG`) with no knockback.
+
+## Sub-weapons
+
+- Holy Water costs 1 heart, Boomerang Cross costs 2 (`SUB_COST` in `game/data.ts`).
+- `Hunter.subs` lists every sub-weapon found and `Hunter.sub` is the selected one.
+- Q/E or LB/RB cycle them (`subPrev`/`subNext` actions). RB used to be a second dash button.
+- They can be thrown while hanging from a grapple ring without letting go. Left/Right aims the throw, otherwise it goes the way you're swinging (`Player.paySub()` + `releaseSub(x, y)`).
+
+## Breakable walls
+
+Any contact with the chain breaks `B` tiles, during a strike or while dangling. `Player.breakTouchedTiles()` walks the whole chain from the hand to the tip in 3 px steps and tests a small cross around each point, so one jump-slash can break several blocks.
+
+Broken stones stay broken (saved in `Hunter.broken`). Hidden paths built on this: the Armory's far wall (to the Bellfoot Court) and the Shrine of the Chain's floor (whip downward in a jump, into the Forgotten Drain).
+
+## Damage
+
+Classic-hard: knockback on every hit. Spike pits deal damage and respawn the player at the last safe spot.
+
+`Player.takeDamage(raw, fromX, ignoreInvuln, fromEnemy = true)`: damage = `raw × difficulty × (0.9..1.1) − DEF × 0.55`, at least 1. The difficulty multiplier comes from `DIFFICULTIES[Hunter.difficulty]` in `game/data.ts` (Normal 1, Hard 1.5, Brutal 2). Spikes pass `fromEnemy = false` and are never scaled. Because DEF is subtracted after the multiplier, Hard and Brutal hurt a bit more than 1.5× / 2× at low levels. DEF is 0 while running.
+
+## Easter egg
+
+Crouching with no other input for 60 s (`TOOT_FRAMES`) plays the `toot` state: hero frames `toot[0-3]`, the `fart` SFX, and green smoke.
+
+## Relics
+
+`addItem()` sets `Hunter.grapple`, `doubleJump` or `slide` by relic id, and the pickup dialog text comes from `RELIC_TEXT` in `game/story.ts`. The Raven Mantle drops from the Bell-Mother and the Frostrunner Greaves from Gnarlfang.
+
+Minor upgrades (slot `max`, 0.2.0): Might Seed `str_up` (base STR +1) and Ward Seed `con_up` (base CON +1), hidden in the sky-cell secrets and the tidal rooms.
+
+Expansion equipment: Rime Chain (whip, ATK+32, icy blue chain, top of the Aqueduct Span), Raven Mail (armor, DEF+15, Frozen Cistern pocket), Hound Fang (STR+3 LCK+3, Huntsman's Lodge), Bell Charm (CON+6, Harpy Rookery).
+
+## Enemies
+
+- Bats can't wake in the first 45 frames of a room (grace period from playtest feedback).
+- Each enemy's stats, drop table, bestiary text and portrait animation live in `ENEMY` in `game/data.ts`. `rollEnemyDrop` does one roll per kill, so at most one item drops. Luck multiplies every chance by `1 + LCK/50`.
+- `ENEMY` = the code table + `game/enemy_edits.json` (written by the enemy editor, `enemies.html`). That file can change base enemies and add **variants**: an entry whose `base` is another enemy. A variant has its own id, name, stats, drops, bestiary entry, a palette swap (`colors`: original `#rrggbb` → new) and behavior knobs (`tune`), but reuses its base enemy's class and art.
+- Behavior knobs are listed per base enemy in `ENEMY_TUNING` (data.ts) and read in enemies.ts through `Enemy.num()` (speed, sight, cooldown multipliers, 1 = normal) and `Enemy.can()` (abilities, on unless turned off): knight `shield`/`thrust`, skeleton `throw`/`hop`, drowned `spit`/`leap`. A drowned with `leap` off walks around from the start instead of lurking. Add a knob to `ENEMY_TUNING` and read it in the enemy's class.
+- Rooms place a variant as its base letter plus `arg` = the variant id (`{ t: 'd', arg: 'drowned_pup' }`). An unknown id falls back to the base enemy. `Game.enemySheet(kind)` gives each variant its recolored sheet (built once at startup by `recolorSheet` in view.ts).
+- Kills are counted per kind in `Hunter.bestiary`. The pause menu's BESTIARY page shows an enemy's stats, drops (with your current luck applied) and description after the first kill.
+- Bosses award their XP and a bestiary entry in `Game.onBossDefeated()`, because they never go through `Enemy.die()`.
+
+### Expansion enemies (`game/enemies_expansion.ts`)
+
+| Letter | Enemy | Behavior | Knobs |
+|---|---|---|---|
+| `g` | Wild Dog | Prowls; on sight it crouches and growls, then runs at you and pounces when close. Skids after, then cools down. Never runs off ledges | `pounce` |
+| `y` | Harpy | Flies (not through walls). Hovers to one side of you, then swoops in a U-shaped dive or throws a feather dart | `swoop`, `darts` |
+| `r` | Bell Wraith | Floats slowly after you, keeping a little distance. Rings its hand bell: a shockwave runs both ways along the floor below it. Jump it | `toll` |
+| `c` | Frost Crawler | Patrols floors, faster when you're near. Placed right under a ceiling it clings upside down and drops when you pass below. To place one on a ceiling, put it in the row just below the ceiling (row 1 under a row-0 ceiling) | `drop` |
+
+`Shockwave` is a hostile ent that runs along the floor until a wall or a drop. Bell tolls and Gnarlfang's landings use it.
+
+### Experimental enemies (`game/enemies_extra.ts`, 0.4.0)
+
+Not placed in any room yet. Spawn them in `#lab` with keys 1–5, or place them with the map editor's ENEMIES tab.
+
+| Letter | Enemy | Behavior | Knobs |
+|---|---|---|---|
+| `h` | Hookjaw | Heavy (no flinch). Lumbers toward you. At 48–166 px it whirls its chain (26 frames), then throws a hook (`HookChain`, range 176, aimed within ±35°). A hit drags you to it (`Player.yank`) and starts a longer cleaver wind-up (38 frames instead of 24), so you get ~24 frames once you land. Whipping the hook out of the air cancels it. Up close it just chops | `hook`, `chop` |
+| `e` | Mire Eel | Lives in water. Drifts, then chases swimmers at 1.7 px/frame (faster than an unaided swimmer) and lunges. If you stand at the water's edge above it, it leaps straight up and steers at you. Out of water it flops back toward the pool | `lunge`, `leap` |
+| `m` | Gloomcaster | Casts a slow hex (`HexBolt`, 1.7 px/frame, homes for 110 frames) that hurts and slows you for 200 frames, or pops a ward bubble. Then it fades out and reappears 70–170 px from you on solid floor (`blinkSpot`). Hitting it mid-cast fizzles the spell and makes it blink early. Whip the bolt to break it | `blink`, `homing` |
+| `o` | Rot Ooze | Hops after you. Sizes 3 → 2 → 1 (HP ×1 / ×0.55 / ×0.3). Killing one bigger than size 1 splits it in two (XP and a bestiary kill each time). Only the smallest pieces roll drops. The pieces inherit the killing blow's hit id, so one swing can't chain through them | `split` |
+| `u` | Grave Grub | Untouchable mound under the floor that creeps toward you. Right under you it trembles (26 frames), then bursts up (hostile) and lands stranded for 110 frames, taking 1.5× damage, then digs back down | `burrow` |
+
+## Expansion bosses
+
+- **Gnarlfang** (`game/hound.ts`, Hound Pit, 1100 HP): stalks and bites; crouches and charges until it slams into a wall, then reels dazed for 80 frames and takes 50% more damage (masonry falls); pounces at you and its landing sends shockwaves both ways. It ignores one-way ledges. At half HP it howls in two wild dogs, and howls again later if they're dead. When the first form's HP runs out it fakes its death (`fakeout`: collapses, goes dark, no HP bar, music stops, ~3.5 s of silence, embers and growls), then rises as the Cinder Mastiff (`rise`: sheet swaps to `houndCinder`, HP bar refills to 80% of the first form's, untouchable while it howls). The cinder form moves 1.35× faster, adds `spit` (two fans of three fireballs), drops fireballs instead of rocks on wall slams, and throws two burning cinders when it lands from a leap. Its second death is the real one.
+- **The Bell-Mother** (`game/bellmother.ts`, Great Belfry, 1000 HP): hovers above you; swoops from the far side at your height; fires three fans of feathers; rings the great bell so shockwaves roll in from both walls. At half HP she summons two harpies, tolls twice with falling masonry, and attacks faster.
+
+## Boss rewards and deaths
+
+- When a boss's death animation ends it sets `dead = true` (so its update stops) and calls `Game.onBossDefeated()`. Before 0.2.0 the Bell-Mother and Gnarlfang kept running their death loop, and the explosions never stopped.
+- `Game.spawnBossRewards()` drops the room's `i` items a short way from the hero, toward the middle of the room, onto the floor below (`Game.floorBelow`), instead of at their placed spot. `Pickup.setBeacon()` adds a column of light (render order 8), rising sparkles and a repeating `chime`, and puts the pickup in `Game.beacons`. The HUD draws a bouncing arrow over each one (`UI.drawBeaconArrows`), or a pointer at the screen edge when it's off screen. A reward left behind is still placed at its spot on the next visit, with its beacon.
+
+## Wyrm phase change
+
+At 50% HP the Wyrm switches to the `retreat` pattern. It shrieks (`screech` SFX), the screen shakes and flashes red, enemy shots are cleared, and it writhes for 50 frames. Then it flees off screen along its heading: sideways patterns leave through a side wall, ceiling patterns back up into the ceiling. It can't be damaged during the retreat. Only once every segment is out of view does it switch to `ignite` and come back burning.

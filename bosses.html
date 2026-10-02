@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nocturne of Ash - Boss Sprite Options</title>
+  <style>
+    :root { --bg: #0a0610; --panel: #140c1a; --line: #3a2a3a; --gold: #d8b060; --pale: #e8dcc8; --dim: #8a7a90; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--pale); font: 14px/1.45 ui-monospace, Consolas, monospace; }
+    header { display: flex; gap: 16px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+    header h1 { margin: 0; font-size: 16px; color: var(--gold); letter-spacing: 1px; }
+    header label { color: var(--dim); }
+    a { color: var(--gold); }
+    main { padding: 16px; }
+    h2 { color: var(--gold); font-size: 14px; letter-spacing: 1px; text-transform: uppercase; margin: 18px 0 8px; }
+    .row { display: flex; flex-wrap: wrap; gap: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--line); padding: 10px; }
+    .card h3 { margin: 0 0 2px; font-size: 13px; }
+    .card p { margin: 0 0 8px; color: var(--dim); font-size: 12px; max-width: 46em; }
+    canvas { image-rendering: pixelated; display: block; background: linear-gradient(#1c1424, #08060c); }
+    .strip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+    .strip canvas { background: #120c18; }
+    .strip figure { margin: 0; text-align: center; font-size: 10px; color: var(--dim); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>BOSS SPRITE OPTIONS</h1>
+    <label>Big preview zoom <input id="zoom" type="range" min="2" max="6" value="4" /></label>
+    <span style="flex:1"></span>
+    <a href="index.html">Game</a>
+  </header>
+  <main id="root"></main>
+  <script type="module" src="/src/boss_preview.ts"></script>
+</body>
+</html>

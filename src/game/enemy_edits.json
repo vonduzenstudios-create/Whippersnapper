@@ -1,0 +1,66 @@
+{
+  "wisp_variant": {
+    "hp": 8,
+    "atk": 7,
+    "def": 0,
+    "xp": 3,
+    "name": "Grave Wispette",
+    "portrait": "float",
+    "desc": "A small drifting grave-light. It follows the living slowly and never gives up.",
+    "drops": [
+      {
+        "item": "heartS",
+        "chance": 15
+      }
+    ],
+    "base": "wisp",
+    "colors": {
+      "#2c6c8c": "#736482",
+      "#58b8d8": "#bcb4c8",
+      "#0a2030": "#251e2a",
+      "#c8f0ff": "#ffffff",
+      "#102030": "#2a232d"
+    },
+    "tune": {
+      "speed": 0.1
+    }
+  },
+  "drowned_variant": {
+    "hp": 15,
+    "atk": 8,
+    "def": 1,
+    "xp": 8,
+    "name": "The Drowned Pup",
+    "portrait": "walk",
+    "desc": "Lurks under black water, leaps out at passers-by.",
+    "drops": [
+      {
+        "item": "heartS",
+        "chance": 10
+      }
+    ],
+    "base": "drowned",
+    "colors": {
+      "#120a12": "#12100a",
+      "#4a5a56": "#524a5a",
+      "#2e3a38": "#352e3a",
+      "#86b0a6": "#9c86b0",
+      "#2f5a2a": "#2a3a5a",
+      "#3a4846": "#433a48",
+      "#607f78": "#71607f",
+      "#2a3432": "#302a34",
+      "#527a72": "#69527a",
+      "#222e2c": "#29222e",
+      "#6a7a76": "#726a7a",
+      "#3b5852": "#4b3b58",
+      "#182120": "#1e1821",
+      "#35413e": "#3b3541",
+      "#212a28": "#26212a",
+      "#f0f070": "#70f0d2",
+      "#1a0a10": "#141a0a"
+    },
+    "tune": {
+      "spit": false
+    }
+  }
+}

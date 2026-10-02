@@ -1,0 +1,133 @@
+# Project status
+
+Update this file when you verify something or finish a listed item.
+
+## Verified
+
+- `npm run typecheck` passes cleanly against the real `@types/three` 0.170 (TypeScript 5.9), and `npm run build` succeeds (checked 2026-10-01).
+- Headless runs with a mocked three.js: a random-input stress test in every room with no errors, an automated grapple climb, an automated chasm crossing, and an accelerated boss fight through to the victory screen.
+- The user's browser pane showed every room and the boss rendering correctly with real three.js.
+- First playtest feedback (2026-10-01) was addressed:
+  - slower grapple swing
+  - bat grace period (bats can't wake in the first 45 frames of a room)
+  - Ossuary Shaft and Lair platforms rebuilt so every tier is reachable (checked by scripted jumps in the browser)
+  - enemy sprites mirrored correctly (all character art faces right)
+  - dangle nerf
+  - switchable sub-weapons
+  - the crouch easter egg
+  - Scripted runs still clear the Chasm and the Wisp Gallery grate climb.
+
+- Second batch (2026-10-01), checked with scripted runs in the browser pane, typecheck and build:
+  - The Flooded Crypt lever drains the room and opens the sunken gate. Walking through reaches the Gallery of Wisps. While locked, the gate blocks from the gallery side.
+  - Holy Water and Cross can be thrown while hanging, without letting go.
+  - One jump-slash broke 2 stacked breakable blocks, and the dangle broke the third.
+  - At half HP the boss shrieks, flees fully off screen, then ignites.
+  - The bestiary page renders stats, drops and descriptions.
+  - The map editor paints tiles (mouse coordinates checked), undoes, saves to `room_edits.json` without reloading the page, reloads saved edits, and resets rooms. F2 toggles edit/play in the main game.
+
+- Prelude, story and movement relics (2026-10-01), checked with typecheck, build, and scripted runs in the browser pane:
+  - The opening cinematic plays through: camera pan from the keep, captions, the hero walks in, turns, and the avalanche appears. Skipping works.
+  - A scripted run cleared the Ridge and the Slope chase with full HP. The avalanche never got closer than 137 px, so it stays on screen as pressure.
+  - The avalanche crashes into the Hollow's doorway, packs it with snow, sets `pass_buried`, and the music changes. The map draws that door as a wall afterwards.
+  - Lore stones open their dialogs. An up-whip next to the Hollow's cracked wall clears it.
+  - Pilgrim's Road → Ravenwatch Cliffs → Drawbridge transitions work.
+  - (The Reliquary test room checked here was removed on 2026-10-02.)
+  - Killing the Wyrm opens the lair's right gate. The victory screen returns to play.
+  - The map scales to fit the wider world. The editor room picker showed all 20 rooms in two columns (there are 46 now; not rechecked).
+
+- Editor upgrade and enemy editor (2026-10-02), checked with typecheck, build, and scripted runs in the browser pane (both JSON files were restored afterwards):
+  - Tool bar tabs render. Middle-click picks a candle, a wall and a placed variant. Typing in the HTML dialogs doesn't trigger editor shortcuts.
+  - Enemy editor: made a Drowned variant (25 HP, fireballs off, hue shifted), saved it, and it appeared in the map editor's ENEMIES tab in its new colors. In play it spawned with its own stats and sheet. With `spit` off it fired 0 shots in 1.5 s; with it on, 2.
+  - Renaming the variant's id and saving updated the room that placed it.
+  - World map: created a 2×1 room under the Courtyard and opened holes on both sides with the DOOR tool (the edge hint turned green). Test play fell from the Courtyard into the new room. Resize, overlap refusal, undo and PROPS work. Saved, reloaded, and the room came back from `room_edits.json`.
+
+- Room-view grow strips and door arrows (2026-10-02), checked in the browser pane: a real click on the Drawbridge's left-door arrow opened Ravenwatch Cliffs at the matching door. The Stairwell's bottom hole leads to the Ossuary Shaft (view at its top) and back (view at the Stairwell's bottom). Growing the Cliffs upward kept the old tiles and the view in place, growing left into Pilgrim's Road was refused, shrinking needs two right-clicks, and undo stepped back through both. A world-map resize was undone from the room view.
+
+- Double-tap run (2026-10-02), scripted with frame stepping: a double tap gives 2.06 px/frame (1.25× walk) both ways. Releasing stops it, turning around drops to a walk, taps 25+ frames apart don't start a run, and the run carries into a jump.
+
+- Character select (2026-10-02), in the browser pane: the select screen shows both twins (the chosen one walks in place), Anzel appears in the cinematic, the intro crawl reads "HER SON ANZEL", dialogs and the status page fill in his name, and `hero` is saved.
+
+- Boss redesign (0.3.0, 2026-10-02), in the browser pane with `#boss=hound` / `#boss=bellmother` and scripted hits: Gnarlfang's flayed form stands on the floor in the Hound Pit; killing it plays the fakeout (no bar, collapsed frame), then it rises in cinder form with a banner and a refilling bar (880 HP); `spit` fires its fireballs; the second death sets `boss_hound` and ends the fight. The new Bell-Mother swoops, mirrored, in the Great Belfry. No console errors. **Not yet played by hand:** fight balance of the second form, and whether the bigger hound hitbox (hw 27, hh 22 since 0.3.2, when the sprite shrank 10%) feels fair.
+
+- Castle expansion (2026-10-02), checked with typecheck, build and frame-stepped scripted runs in the browser pane:
+  - No room cells overlap, and every door/hole between the new rooms lines up with an opening on the other side (checked by script over all rooms).
+  - Every new room loads and runs 3 seconds of play with its enemies without errors. All four new songs parse.
+  - Gnarlfang and the Bell-Mother: entrance, banner, health bar, attacks, phase 2 (dogs / harpies summoned), death, doors reopening, `boss_<id>` set, relic floating down. Gnarlfang's charge ends in the wall stun.
+  - Undervault hole ↔ Warden's Stair both ways. The Ringing Climb: all three rings caught and climbed with the starting leather whip.
+  - Double-jump gates: one jump fails and a double jump succeeds at the Courtyard ledge, the Old Well top and the Span's high end. From the Courtyard ledge the jump carries up onto the Rampart Walk, and you can drop back down.
+  - Slide gates: blocked without the Greaves; with them the Hound Pit ↔ Lodge tunnel works both ways, the Frost Sluice crawl goes through, and both wall pockets give their items.
+  - Shortcuts: the Servants' Gallery gate blocks until the lever is whipped, then leads into the Sanctum. The Armory's cracked wall leads to the Bellfoot Court and back. The Shrine floor drops into the Forgotten Drain and, once broken, stays broken so you can climb back up.
+
+- Version 0.2.0 (2026-10-02, playtest feedback batch), checked with typecheck, build, and frame-stepped scripted runs in the browser pane:
+  - Every room loads and runs 2 seconds of random input without errors. No room cells overlap, and every doorway is open on both sides. The only edges open to nothing are the sky-cell tops and old, intended spots.
+  - Bosses: the Wyrm hides every segment, including the tail, then is removed. The Bell-Mother and Gnarlfang are removed after dying and the screen shake stops. Each reward drops 40 px from the hero onto the floor, with a beam, an arrow and a message. Walking into the Raven Mantle picked it up and opened its dialog.
+  - The Bell-Mother's new art checked at 6× zoom (fly and cast frames).
+  - Tides: the Conduit cycles low → rising (message) → high → receding. A scripted swim at high tide reached the Conduit shelf and the Cistern tank (Ward Seed collected). At low tide a jump from the floor peaks well below the shelf.
+  - No invisible ceiling: launched upward at the top of the Slope, the hero rose to y −94 and fell back.
+  - Sky secrets: single jump fails and double jump lands on the first Pilgrim's Road ledge. Every following ledge in the Pilgrim's Road, Cliffs, Spire, Rampart and Slope chains was landed by a scripted walking jump. The Drawbridge pocket was entered after breaking the facade stones, and the Heart Max Up collected.
+  - The moon is round in the Windswept Spire and the Hound Pit.
+  - Map: the cursor moves, zoom goes in and out, and a marker was placed and drawn as an X.
+  - The new-game flow goes title → twin → difficulty → intro → play, and `Hunter.difficulty` is stored. Average damage from a 13-ATK hit at DEF 6 is Normal 9.7, Hard 16.1 and Brutal 22.8. While running at Normal it's 13.0 (armor ignored).
+  - Running: 2.47 px/frame (1.5× walk), five afterimages trailing.
+
+- Experimental relics and enemies (0.4.0, 2026-10-02), checked with typecheck and frame-stepped scripted runs in the `#lab` room in the browser pane, no console errors:
+  - Glide: off the pillar it crossed the spike trench and landed ~450 px away with no damage. Without the Shroud the same jump lands at the trench's edge.
+  - Pearl: horizontal swim speed 99 px/s (59 without), Up rose 74 px in 40 frames, Down sank 36 px in 30 frames (0 and 0 without).
+  - Ward: costs 3 hearts, an ooze sitting on her did 0 damage for 3 s, then hurt her once the bubble faded. A Gloomcaster hex popped the bubble (no damage, 60-frame cooldown).
+  - Hex without a ward: 10 damage and slowed to 54 px/s walking.
+  - Hookjaw: wind-up, throw, yank of ~45 px, and the chop lands 24 frames after she regains control.
+  - Ooze: 1 → 2 → 4 → gone (7 kills).
+  - Grub: creep, tremble, burst, stranded, dig, creep again.
+  - Eel: chase and lunge in the pool. Leaped out at her on the bank and hit, then flopped back into the water.
+  - The enemy editor opens all the new enemies, and now the expansion ones too (their sheets were missing there).
+
+- Controls tweak (0.4.1, 2026-10-02), checked with typecheck and frame-stepped scripted input in `#lab`:
+  - Up + Sub-weapon raises the Ward (3 hearts, 180 frames) and throws nothing. The SHIELD button is gone.
+  - Down + Sub-weapon throws the cross while staying crouched (hitbox stays 24 px tall), and she's still crouched after. Standing throws are unchanged. Both release at the same height (the throw frame's hand is already low).
+  - Not seen on screen yet: the crouch throw borrows the crouching-whip frames.
+
+## Not verified yet
+
+- 0.4.0 experimental relics and enemies: nobody has played them by hand or heard the new sounds (`glide`, `ward`, `wardHit`, `wardPop`, `wardOff`, `chain`, `bite`, `hex`, `blink`, `squelch`, `burrow`). Stats, timings and the 3-heart ward cost are first guesses. The glide wings are small and mostly sit behind her body. The new enemies' sprites have only been seen at normal zoom.
+
+- 0.2.0: nobody has played it by hand. Not yet judged by a human: how the tide timing (15 s cycle) and swimming feel, whether Hard/Brutal are the right numbers, and how the afterimages look in motion. The right-stick map zoom is untested on a real gamepad. The `chime`, `tide`, `swim` and `mark` sounds haven't been heard. The Slope sky secret sits in the avalanche chase and may be too risky to bother with.
+
+- The expansion has had no human play. Untested by script: the Bellfoot climb up to the Ringing Climb hole, the Rookery nest and Spire gable jumps, the Raven's Drop climb back up, the Briar Maze item climb, the Cistern bridge, the Bell-Mother's swoop hitting you, and how hard either boss is with real input. Enemy counts and damage are untuned.
+- Nobody has heard the new songs (`undervault`, `kennels`, `belfry`, `aqueduct`) or sounds (`growl`, `bark`, `handbell`, `harpy`, `howl`).
+- The world map spans 38 × 14 cells. Zoom and a scrolling cursor were added in 0.2.0.
+- The editor's room picker with 46 rooms hasn't been checked.
+
+- The new editor features have only had scripted use: real mouse dragging of room edges on the world map, and the enemy editor's color pickers by hand.
+
+- Nobody has heard the new `toll`, `rumble`, `avalanche`, `djump` and `slide` sounds, or the `pass` and `chase` songs.
+- The avalanche chase hasn't been played by a human yet. Its speed (`BASE_SPEED`, `LEASH` in avalanche.ts) may need tuning.
+- The slide and double jump have only had scripted use. How they feel with real input is unknown.
+- Pilgrim's Road enemies (zombies, a bat) are untuned for a tutorial room.
+
+- Nobody has heard the new `screech`, `lever` and `drain` sounds yet.
+- The editor has only had scripted use. A human session with real mouse painting and dragging may find rough spots.
+
+- Only one human playtest so far. Difficulty, damage numbers and enemy placement are still mostly untuned.
+- Nobody has listened to the audio yet. Mix levels and song quality are unknown.
+- Gamepad support is untested on real hardware.
+
+## Known rough edges
+
+- The moon halo shows visible color banding.
+- Lunge and weave patterns sometimes leave long gaps between attacks, because the next pattern waits until the whole body is off screen.
+- Room transitions are instant fades. The map has no room labels.
+
+- Signposts use the snowy signpost sprite everywhere.
+- The Undervault's Black Door is a gate that never opens (`deep_door`), waiting for the next area.
+- Breakable walls need several strikes at different heights (a standing strike breaks one tile). That's the old behavior, but the Shrine floor needs a few downward strikes.
+- The Bell-Mother's wings are flat polygons and read a little stiff.
+
+## Possible next steps
+
+- Playtest and tune (the avalanche chase, the expansion's enemies and both new bosses).
+- The area behind the Black Door.
+- Options screen for screen scaling.
+- A short attract demo on the title screen.
+- More breakable-wall secrets.
+- Playwright tests (see [testing.md](testing.md) for the mock approach used before).
+- Save slots.
