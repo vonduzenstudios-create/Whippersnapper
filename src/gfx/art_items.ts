@@ -435,6 +435,18 @@ export function buildFxSheet(): SheetBuilder {
     for (let k = 0; k < 4; k++) p.line(3 + k * 3, 15, 4 + k * 3, 15 - (4 + ((k + i) % 2) * 5), c, 1.5);
     p.line(1, 15, 15, 15, hex('#8a70d0'), 2);
   });
+  // the Devourer's tongue: fleshy segments that overlap into one long tongue, and its barbed tip
+  add('tongueSeg', 1, (p) => {
+    p.ellipse(8, 8, 3.2, 2.4, hex('#a83848'));
+    p.line(6, 7, 10, 7, hex('#d86070'));
+  }, hex('#2a0610'));
+  add('tongueTip', 1, (p) => {
+    p.ellipse(6, 8, 3.5, 2.6, hex('#a83848'));
+    p.line(4, 7, 8, 7, hex('#d86070'));
+    p.poly([[8, 5], [14, 8], [8, 11]], hex('#e8e0c8')); // a bony barb
+    p.line(9, 6, 7, 3, hex('#e8e0c8'));
+    p.line(9, 10, 7, 13, hex('#e8e0c8'));
+  }, hex('#2a0610'));
   // Hookjaw's chain hook, pointing right
   add('hook', 1, (p) => {
     p.line(2, 8, 9, 8, hex('#7a6e68'), 2);

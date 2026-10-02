@@ -257,6 +257,12 @@ export class Chair extends Enemy {
     this.set('float');
     this.cool = cool * this.num('cooldown');
   }
+  /** Spun or stamped into the shield: it bounces off and goes back to hovering. */
+  onBlocked(g: Game) {
+    super.onBlocked(g);
+    if (this.state === 'drop') this.vy = -3;
+    this.float(70);
+  }
   update(g: Game) {
     this.baseUpdate(g);
     const p = g.player, s = this.sprite!, A = this.anims;
@@ -361,7 +367,7 @@ export class Chair extends Enemy {
         }
         break;
       case 'drop': {
-        // legs first, as hard as it can
+        // legs first, as hard as it can (onBlocked bounces it back up if it lands on the shield)
         s.setFrame(A.charge[0]);
         this.vx = 0;
         this.vy = Math.min(this.vy + 0.45, 7);

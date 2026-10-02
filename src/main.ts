@@ -3,6 +3,12 @@ import { startTest } from './game/test_chamber';
 
 const game = new Game();
 game.start();
+// F3 opens the enemy editor in its own tab (F2 is the map editor, inside the game)
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'F3') return;
+  e.preventDefault(); // F3 is the browser's find-next
+  window.open('enemies.html', 'nocturne_enemies');
+});
 const g: any = game;
 const hash = decodeURIComponent(location.hash.slice(1));
 /** Start playing in a room (as if the Wyrm were already dead), for testing. */

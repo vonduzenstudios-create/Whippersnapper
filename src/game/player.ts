@@ -1,10 +1,10 @@
 import { Sprite } from '../gfx/view';
 import { moveBody, Body } from '../world/room';
-import { clamp, approach, sign, dist } from '../core/util';
+import { clamp, approach, sign, dist, rand } from '../core/util';
 import { GRAVITY, MAX_FALL, TILE } from '../config';
 import type { Game } from './game';
 import { SUB_COST, ITEMS, DIFFICULTIES, WARD_COST } from './data';
-import { HolyFlask, CrossProj, KnifeProj } from './objects';
+import { HolyFlask, CrossProj, KnifeProj, ShieldDrop } from './objects';
 import type { DmgType } from './ent';
 
 const WALK = 1.65;
@@ -29,10 +29,11 @@ const FREE_SWIM_V = 2.2; // Undertow Pearl: swim speed up/down while holding UP/
 const WARD_TIME = 180; // Ashglass Ward: frames the bubble lasts (3 s)
 const WARD_COOL = 60; // frames after it fades or pops before it can be raised again
 const SLOW_MUL = 0.55; // walking speed while hexed by a Gloomcaster
-const HOLD_TIME = 100; // a Gravehand's grip lasts this many frames if you do nothing (~1.7 s)
-const WIGGLE_CUT = 16; // ...each left/right tap takes this much off
-const JUMP_CUT = 45; // ...and a jump press takes this much (about two and a half wiggles)
+const HOLD_TIME = 150; // a Gravehand lets go by itself after this many frames (2.5 s)
 const FREE_GRACE = 60; // after breaking free, hands can't grab again for this long
+const TRIP_DOWN = 40; // frames she lies on her face after a Gravehand trips her...
+const TRIP_UP = 14; // ...and frames to get back up
+const BLOCK_PUSH = 2.6; // a blocked melee blow or lunge shoves her back this fast (it eases off)
 // shield (off hand)
 const GUARD_MUL = 0.15; // walking speed with the shield raised (85% slower)
 const SHIELD_COOL = 90; // frames the shield can't be raised after a touch or magic hit gets through
@@ -48,7 +49,15 @@ const KNIFE_RELEASE = 3;
 const KNIFE_END = 9;
 const KNIFE_MAX = 3; // knives in the air at once
 
-type PState = 'normal' | 'attack' | 'hurt' | 'dash' | 'throw' | 'hang' | 'dead' | 'toot' | 'slide' | 'yank';
+type PState = 'normal' | 'attack' | 'hurt' | 'dash' | 'throw' | 'hang' | 'dead' | 'toot' | 'slide' | 'yank' | 'trip';
+
+/**
+ * Something that holds her in place (a Gravehand, a Devourer's bite). `released` is called
+ * when she gets loose: `mashed` = she broke free by mashing, rather than it letting go.
+ */
+export interface Holder {
+  released(mashed: boolean): void;
+}
 const TOOT_FRAMES = 60 * 60; // crouch perfectly still for 60 seconds...
 
 export class Player implements Body {
@@ -106,9 +115,13 @@ export class Player implements Body {
   wardHitT = 0; // throttles the "blocked" sparks while something keeps touching the bubble
   slowT = 0; // frames left of a Gloomcaster's hex (slower walking)
   yankX = 0; // where a Hookjaw's chain is dragging her
-  holdT = 0; // frames left of a Gravehand's grip (0 = free): can't walk, jump or dash
-  holdBy: object | null = null; // the hand that has her
+  holdT = 0; // frames until the holder lets go by itself (0 = free): can't walk, jump or dash
+  holdBy: Holder | null = null; // the hand or jaws that have her
+  mashLeft = 0; // left/right/jump presses still needed to break free
+  holdLock = false; // the holder also stops her attacking (a Devourer has her head)
   freeT = 0; // grace after breaking free of a grip
+  pushV = 0; // shove from a blocked blow, added to her walking speed and easing off
+  justBlocked = false; // the last takeDamage() call was a melee blow her shield blocked
   wings: Sprite; // drawn behind her while gliding
   bubble: Sprite; // the shield bubble
   shield: Sprite; // the raised shield, held in front of her
@@ -321,6 +334,8 @@ export class Player implements Body {
           this.crouch = false;
           this.setHeight(18);
           this.set('toot');
+        } else if (this.holdLock) {
+          // a Devourer has her head: nothing but mashing helps
         } else if (inp.pressed('attack')) this.startAttack(U, D, hdir);
         else if (inp.pressed('sub')) this.startThrow();
         else if (inp.pressed('dash') && this.onGround && this.holdT <= 0) {
@@ -440,9 +455,21 @@ export class Player implements Body {
       case 'toot':
         this.updateToot();
         break;
+      case 'trip': {
+        // tripped by a Gravehand: pitched forward onto her face, then up again
+        if (this.onGround) this.vx = approach(this.vx, 0, 0.15);
+        if (this.t > TRIP_DOWN + TRIP_UP && this.onGround) this.set('normal');
+        break;
+      }
     }
 
-    // held by a Gravehand: rooted to the spot, knockback included
+    // a blocked blow's shove, on top of whatever she's doing on her feet
+    if (this.pushV) {
+      if (this.state === 'normal' || this.state === 'attack' || this.state === 'throw') this.vx += this.pushV;
+      this.pushV = Math.abs(this.pushV) < 0.1 ? 0 : this.pushV * 0.86;
+    }
+
+    // held by a Gravehand or a Devourer: rooted to the spot, knockback included
     if (this.holdT > 0) {
       this.vx = 0;
       this.vy = Math.max(this.vy, 0);
@@ -456,6 +483,11 @@ export class Player implements Body {
     this.hitWall = r.hitX;
     if (r.landed && !wasGround) {
       g.audio.play('land');
+      if (this.state === 'trip') {
+        // face-first into the floor
+        g.fx.burst(this.x + this.facing * 8, this.bottom - 2, 'dust', 4, 10, { speed: 1.4 });
+        g.shake(2, 6);
+      }
       if (this.state === 'normal') this.landT = 5;
     }
     // remember a safe spot for spike/pit recovery
@@ -864,6 +896,7 @@ export class Player implements Body {
    */
   takeDamage(raw: number, fromX: number, ignoreInvuln = false, fromEnemy = true, type: DmgType = 'touch', fromY = this.y) {
     const g = this.g, h = g.hunter;
+    this.justBlocked = false;
     if (this.state === 'dead') return true;
     if (!ignoreInvuln && this.invuln > 0) return false;
     if (fromEnemy && this.wardT > 0) {
@@ -879,6 +912,7 @@ export class Player implements Body {
     const blocked = faced && type === 'melee';
     if (fromEnemy && (type === 'touch' || type === 'magic') && h.equip.shield) {
       if (this.guarding) g.audio.play('shieldDown');
+      if (this.shieldCool <= 0) this.dropShield(fromX);
       this.guarding = false;
       this.shieldCool = SHIELD_COOL;
     }
@@ -897,23 +931,17 @@ export class Player implements Body {
     }
     this.ring = null;
     this.dangle = false;
-    if (h.hp <= 0) {
-      h.hp = 0;
-      this.set('dead');
-      this.vx = -sign(fromX - this.x || 1) * 1.2;
-      this.vy = -3;
-      g.audio.play('death');
-      g.onPlayerDeath();
-      return true;
-    }
+    if (h.hp <= 0) return this.die(fromX);
     if (this.state === 'slide' && !this.fits(STAND_HH)) {
       this.invuln = 100; // no knockback inside a low gap: standing up there would wedge her in the ceiling
       return false;
     }
     if (blocked) {
-      // she holds her ground behind the shield: a short shove back and a short grace
-      if (!h.noKnock) this.vx = (this.x < fromX ? -1 : 1) * 1.2;
+      // she keeps her footing behind the shield, but the blow shoves her back (the attacker
+      // learns it was blocked through justBlocked, and stops its lunge)
+      if (!h.noKnock) this.pushV = (this.x < fromX ? -1 : 1) * BLOCK_PUSH;
       this.invuln = BLOCK_INVULN;
+      this.justBlocked = true;
       return false;
     }
     if (h.noKnock) {
@@ -931,6 +959,45 @@ export class Player implements Body {
     this.vy = -3.6;
     this.invuln = 100;
     return false;
+  }
+
+  /** Out of HP: she falls. Always returns true (takeDamage's "it killed her"). */
+  die(fromX: number) {
+    const g = this.g;
+    g.hunter.hp = 0;
+    this.holdT = 0;
+    this.holdBy = null;
+    this.holdLock = false;
+    this.set('dead');
+    this.vx = -sign(fromX - this.x || 1) * 1.2;
+    this.vy = -3;
+    g.audio.play('death');
+    g.onPlayerDeath();
+    return true;
+  }
+  /**
+   * Damage that leaves her where she is: no knockback, no grace, the shield doesn't help
+   * (a Devourer's bite, the fall from a trip). Scaled by the difficulty like any enemy hit.
+   */
+  chew(raw: number) {
+    const g = this.g, h = g.hunter;
+    if (this.state === 'dead') return;
+    const mul = (DIFFICULTIES[h.difficulty] || DIFFICULTIES[0]).dmg;
+    const dmg = Math.max(1, Math.round(raw * mul * (0.9 + Math.random() * 0.2) - h.def * 0.55));
+    h.hp -= dmg;
+    g.damageNumber(this.x, this.y - 20, dmg, '#ff5060');
+    g.audio.play('hurt');
+    g.shake(2, 6);
+    if (h.hp <= 0) this.die(this.x - this.facing);
+  }
+  /** The shield is knocked out of her hand: it tumbles to the floor and blinks away (see ShieldDrop). */
+  dropShield(fromX: number) {
+    const g = this.g, id = g.hunter.equip.shield;
+    if (!id) return;
+    const look = ITEMS[id].look || 'wood';
+    const away = this.x < fromX ? -1 : 1;
+    const b = this.shieldBox();
+    g.spawn(new ShieldDrop(g, b.x, b.y, away, g.sheets.relicfx.anims[`shield_${look}`][0], this.facing < 0));
   }
 
   // ------------------------------------------------------------- experimental relics and enemy effects
@@ -1009,55 +1076,83 @@ export class Player implements Body {
     this.g.audio.play('block');
   }
   /**
-   * A Gravehand seizes her ankles. No damage: she just can't move until the grip runs out or
-   * she wiggles (left/right) or jumps free. Whipping and sub-weapons still work. Returns false
-   * if it didn't take (airborne, warded, just broke free, or in a state that can't be held).
+   * Something seizes her: a Gravehand's fist around her ankles, or a Devourer's jaws (`bite`).
+   * She can't walk, jump or dash until she mashes LEFT, RIGHT or JUMP `presses` times, or the
+   * holder lets go by itself after `time` frames. A Gravehand leaves her arms free; a bite
+   * doesn't. Returns false if it didn't take (warded, just broke free, already held, or in a
+   * state that can't be held; a hand also needs her on the ground).
    */
-  grab(by: object, time = HOLD_TIME) {
+  grab(by: Holder, presses: number, time = HOLD_TIME, bite = false) {
     const g = this.g;
-    if (this.holdT > 0 || this.freeT > 0 || !this.onGround) return false;
-    if (this.state !== 'normal' && this.state !== 'attack' && this.state !== 'throw' && this.state !== 'dash') return false;
+    if (this.holdT > 0 || this.freeT > 0 || this.state === 'dead') return false;
+    if (!bite && !this.onGround) return false;
+    const ok = ['normal', 'attack', 'throw', 'dash', ...(bite ? ['yank', 'hurt'] : [])];
+    if (!ok.includes(this.state)) return false;
     if (this.wardT > 0) {
-      this.blockHit(this.x, this.bottom);
+      this.blockHit(this.x, bite ? this.y - 10 : this.bottom);
       return false;
     }
-    if (this.state === 'dash') this.set('normal');
+    if (this.state !== 'normal') this.set('normal');
     this.holdT = Math.round(time);
     this.holdBy = by;
+    this.mashLeft = Math.max(1, Math.round(presses));
+    this.holdLock = bite;
+    this.guarding = false;
+    this.crouch = false;
+    this.setHeight(STAND_HH);
     this.vx = 0;
+    this.pushV = 0;
     this.running = false;
     this.jumpBuf = 0;
     g.audio.play('hurt');
     g.shake(1.5, 6);
     return true;
   }
-  /** Counts the grip down and applies the wiggles. */
+  /** Counts the grip down and the mashing up. Every LEFT, RIGHT or JUMP press counts as one. */
   updateHold() {
     const g = this.g, inp = g.input;
     this.holdT--;
     this.jumpBuf = 0; // a held hero can't jump (but trying shakes the grip loose)
-    let hop = false;
-    if (inp.pressed('left') || inp.pressed('right')) {
-      this.holdT -= WIGGLE_CUT;
-      g.fx.burst(this.x, this.bottom - 2, 'dust', 1, 3);
-    }
-    if (inp.pressed('jump')) {
-      this.holdT -= JUMP_CUT;
-      g.fx.burst(this.x, this.bottom - 2, 'dust', 1, 3);
-      hop = true;
+    const hop = inp.pressed('jump');
+    const presses = (inp.pressed('left') ? 1 : 0) + (inp.pressed('right') ? 1 : 0) + (hop ? 1 : 0);
+    if (presses) {
+      this.mashLeft -= presses;
+      g.fx.burst(this.x + rand(-4, 4), this.holdLock ? this.y - 12 : this.bottom - 2, this.holdLock ? 'spark' : 'dust', 1, 3);
     }
     if (this.state === 'dead') this.holdT = 0;
-    if (this.holdT <= 0) {
-      this.holdT = 0;
-      this.holdBy = null;
-      this.freeT = FREE_GRACE;
-      if (hop && this.state !== 'dead') {
-        this.vy = JUMP_V * 0.7; // kicks free with a little hop
-        this.onGround = false;
-        g.audio.play('jump');
-      }
-      g.fx.burst(this.x, this.bottom - 2, 'dust', 4, 8, { speed: 1.6 });
+    const mashed = this.mashLeft <= 0;
+    if (this.holdT > 0 && !mashed) return;
+    const by = this.holdBy;
+    this.holdT = 0;
+    this.holdBy = null;
+    this.holdLock = false;
+    this.freeT = FREE_GRACE;
+    if (mashed && hop && this.state !== 'dead') {
+      this.vy = JUMP_V * 0.7; // kicks free with a little hop
+      this.onGround = false;
+      g.audio.play('jump');
     }
+    g.fx.burst(this.x, this.bottom - 2, 'dust', 4, 8, { speed: 1.6 });
+    by?.released(mashed && this.state !== 'dead');
+  }
+  /** A Gravehand caught her mid-run: she pitches forward onto her face, takes a knock, and gets up. */
+  trip(dmg: number) {
+    const g = this.g;
+    if (this.state === 'dead' || this.wardT > 0 || !this.onGround) return false;
+    this.ring = null;
+    this.dangle = false;
+    this.guarding = false;
+    this.running = false;
+    this.crouch = false;
+    this.setHeight(STAND_HH);
+    this.set('trip');
+    this.vx = this.facing * 2.2;
+    this.vy = -1.6;
+    this.onGround = false;
+    this.freeT = TRIP_DOWN + TRIP_UP + 20; // no grabbing her while she's down
+    g.audio.play('hurt');
+    this.chew(dmg);
+    return true;
   }
   /**
    * A Hookjaw's chain caught her: she's dragged to `targetX`. Returns false if it
@@ -1189,6 +1284,10 @@ export class Player implements Body {
       case 'hurt':
       case 'yank':
         s.setFrame(A.hurt[0]);
+        break;
+      case 'trip':
+        // pitching forward, then flat on her face, then pushing herself up
+        s.setFrame(this.t > TRIP_DOWN ? A.crouch[0] : this.onGround && this.t > 4 ? A.trip[1] : A.trip[0]);
         break;
       case 'toot':
         s.setFrame(this.t < 22 ? A.toot[0] : this.t < 60 ? A.toot[1] : A.toot[2 + (Math.floor(this.t / 8) % 2)]);

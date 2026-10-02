@@ -384,6 +384,15 @@ export function buildHeroSheet(st: Style = HERO): SheetBuilder {
     finish(p, st.o);
     b.frames[b.anims.dead[0]] = p;
   }
+  // tripped by a Gravehand: 0 = pitching forward, arms flung out; 1 = flat on her face
+  add('trip', [STAND({ hy: 33, lean: 50, fl: [-10, 20], bl: [-45, 30], fa: [120, 10], ba: [100, 10], coat: -4, hair: -3, scarf: 2 }), STAND()]);
+  {
+    const p = b.canvas();
+    const q: Pose = { hx: 17, hy: 43, lean: 88, fl: [-92, 6], bl: [-84, 14], fa: [150, 20], ba: [120, 10], coat: 0 };
+    drawHumanoid(p, st, q);
+    finish(p, st.o);
+    b.frames[b.anims.trip[1]] = p;
+  }
   add('throw', [STAND({ lean: -6, fa: [-150, 40], ba: [-10, 20], fl: [20, 10], bl: [-20, 10] }), STAND({ lean: 12, fa: [105, 0], ba: [-30, 20], fl: [25, 10], bl: [-22, 12], coat: 2 })]);
   add('hang', [STAND({ hy: 34, lean: 0, fa: [176, 0], ba: [168, 8], fl: [10, 20], bl: [-8, 28], coat: 1, hair: -1 })]);
   add('swingF', [STAND({ hy: 34, lean: 14, fa: [168, 0], ba: [160, 8], fl: [40, 30], bl: [20, 40], coat: -3, hair: 3 })]);
@@ -599,14 +608,21 @@ export function buildLibrarianSheet(): SheetBuilder {
 export function buildKnightSheet(): SheetBuilder {
   const b = new SheetBuilder(72, 52, 28, 30);
   const base = (o: Partial<Pose>): Pose => ({ hx: 28, hy: 33, lean: 4, fl: [12, 8], bl: [-12, 8], fa: [60, 30], ba: [20, 60], ...o });
-  const draw = (q: Pose, spearOut: number) => {
+  /** `upright`: the spear planted point-up (turning around), with the shield swung across the chest. */
+  const draw = (q: Pose, spearOut: number, upright = false) => {
     const p = b.canvas();
     const r = drawHumanoid(p, KNIGHT, q);
-    // spear held in front hand, pointing forward
     const hx = r.hand[0], hy = r.hand[1];
-    p.line(hx - 14 + spearOut, hy, hx + 16 + spearOut, hy, hex('#6a4a2a'), 1.6);
-    p.poly([[hx + 16 + spearOut, hy - 2.5], [hx + 23 + spearOut, hy], [hx + 16 + spearOut, hy + 2.5]], hex('#d0d4e0'));
-    p.set(hx + 15 + spearOut, hy - 1, hex('#a01c2c'));
+    if (upright) {
+      p.line(hx, hy + 14, hx, hy - 18, hex('#6a4a2a'), 1.6);
+      p.poly([[hx - 2.5, hy - 18], [hx, hy - 25], [hx + 2.5, hy - 18]], hex('#d0d4e0'));
+      p.set(hx - 1, hy - 17, hex('#a01c2c'));
+    } else {
+      // spear held in front hand, pointing forward
+      p.line(hx - 14 + spearOut, hy, hx + 16 + spearOut, hy, hex('#6a4a2a'), 1.6);
+      p.poly([[hx + 16 + spearOut, hy - 2.5], [hx + 23 + spearOut, hy], [hx + 16 + spearOut, hy + 2.5]], hex('#d0d4e0'));
+      p.set(hx + 15 + spearOut, hy - 1, hex('#a01c2c'));
+    }
     // shield on back hand
     const bx = r.backHand[0] + 3, by = r.backHand[1] - 4;
     p.rect(Math.round(bx - 3), Math.round(by - 6), 7, 12, hex('#5a5e70'));
@@ -621,6 +637,8 @@ export function buildKnightSheet(): SheetBuilder {
   }));
   b.add('ready', draw(base({ lean: -6, fa: [50, 50], fl: [25, 15], bl: [-25, 10] }), -8));
   b.add('thrust', draw(base({ lean: 14, fa: [88, 0], fl: [30, 10], bl: [-30, 10] }), 6), draw(base({ lean: 16, fa: [90, 0], fl: [32, 10], bl: [-32, 10] }), 14));
+  // turning around: upright, spear planted, shuffling its feet (the shield guards nothing)
+  b.add('turn', draw(base({ lean: -2, fa: [20, 60], ba: [-30, 40], fl: [8, 6], bl: [-14, 10] }), 0, true), draw(base({ lean: -2, hy: 34, fa: [20, 60], ba: [-30, 40], fl: [-6, 14], bl: [10, 4] }), 0, true));
   return b;
 }
 

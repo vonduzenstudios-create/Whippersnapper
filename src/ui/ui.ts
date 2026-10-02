@@ -9,6 +9,7 @@ import type { Sheet } from '../gfx/view';
 import { clamp } from '../core/util';
 import { INTRO, CINE, VICTORY_LINES, HEROES, HeroId, heroText } from '../game/story';
 import { ZONE_INFO } from '../world/rooms';
+import { startTest, testEntries, TestEntry } from '../game/test_chamber';
 
 /** The equipment slots on the EQUIP page, top to bottom. */
 type EquipSlot = 'whip' | 'shield' | 'armor' | 'acc1' | 'acc2';
@@ -47,6 +48,8 @@ export class UI {
   titleControls = false;
   roomPick = false; // TEST ROOM: the room list is open
   roomSel = 0; // index into g.defs
+  enemyPick: TestEntry[] | null = null; // TEST ENEMY: the enemy list, while it's open
+  enemySel = 0;
   heroSel = 0; // character select: 0 = Vesna, 1 = Anzel
   selStep: 'hero' | 'difficulty' = 'hero'; // the select screen asks for the twin, then the difficulty
   diffSel = 0; // index into DIFFICULTIES
@@ -84,10 +87,11 @@ export class UI {
     g.view.camY = g.room.H - VH;
     g.player.sprite.visible = false;
     g.banner.t = 0;
-    this.titleOpts = Hunter.hasSave() ? ['CONTINUE', 'NEW GAME', 'TEST ROOM', 'CONTROLS'] : ['NEW GAME', 'TEST ROOM', 'CONTROLS'];
+    this.titleOpts = Hunter.hasSave() ? ['CONTINUE', 'NEW GAME', 'TEST ROOM', 'TEST ENEMY', 'CONTROLS'] : ['NEW GAME', 'TEST ROOM', 'TEST ENEMY', 'CONTROLS'];
     this.titleSel = 0;
     this.titleControls = false;
     this.roomPick = false;
+    this.enemyPick = null;
     if (g.audio.ctx) g.music.play('title');
     else g.music.stop();
   }
@@ -237,6 +241,7 @@ export class UI {
       return;
     }
     if (this.roomPick) return this.updateRoomPick();
+    if (this.enemyPick) return this.updateEnemyPick();
     if (inp.mUp) {
       this.titleSel = (this.titleSel + this.titleOpts.length - 1) % this.titleOpts.length;
       g.audio.play('menu');
@@ -256,6 +261,9 @@ export class UI {
         g.continueGame();
       } else if (o === 'TEST ROOM') {
         this.roomPick = true;
+      } else if (o === 'TEST ENEMY') {
+        this.enemyPick = testEntries();
+        this.enemySel = clamp(this.enemySel, 0, this.enemyPick.length - 1);
       } else this.titleControls = true;
       inp.flush();
     }
@@ -281,6 +289,29 @@ export class UI {
       g.audio.play('confirm');
       this.roomPick = false;
       g.testRoom(g.defs[this.roomSel]);
+      inp.flush();
+    }
+  }
+
+  /**
+   * TEST ENEMY list: the same controls as TEST ROOM. Confirm starts the enemy test chamber
+   * with that enemy, or a boss's real fight in its arena (see game/test_chamber.ts).
+   */
+  updateEnemyPick() {
+    const g = this.g, inp = g.input, list = this.enemyPick!, n = list.length;
+    const step = inp.mUp ? -1 : inp.mDown ? 1 : inp.mLeft ? -ROOM_ROWS : inp.mRight ? ROOM_ROWS : 0;
+    if (step) {
+      this.enemySel = Math.abs(step) === 1 ? (this.enemySel + step + n) % n : clamp(this.enemySel + step, 0, n - 1);
+      g.audio.play('menu');
+    }
+    if (inp.cancel) {
+      this.enemyPick = null;
+      g.audio.play('cancel');
+      inp.flush();
+    } else if (inp.confirm) {
+      g.audio.play('confirm');
+      this.enemyPick = null;
+      startTest(g, list[this.enemySel].arg);
       inp.flush();
     }
   }
@@ -700,6 +731,7 @@ export class UI {
     c.fillRect(VW / 2 - 2, 105, 5, 5);
     if (this.titleControls) return this.drawControlsCard(VW / 2 - 110, 116);
     if (this.roomPick) return this.drawRoomPick();
+    if (this.enemyPick) return this.drawEnemyPick();
     if (!g.audio.ctx) {
       if (this.t % 60 < 40) drawText(c, 'PRESS ANY KEY', VW / 2, 140, PALE, '#000', 'center');
     } else {
@@ -730,6 +762,24 @@ export class UI {
       drawText(c, (zone ? zone.name : d.zone).toUpperCase(), x + w - 8, ry, DIM, '#000', 'right');
     }
     drawText(c, 'UP/DOWN: ROOM   LEFT/RIGHT: PAGE   CONFIRM: GO   CANCEL: BACK', VW / 2, VH - 14, DIM, '#000', 'center');
+  }
+
+  /** The TEST ENEMY list: bosses first, then every enemy and variant. */
+  drawEnemyPick() {
+    const c = this.ctx, list = this.enemyPick!;
+    c.fillStyle = 'rgba(0,0,0,0.6)';
+    c.fillRect(0, 0, VW, VH);
+    const w = 300, x = VW / 2 - w / 2, y = 8, rowH = 13;
+    this.panel(x, y, w, 30 + ROOM_ROWS * rowH);
+    drawText(c, `TEST ENEMY  ${this.enemySel + 1}/${list.length}`, VW / 2, y + 7, GOLD, '#000', 'center');
+    const top = clamp(this.enemySel - Math.floor(ROOM_ROWS / 2), 0, Math.max(0, list.length - ROOM_ROWS));
+    for (let i = 0; i < ROOM_ROWS && top + i < list.length; i++) {
+      const e = list[top + i], sel = top + i === this.enemySel, ry = y + 22 + i * rowH;
+      drawText(c, (sel ? '> ' : '  ') + e.name.toUpperCase(), x + 10, ry, sel ? GOLD : PALE);
+      if (e.tag) drawText(c, e.tag, x + w - 8, ry, e.tag === 'BOSS' ? '#e07060' : DIM, '#000', 'right');
+    }
+    drawText(c, 'UP/DOWN: ENEMY   LEFT/RIGHT: PAGE   CONFIRM: GO   CANCEL: BACK', VW / 2, VH - 24, DIM, '#000', 'center');
+    drawText(c, 'F3 IN GAME OPENS THE ENEMY EDITOR', VW / 2, VH - 13, '#5a4a60', '#000', 'center');
   }
 
   drawSelect() {

@@ -330,6 +330,162 @@ export function buildHookjawSheet(): SheetBuilder {
   return b;
 }
 
+// ---------------------------------------------------------------- devourer
+
+interface DevourerPose {
+  step: number; // -1..1 stride
+  arm: 'down' | 'up' | 'hug'; // the clawed front arm; hug = wrapped round her while it bites
+  cleaver: 0 | 1 | 2; // 0 lowered, 1 raised, 2 chopped down in front
+  /** How far the body's two halves gape (radians, 0 = shut). */
+  open: number;
+  /** The whole body tipped forward (+) or back (-), radians. A bite pitches it mouth-down. */
+  pitch?: number;
+  /** Where the body's hinge (the back of the mouth) sits, if not the standing spot. */
+  hinge?: [number, number];
+  /** The barbed tongue (its "hook") curled out of its mouth, getting ready to lash. */
+  tongueOut?: boolean;
+}
+
+const DEV_R = 14; // the body's radius: the whole body is the mouth
+
+/**
+ * The Devourer: little more than a great round mouth on tentacles, with two arms (a cleaver and
+ * a claw). Its "hook" is its long barbed tongue (the HookChain, drawn as tongue). The top and bottom halves of its body are its jaws, hinged at the back.
+ * Its `bite` frames tip the whole body forward, mouth down, over the spot where the hero's
+ * head is when she's held BITE_DX (16 px) in front of it, and are drawn over her.
+ * AI in game/enemies_extra.ts.
+ */
+export function buildDevourerSheet(): SheetBuilder {
+  const b = new SheetBuilder(64, 58, 28, 34); // feet 22: the ground is row 56
+  const skin = hex('#5e5262'), skinD = hex('#362c3a'), skinL = hex('#857688');
+  const belly = hex('#8a7a78'), bellyD = hex('#5a4c4c');
+  const iron = hex('#6e6a72');
+  const gum = hex('#8a1c2c'), mouth = hex('#2a0610'), tooth = hex('#e8e0c8'), eye = hex('#ff5a30'), tongue = hex('#c04050');
+  const draw = (q: DevourerPose) => {
+    const p = b.canvas();
+    const gx = 26, G = 56, R = DEV_R;
+    const pitch = q.pitch || 0;
+    const [hx, hy] = q.hinge || [gx - 12, 30];
+    /** A point given in the body's own frame (x forward from the hinge, y down), turned by `a`. */
+    const at = (lx: number, ly: number, a: number): [number, number] => [hx + lx * Math.cos(a) - ly * Math.sin(a), hy + lx * Math.sin(a) + ly * Math.cos(a)];
+    const upA = pitch - q.open, lowA = pitch + q.open;
+    /** One half of the round body (a half disk on the hinge line), radius r about its middle. */
+    const half = (upper: boolean, r: number, a: number) => {
+      const pts: [number, number][] = [];
+      for (let k = 0; k <= 16; k++) {
+        const th = (upper ? Math.PI : 0) + (k / 16) * Math.PI;
+        pts.push(at(R + r * Math.cos(th), r * Math.sin(th), a));
+      }
+      return pts;
+    };
+    const center = at(R, 0, pitch); // middle of the body, for the legs and arms
+    // cleaver arm (behind the body)
+    const cl = q.cleaver;
+    const sh: [number, number] = [center[0] - 8, center[1] + 4];
+    const hand: [number, number] = cl === 0 ? [sh[0] - 4, sh[1] + 9] : cl === 1 ? [sh[0] - 3, sh[1] - 24] : [sh[0] + 28, sh[1] + 6];
+    p.line(sh[0], sh[1], hand[0], hand[1], skinD, 3.4);
+    if (cl === 0) p.poly([[hand[0] - 3, hand[1]], [hand[0] + 3, hand[1]], [hand[0] + 4, hand[1] + 10], [hand[0] - 5, hand[1] + 10]], iron);
+    else if (cl === 1) p.poly([[hand[0] - 1, hand[1] - 1], [hand[0] + 8, hand[1] - 4], [hand[0] + 9, hand[1] - 13], [hand[0], hand[1] - 10]], iron);
+    else p.poly([[hand[0], hand[1] - 3], [hand[0] + 12, hand[1] - 1], [hand[0] + 12, hand[1] + 6], [hand[0], hand[1] + 4]], iron);
+    // tentacle legs: a row of them along its underside, each a tapering S-curve that bows
+    // out past the body, comes back in and curls its tip against the floor. They turn with
+    // the body, so when it tips forward to bite they sprout from its back, behind her, and
+    // reach down to the floor. `step` sways them, back to front.
+    const LEGS = 8;
+    const legDark = hex('#2e2434'), legLit = hex('#56485e'), sucker = hex('#a89098');
+    for (const back of [true, false]) {
+      for (let k = back ? 1 : 0; k < LEGS; k += 2) {
+        const f = k / (LEGS - 1); // 0 = rear leg .. 1 = front leg
+        const lx = R + (f - 0.5) * R * 1.4;
+        const hip = at(lx, Math.sqrt(R * R - (lx - R) ** 2) * 0.75, pitch);
+        const sway = Math.sin(f * Math.PI * 2 + q.step * Math.PI);
+        const out = f < 0.5 ? -1 : 1;
+        const foot: [number, number] = [gx + 2 + (f - 0.5) * 40 + sway * 2.5, G - 1];
+        // control points: bow outward and up first, then sweep back down to the foot
+        const c1: [number, number] = [hip[0] + out * (6 + Math.abs(f - 0.5) * 10) + sway * 2, hip[1] - 2];
+        const c2: [number, number] = [foot[0] - out * 5 - sway * 3, foot[1] - 9];
+        const n = 14, pts: [number, number][] = [];
+        for (let i = 0; i <= n; i++) {
+          const t = i / n, u = 1 - t;
+          pts.push([
+            u * u * u * hip[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * foot[0],
+            u * u * u * hip[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * foot[1],
+          ]);
+        }
+        const c = back ? legDark : legLit, w0 = back ? 2.4 : 2.8;
+        for (let i = 1; i <= n; i++) p.line(...pts[i - 1], ...pts[i], c, Math.max(1, w0 * (1 - i / (n + 4))));
+        if (!back) for (let i = 4; i < n - 1; i += 3) p.set(pts[i][0], pts[i][1] + 1, sucker); // suckers underneath
+        // the tip curls up and outward off the floor
+        p.line(foot[0], foot[1], foot[0] + out * 2, foot[1] - 1, c);
+        p.set(foot[0] + out * 2.5, foot[1] - 2, c);
+      }
+    }
+    // the inside of the mouth, between the halves
+    if (q.open > 0.02) {
+      p.poly([at(-1, 0, pitch), at(2 * R + 1, 0, upA), at(2 * R + 1, 0, lowA)], mouth);
+      if (q.open > 0.3) p.line(...at(3, 1, pitch), ...at(2 * R - 5, 1, lowA - 0.15), tongue, 2.5);
+    }
+    if (q.tongueOut) {
+      // the tongue curled out past its teeth and up over its head, barb first
+      const pts: [number, number][] = [at(4, 1, pitch), at(2 * R + 4, 2, pitch), at(2 * R + 8, -4, pitch), at(2 * R + 4, -12, pitch), at(2 * R - 4, -R - 4, pitch)];
+      for (let k = 1; k < pts.length; k++) p.line(...pts[k - 1], ...pts[k], tongue, 3 - k * 0.3);
+      const tip = pts[pts.length - 1];
+      p.poly([[tip[0] - 3, tip[1] + 1], [tip[0] - 1, tip[1] - 4], [tip[0] + 2, tip[1] + 1]], tooth); // the barb
+    }
+    // the lower jaw: a pale, scarred belly
+    p.poly(half(false, R, lowA), bellyD);
+    p.poly(half(false, R - 1.5, lowA), belly);
+    for (let k = 0; k < 3; k++) p.line(...at(R - 6 + k * 4, 5, lowA), ...at(R - 4 + k * 4, 10, lowA), bellyD); // old scars
+    p.line(...at(1, 0.6, lowA), ...at(2 * R - 1, 0.6, lowA), gum, 1.4);
+    for (let k = 3; k < 2 * R - 1; k += 3) p.line(...at(k, -0.5, lowA), ...at(k + 0.8, -3, lowA), tooth); // teeth point up
+    // the upper jaw: the hide, with a ridge of bony knobs and the eyes
+    p.poly(half(true, R, upA), skinD);
+    p.poly(half(true, R - 1.5, upA), skin);
+    for (let k = 2; k < 15; k += 3) {
+      const th = Math.PI + (k / 16) * Math.PI;
+      p.set(...at(R + (R - 3) * Math.cos(th), (R - 3) * Math.sin(th), upA), skinL);
+    }
+    p.line(...at(1, -0.6, upA), ...at(2 * R - 1, -0.6, upA), gum, 1.4);
+    for (let k = 2; k < 2 * R - 1; k += 3) p.line(...at(k, 0.5, upA), ...at(k + 0.8, 3, upA), tooth); // teeth point down
+    for (const [ex, ey] of [[2 * R - 7, -6], [2 * R - 11, -8.5], [2 * R - 4, -3]]) {
+      const [x, y] = at(ex, ey, upA);
+      p.set(x, y, eye);
+      p.set(x + 1, y, eye);
+    }
+    // clawed front arm
+    const fs: [number, number] = [center[0] + 4, center[1] + 7];
+    const claw = (x: number, y: number, dx: number, dy: number) => {
+      for (const k of [-1, 0, 1]) p.line(x, y, x + dx + k * dy * 0.6, y + dy - k * dx * 0.6, tooth); // three hooked claws
+    };
+    if (q.arm === 'down') {
+      p.line(fs[0], fs[1], fs[0] + 4, fs[1] + 9, skin, 3.4);
+      claw(fs[0] + 4, fs[1] + 9, 1.5, 3);
+    } else if (q.arm === 'up') {
+      const top: [number, number] = [fs[0] - 2, fs[1] - R - 10];
+      p.line(fs[0], fs[1] - 6, top[0], top[1], skin, 3.4);
+      claw(top[0], top[1], 1, -3);
+    } else {
+      p.line(fs[0] - 4, fs[1] + 2, fs[0] + 8, fs[1] + 10, skin, 3.4); // hug: wrapped round her middle
+      claw(fs[0] + 8, fs[1] + 10, 2.5, -1.5);
+    }
+    return fin(p);
+  };
+  b.add('walk', ...[0, 1, 0, -1].map((s) => draw({ step: s, arm: 'down', cleaver: 0, open: 0.03 })));
+  // rears back with its tongue curled out, then lashes it (the tongue itself is the HookChain)
+  b.add('wind', draw({ step: 0, arm: 'up', cleaver: 0, open: 0.35, pitch: -0.2, hinge: [13, 31], tongueOut: true }));
+  b.add('throw', draw({ step: 0.5, arm: 'down', cleaver: 0, open: 0.45, pitch: 0.1 }));
+  b.add('chop', draw({ step: 0, arm: 'down', cleaver: 1, open: 0.03 }), draw({ step: 1, arm: 'down', cleaver: 2, open: 0.03 }));
+  // waiting for her: the whole body gapes open
+  b.add('jaws', draw({ step: 0.5, arm: 'up', cleaver: 0, open: 0.75, pitch: 0.15 }));
+  // tipped forward and mouth down over her head: 0 chewing (a crack open), 1 clamped shut
+  const biteHinge: [number, number] = [31, 7];
+  b.add('bite',
+    draw({ step: 0.5, arm: 'hug', cleaver: 0, open: 0.18, pitch: 1.05, hinge: biteHinge }),
+    draw({ step: 0.5, arm: 'hug', cleaver: 0, open: 0.04, pitch: 1.05, hinge: biteHinge }));
+  b.add('reel', draw({ step: -1, arm: 'up', cleaver: 0, open: 0.5, pitch: -0.35, hinge: [12, 30] }));
+  return b;
+}
+
 // ---------------------------------------------------------------- mire eel
 
 export function buildEelSheet(): SheetBuilder {
@@ -509,7 +665,7 @@ export function buildGrubSheet(): SheetBuilder {
 /** A dead hand clawing out of the ground. AI in game/enemies_extra.ts. */
 export function buildHandSheet(): SheetBuilder {
   const b = new SheetBuilder(32, 40, 16, 36);
-  const skin = hex('#a8b898'), skinD = hex('#586a52'), nail = hex('#d8d0a8');
+  const skin = hex('#a8b898'), skinD = hex('#586a52'), skinL = hex('#c8d8b8'), nail = hex('#d8d0a8');
   const dirt = hex('#5a4030'), dirtL = hex('#7a5a40');
   const earth = (p: PixelCanvas) => {
     p.ellipse(16, 36, 11, 3, dirt);
@@ -552,7 +708,51 @@ export function buildHandSheet(): SheetBuilder {
     earth(p);
     return fin(p, hex('#1a1008'));
   };
+  /** The warning: the dirt heaving under her feet, clods jumping, a fingertip breaking through. */
+  const rumble = (i: number) => {
+    const p = b.canvas();
+    p.ellipse(16, 36, 10 + i, 2.5 + i * 0.5, dirt);
+    p.ellipse(16, 35.5 - i * 0.5, 7, 1.5, dirtL);
+    for (let k = 0; k < 4; k++) p.set(8 + k * 5 + i * 2, 32 - ((k + i) % 2) * 2, k % 2 ? dirtL : dirt); // flying clods
+    if (i) {
+      p.line(15, 36, 15, 33, skinD);
+      p.set(15, 33, nail);
+    }
+    return fin(p, hex('#1a1008'));
+  };
+  /**
+   * Closed round her ankles, drawn IN FRONT of her: a wrist rising straight up out of the
+   * dirt, a palm cupped under her ankles, and four fingers reaching UP round her shins with
+   * their tips curling in over them (the outline between the fingers lets her legs show).
+   * The thumb hooks across the front. `sq` squeezes it a pixel tighter.
+   */
+  const fist = (sq: number) => {
+    const p = b.canvas();
+    p.ellipse(16, 36, 10, 2, dirt);
+    // the wrist, straight up out of the ground (narrower than the hand), its bone knob showing
+    for (let y = 36; y >= 30; y--) p.line(15, y, 17, y, y > 33 ? skinD : skin);
+    p.set(17, 32, skinL);
+    // the palm, cupped under her ankles
+    p.ellipse(16, 29, 4, 1.5, skinD);
+    p.line(13, 28.5, 19, 28.5, skin);
+    // four long fingers reaching straight up her shins, only the tips hooking in over them
+    for (let k = 0; k < 4; k++) {
+      const bx = 10.5 + k * 3.6, inward = k < 2 ? 1 : -1;
+      const top = 21 + sq + (k === 0 || k === 3 ? 1.5 : 0);
+      p.line(bx, 28, bx + inward * 0.4, top + 2, skin);
+      p.line(bx + inward * 0.4, top + 2, bx + inward * (1.6 + sq), top, skin); // the hooked tip
+      p.set(bx, 25.5, skinL); // knuckle
+      p.set(bx + inward * (1.6 + sq), top + 1, nail);
+    }
+    // the thumb hooks across the front of her ankles
+    p.line(11, 29.5, 16 - sq, 27.5, skin);
+    p.set(16.5 - sq, 28, nail);
+    p.ellipse(16, 36.5, 7, 1, dirtL);
+    return fin(p, hex('#1a1008'));
+  };
   b.add('tips', tips(0), tips(1));
+  b.add('rumble', rumble(0), rumble(1));
+  b.add('fist', fist(0), fist(1));
   b.add('reach', hand(18, 0, 0), hand(18, 0.15, 1));
   b.add('grip', hand(15, 1, 0), hand(15, 1, 1.5));
   b.add('low', hand(7, 0.5, 0));

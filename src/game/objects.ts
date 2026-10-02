@@ -532,3 +532,51 @@ export class Lever extends Ent {
 }
 
 export type { HitKind };
+
+// ---------------------------------------------------------------- dropped shield
+/**
+ * The hero's shield knocked out of her hand (a touch or magic hit while it's on cooldown):
+ * it flies off behind her, bounces on the floor, blinks and fades. Only for show: it tells
+ * the player why the shield won't come up for a moment.
+ */
+export class ShieldDrop extends Ent {
+  t = 0;
+  vx: number;
+  vy = -2.6;
+  bounces = 0;
+  onGround = false;
+  constructor(g: Game, x: number, y: number, dir: number, frame: number, private flip: boolean) {
+    super();
+    this.x = x;
+    this.y = y;
+    this.hw = 4;
+    this.hh = 4;
+    this.vx = dir * 1.3;
+    this.sprite = new Sprite(g.sheets.relicfx, g.view.sprites, 13);
+    this.sprite.setFrame(frame);
+  }
+  update(g: Game) {
+    this.t++;
+    this.vy = Math.min(this.vy + 0.22, 5);
+    const falling = this.vy;
+    const r = moveBody(g.room, this, true);
+    if (r.landed) {
+      // a couple of shrinking bounces, then it lies flat
+      if (this.bounces < 2 && falling > 1) {
+        this.vy = -falling * 0.45;
+        this.vx *= 0.6;
+        this.bounces++;
+        g.audio.play('clink');
+      }
+    }
+    if (this.onGround) this.vx *= 0.85; // scrapes to a stop
+    if (r.hitX) this.vx = -this.vx * 0.5;
+    const s = this.sprite!;
+    // tumbling while airborne, settled flat once it's down
+    s.mesh.rotation.z = this.bounces < 2 ? -this.t * 0.25 * Math.sign(this.vx || 1) : Math.PI / 2;
+    s.place(this.x, this.y, this.flip);
+    // blinks out over its last half second (the shield cooldown is 1.5 s)
+    if (this.t > 50) s.visible = Math.floor(this.t / 4) % 2 === 0;
+    if (this.t > 80) this.dead = true;
+  }
+}

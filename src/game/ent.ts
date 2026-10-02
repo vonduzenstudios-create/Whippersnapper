@@ -47,6 +47,8 @@ export abstract class Ent {
     return 'touch';
   }
   onHit?(g: Game, dmg: number, fromX: number, crit: boolean, kind: HitKind): void;
+  /** Its melee blow or lunge just hit the hero's raised shield (see Player.justBlocked). */
+  onBlocked?(g: Game): void;
   destroy() {
     if (this.sprite) this.sprite.dispose();
     this.sprite = null;

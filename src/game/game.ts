@@ -4,7 +4,7 @@ import { Input } from '../core/input';
 import { AudioEngine } from '../audio/audio';
 import { Music } from '../audio/music';
 import { HERO, HERO_M, buildHeroSheet, buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildWyrmSheet, buildLibrarianSheet } from '../gfx/art_chars';
-import { buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet, buildHookjawSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet } from '../gfx/art_beasts';
+import { buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet, buildHookjawSheet, buildDevourerSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet } from '../gfx/art_beasts';
 import { buildHoundSheet, buildCinderHoundSheet, buildBellMotherSheet } from '../gfx/art_bosses';
 import { buildItemSheet, buildCandleSheet, buildFxSheet, buildFireSheet, buildRelicFxSheet } from '../gfx/art_items';
 import { paintTiles } from '../gfx/tiles';
@@ -45,6 +45,7 @@ export interface Sheets {
   wraith: Sheet;
   crawler: Sheet;
   hookjaw: Sheet;
+  devourer: Sheet;
   eel: Sheet;
   caster: Sheet;
   ooze: Sheet;
@@ -153,6 +154,7 @@ export class Game {
       wraith: buildSheet(buildWraithSheet()),
       crawler: buildSheet(buildCrawlerSheet()),
       hookjaw: buildSheet(buildHookjawSheet()),
+      devourer: buildSheet(buildDevourerSheet()),
       eel: buildSheet(buildEelSheet()),
       caster: buildSheet(buildCasterSheet()),
       ooze: buildSheet(buildOozeSheet()),
@@ -865,9 +867,14 @@ export class Game {
           // a shot "comes from" back along its flight, so the shield judges its real angle
           const type = e.hitType();
           const shot = type === 'shot' && any.vx !== undefined;
-          const fx = shot ? e.x - any.vx * 8 : e.x, fy = shot ? e.y - any.vy * 8 : e.y;
+          const fx = shot ? e.x - any.vx * 8 : e.x;
+          let fy = shot ? e.y - any.vy * 8 : e.y;
+          // a lunge that runs into the raised shield itself (a pounce arcing in high) is judged
+          // where it meets the shield, not by where its center happens to be
+          if (type === 'melee' && p.guarding && overlap(e, p.shieldBox())) fy = p.shieldBox().y;
           const hp = this.hunter.hp;
           p.takeDamage(e.touchDmg, fx, false, true, type, fy);
+          if (p.justBlocked) e.onBlocked?.(this); // a lunge into the shield stops dead
           if (e instanceof EnemyShot) e.strike(this, this.hunter.hp < hp);
           break;
         }

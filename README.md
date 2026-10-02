@@ -87,6 +87,7 @@ Debugging:
 - The running game is exposed as `window.game` in the browser console. For example, `game.hunter.grapple = true` gives you the grapple.
 - Add `#tour` to the URL to cycle the camera through every map cell.
 - Add `#boss` to the URL to jump straight into the boss fight with debug HP.
+- **TEST ENEMY** on the title menu lists every enemy, variant and boss: pick one to fight it in the Test Chamber (bosses in their own arena). F3 in the game opens the enemy editor in a new tab.
 - The enemy editor's **Test this enemy** button opens the Test Chamber with that enemy (unsaved changes included), or a boss's real fight. By hand: `#test=<enemy id>`, `#test=boss:<id>`, or `#test` / `#lab` for the empty chamber. Inside: R spawns another, [ and ] switch enemies, 6 clears, 7/8/9 toggle the experimental relics, 0 refills HP and hearts.
 
 ## Changelog
@@ -98,6 +99,30 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 - **MAJOR** stays at 0 while this is a tech demo.
 
 The same number is in `package.json`. Newest version first.
+
+### 0.12.2 (2026-10-02)
+
+- Devourer redrawn: no longer a Hookjaw with a head, but a great round mouth on eight tentacles, with a cleaver arm and a clawed arm. The top and bottom halves of its body are its jaws. Its "hook" is now its barbed tongue, which it curls out and lashes at you. When it bites, its whole body tips forward, mouth down, and swallows your head and shoulders.
+- Gravehand: its grip now shows a wrist rising out of the dirt and four fingers reaching up round your shins, tips hooked in, instead of a sideways fist.
+
+### 0.12.1 (2026-10-02)
+
+- Devourer: a long, arched neck joins its head to its body. When it bites, the neck cranes up and over you (you're held 24 px in front of it now, was 17).
+- Gravehand: a faint trail of stirred dirt shows where it's moving underground. The rumble before it strikes is 20 frames (1/3 s, was 15).
+- Shields block more: Wooden Buckler 50% (was 20%), Iron Heater 65% (was 35%), Ossuary Pavise 78% (was 50%), Ashen Aegis 90% (was 70%).
+
+### 0.12.0 (2026-10-02)
+
+**Enemy testing from the game, tougher grabs, the Devourer, and a shield that pushes back.**
+
+- Title menu: **TEST ENEMY** opens a list of every enemy, variant and boss. Confirm drops you into the Test Chamber with it, or into a boss's arena. F3 in the game opens the enemy editor in a new tab.
+- Spear Knight: turning around now takes 50 frames (about 0.8 s). It plants its spear and shuffles round, and its shield guards neither side meanwhile. Jump over it and you get two whip strikes at its back, or three if the first starts the moment you land. A blocked thrust doesn't stop it: it presses on with up to two more jabs, shoving you back.
+- Gravehand: swims unseen under the floor and follows you anywhere along it (a little faster than a run). When it's under your feet the dirt rumbles for a quarter second, then it strikes. Standing or walking, a fist closes round your ankles, drawn in front of you. Running, it trips you flat on your face (10 damage) and you take a moment to get up. Jump at the rumble to make it miss.
+- Grabs are now broken by mashing: every Left, Right or Jump press counts. A Gravehand takes 10 presses (set in the enemy editor) and lets go by itself after 2.5 s. Mashing free puts it to sleep for 10 s. New Gravehand settings in the enemy editor: presses to escape, a leash range (0 = anywhere on its floor) and whether it trips runners.
+- Hookjaw: after its hook drags you in, the cleaver falls 8 frames after you land (it used to wait 24 or more).
+- New enemy, the **Devourer** (`v`): a bigger Hookjaw with a jaw that splits to the chest. Its hook drags you into its mouth and it clamps onto your head: you're held and bitten every 0.4 s, and can't attack, until you mash free (10 presses, set in the editor). Tearing free knocks it reeling. Not placed in any room yet.
+- Shield: a blocked melee blow or lunge now shoves you back (2.6 px/frame, easing off) and stops the attacker. A Wild Dog bounces off, tumbles and has to scramble back up. Tomes, chairs, eels and the Drowned rebound. A lunge that runs into the shield itself counts as blocked, even when it arcs in high.
+- Shield: when a touch or magic hit knocks the shield down, it flies out of your hand, bounces on the floor, blinks and disappears, so you can see why it won't come up for a moment.
 
 ### 0.11.0 (2026-10-02)
 

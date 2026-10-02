@@ -113,6 +113,7 @@ const MARKERS: Record<string, { sheet: keyof Sheets; anim: string; dy: number }>
   r: { sheet: 'wraith', anim: 'float', dy: 16 },
   c: { sheet: 'crawler', anim: 'crawl', dy: 9 },
   h: { sheet: 'hookjaw', anim: 'walk', dy: 18 },
+  v: { sheet: 'devourer', anim: 'walk', dy: 22 },
   e: { sheet: 'eel', anim: 'swim', dy: 4 },
   m: { sheet: 'caster', anim: 'idle', dy: 18 },
   o: { sheet: 'ooze', anim: 'big', dy: 0 },

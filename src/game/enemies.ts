@@ -128,6 +128,16 @@ export abstract class Enemy extends Ent {
     // all character art is drawn facing right, so mirror when facing left
     this.sprite!.place(this.x, this.bottom - this.feet, this.facing < 0);
   }
+  /**
+   * Its lunge ran into the hero's raised shield: by default it rebounds and loses a moment
+   * (stun ends most lunge states). Enemies with a better reaction override this.
+   */
+  onBlocked(g: Game) {
+    this.stun = Math.max(this.stun, 16);
+    this.vx = -this.facing * 1.6;
+    this.vy = Math.min(this.vy, -1.2);
+    g.fx.burst(this.x + this.facing * this.hw, this.y, 'spark', 1, 2);
+  }
   /** Turn around at walls and ledges. */
   patrolTurn(g: Game, speed: number) {
     const ahead = this.x + this.facing * (this.hw + 2);
@@ -226,9 +236,20 @@ export class Bat extends Enemy {
 }
 
 // ---------------------------------------------------------------- spear knight
+/**
+ * Frames a Spear Knight takes to turn around. Its shield guards neither side meanwhile, so
+ * jumping over it buys about this long at its back: two whip strikes easily, a third only
+ * if the first starts the moment you land (a swing is 21 frames and strikes on its 6th).
+ */
+const KNIGHT_TURN = 50;
+const KNIGHT_JABS = 2; // extra thrusts it chains when the first is blocked: it keeps shoving
+
 export class Knight extends Enemy {
-  state: 'walk' | 'ready' | 'thrust' | 'cool' = 'walk';
+  state: 'walk' | 'ready' | 'thrust' | 'cool' | 'turn' = 'walk';
   st = 0;
+  behindT = 0; // frames the hero has been at its back
+  jabs = 0; // thrusts blocked in a row
+  hitShield = false; // this thrust struck the shield
   constructor(g: Game, kind: string, x: number, bottom: number) {
     super(g, kind, x, bottom, 8, 19);
     this.heavy = true;
@@ -237,37 +258,66 @@ export class Knight extends Enemy {
   get shielded() {
     return this.can('shield');
   }
+  set(st: Knight['state']) {
+    this.state = st;
+    this.st = 0;
+  }
   onHit(g: Game, dmg: number, fromX: number, crit: boolean, kind: HitKind) {
-    // shield blocks hits from the front at half damage
-    const front = this.can('shield') && sign(fromX - this.x) === this.facing && this.state !== 'thrust';
+    // shield blocks hits from the front at half damage (not mid-thrust, and not while turning)
+    const front = this.can('shield') && sign(fromX - this.x) === this.facing && this.state !== 'thrust' && this.state !== 'turn';
     super.onHit(g, front ? Math.max(1, Math.floor(dmg * 0.5)) : dmg, fromX, crit, kind);
     if (front) {
       g.audio.play('clink');
       g.fx.burst(this.x + this.facing * 8, this.y - 4, 'spark', 1);
     }
-    this.vx = sign(this.x - fromX) * 0.8;
+    if (this.state !== 'turn') this.vx = sign(this.x - fromX) * 0.8;
+  }
+  /** Start the slow about-face. */
+  turn(g: Game) {
+    this.set('turn');
+    this.vx = 0;
+    g.audio.play('clink');
   }
   update(g: Game) {
     this.baseUpdate(g);
     const p = g.player;
     this.st++;
     const A = this.anims;
+    const near = p.alive && Math.abs(p.x - this.x) < 120 * this.num('sight') && Math.abs(p.y - this.y) < 40;
+    // it notices the hero at its back once she lands there (or lingers in the air too long)
+    const behind = near && sign(p.x - this.x) !== this.facing;
+    this.behindT = behind ? this.behindT + 1 : 0;
+    const noticed = behind && (p.onGround || this.behindT > 20);
     switch (this.state) {
-      case 'walk':
-        this.patrolTurn(g, 0.5 * this.num('speed'));
-        this.sprite!.anim('walk', this.t / 60, 5);
-        if (this.can('thrust') && Math.abs(p.x - this.x) < 96 * this.num('sight') && Math.abs(p.y - this.y) < 28 && p.alive) {
-          this.faceToward(p.x);
-          this.state = 'ready';
-          this.st = 0;
+      case 'walk': {
+        const ahead = this.x + this.facing * (this.hw + 2);
+        const edge = g.room.solidPx(ahead, this.y) || (this.onGround && !groundAt(g.room, ahead, this.bottom));
+        if (edge || noticed) {
+          this.turn(g);
+          break;
         }
+        this.vx = this.facing * 0.5 * this.num('speed');
+        this.sprite!.anim('walk', this.t / 60, 5);
+        if (this.can('thrust') && Math.abs(p.x - this.x) < 96 * this.num('sight') && Math.abs(p.y - this.y) < 28 && p.alive && !behind) {
+          this.jabs = 0;
+          this.set('ready');
+        }
+        break;
+      }
+      case 'turn':
+        // plants the spear upright and shuffles round; it faces the new way halfway through
+        this.vx = 0;
+        this.sprite!.setFrame(A.turn[Math.floor(this.st / 8) % 2]);
+        if (this.st === KNIGHT_TURN >> 1) this.facing = -this.facing as 1 | -1;
+        if (this.st >= KNIGHT_TURN) this.set('walk');
         break;
       case 'ready':
         this.vx = 0;
         this.sprite!.setFrame(A.ready[0]);
-        if (this.st > 28) {
-          this.state = 'thrust';
-          this.st = 0;
+        // a chained jab winds up much faster than the first
+        if (this.st > (this.jabs ? 12 : 28)) {
+          this.set('thrust');
+          this.hitShield = false;
           g.audio.play('dash');
         }
         break;
@@ -275,20 +325,23 @@ export class Knight extends Enemy {
         this.vx = this.st < 6 ? this.facing * 2.6 : 0;
         this.sprite!.setFrame(A.thrust[this.st < 4 ? 0 : 1]);
         const spear = { x: this.x + this.facing * 36, y: this.y - 2, hw: 15, hh: 4 };
-        if (p.alive && overlap(spear, p)) p.takeDamage(this.atk + 2, this.x, false, true, 'melee', this.y - 2);
+        if (p.alive && overlap(spear, p)) {
+          p.takeDamage(this.atk + 2, this.x, false, true, 'melee', this.y - 2);
+          if (p.justBlocked) this.hitShield = true;
+        }
         if (this.st > 22) {
-          this.state = 'cool';
-          this.st = 0;
+          // blocked: it presses on with another jab, shoving her back behind her shield
+          if (this.hitShield && this.jabs < KNIGHT_JABS && p.alive && !behind) {
+            this.jabs++;
+            this.set('ready');
+          } else this.set('cool');
         }
         break;
       }
       case 'cool':
         this.vx = 0;
         this.sprite!.setFrame(A.ready[0]);
-        if (this.st > 40 * this.num('cooldown')) {
-          this.state = 'walk';
-          this.st = 0;
-        }
+        if (this.st > 40 * this.num('cooldown')) this.set('walk');
         break;
     }
     this.physics(g);

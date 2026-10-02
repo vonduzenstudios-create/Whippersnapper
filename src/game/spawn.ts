@@ -5,7 +5,7 @@ import type { Ent } from './ent';
 import { ENEMY, ENEMY_LETTER } from './data';
 import { Zombie, Bat, Knight, Skeleton, Wisp, Drowned } from './enemies';
 import { Dog, Harpy, Wraith, Crawler } from './enemies_expansion';
-import { Hookjaw, Eel, Caster, Ooze, Grub, Gravehand } from './enemies_extra';
+import { Hookjaw, Devourer, Eel, Caster, Ooze, Grub, Gravehand } from './enemies_extra';
 import { Tome, Chair, Librarian } from './enemies_library';
 import { Spider } from './enemies_spider';
 
@@ -40,6 +40,8 @@ export function spawnEnemy(g: Game, t: string, x: number, bottom: number, varian
       return new Crawler(g, kind, x, bottom);
     case 'hookjaw':
       return new Hookjaw(g, kind, x, bottom);
+    case 'devourer':
+      return new Devourer(g, kind, x, bottom);
     case 'eel':
       return new Eel(g, kind, x, bottom);
     case 'caster':

@@ -13,7 +13,7 @@ import { buildHoundSheet, buildBellMotherSheet } from './gfx/art_bosses';
 import { TEST_EDITS_KEY } from './config';
 import {
   buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet,
-  buildHookjawSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet,
+  buildHookjawSheet, buildDevourerSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet,
 } from './gfx/art_beasts';
 
 const BASE_SHEETS: Record<string, Sheet> = {
@@ -28,6 +28,7 @@ const BASE_SHEETS: Record<string, Sheet> = {
   wraith: buildSheet(buildWraithSheet()),
   crawler: buildSheet(buildCrawlerSheet()),
   hookjaw: buildSheet(buildHookjawSheet()),
+  devourer: buildSheet(buildDevourerSheet()),
   eel: buildSheet(buildEelSheet()),
   caster: buildSheet(buildCasterSheet()),
   ooze: buildSheet(buildOozeSheet()),
@@ -231,7 +232,7 @@ function drawForm() {
       const c = el('input', { type: 'checkbox', checked: tune[f.key] !== false });
       c.onchange = () => set(c.checked);
       beh.append(row(f.label, el('label', {}, c), f.help));
-    } else beh.append(row(f.label, numberInput(Number(tune[f.key]), (v) => set(v), 0.1, 0.1), f.help));
+    } else beh.append(row(f.label, numberInput(Number(tune[f.key]), (v) => set(v), f.step ?? 0.1, f.min ?? 0.1), f.help));
   }
   left.append(beh);
 

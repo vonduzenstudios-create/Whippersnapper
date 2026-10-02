@@ -36,10 +36,10 @@ export const ITEMS: Record<string, ItemDef> = {
   whip_rime: { id: 'whip_rime', name: 'Rime Chain', slot: 'whip', icon: 'whip', desc: 'Cooled in water that never moves. ATK+32', atk: 32, len: 80, frost: true },
   // shields (off hand): hold SHIELD to raise one. Only the buckler is given out so far;
   // the others exist but aren't placed in the world yet.
-  shield_buckler: { id: 'shield_buckler', name: 'Wooden Buckler', slot: 'shield', icon: 'shieldWood', look: 'wood', desc: 'Oak rimmed in iron. Blocks 20% of melee.', block: 0.2 },
-  shield_heater: { id: 'shield_heater', name: 'Iron Heater', slot: 'shield', icon: 'shieldIron', look: 'iron', desc: 'A soldier\'s shield. Blocks 35% of melee. DEF+2', block: 0.35, def: 2 },
-  shield_ossuary: { id: 'shield_ossuary', name: 'Ossuary Pavise', slot: 'shield', icon: 'shieldBone', look: 'bone', desc: 'Skulls set in black iron. Blocks 50% of melee. CON+3', block: 0.5, con: 3 },
-  shield_ashen: { id: 'shield_ashen', name: 'Ashen Aegis', slot: 'shield', icon: 'shieldAsh', look: 'ash', desc: 'Still warm from the pyre. Blocks 70% of melee. DEF+5', block: 0.7, def: 5 },
+  shield_buckler: { id: 'shield_buckler', name: 'Wooden Buckler', slot: 'shield', icon: 'shieldWood', look: 'wood', desc: 'Oak rimmed in iron. Blocks 50% of melee.', block: 0.5 },
+  shield_heater: { id: 'shield_heater', name: 'Iron Heater', slot: 'shield', icon: 'shieldIron', look: 'iron', desc: 'A soldier\'s shield. Blocks 65% of melee. DEF+2', block: 0.65, def: 2 },
+  shield_ossuary: { id: 'shield_ossuary', name: 'Ossuary Pavise', slot: 'shield', icon: 'shieldBone', look: 'bone', desc: 'Skulls set in black iron. Blocks 78% of melee. CON+3', block: 0.78, con: 3 },
+  shield_ashen: { id: 'shield_ashen', name: 'Ashen Aegis', slot: 'shield', icon: 'shieldAsh', look: 'ash', desc: 'Still warm from the pyre. Blocks 90% of melee. DEF+5', block: 0.9, def: 5 },
   armor_coat: { id: 'armor_coat', name: 'Hunter Coat', slot: 'armor', icon: 'armor', desc: 'Oiled leather coat. DEF+2', def: 2 },
   armor_mail: { id: 'armor_mail', name: "Hunter's Mail", slot: 'armor', icon: 'armor', desc: 'Chain mail under leather. DEF+6', def: 6 },
   armor_bone: { id: 'armor_bone', name: 'Bone Plate', slot: 'armor', icon: 'armor', desc: 'Grim but sturdy. DEF+10 LCK-2', def: 10, lck: -2 },
@@ -116,6 +116,10 @@ export interface TuneField {
   label: string;
   kind: 'num' | 'bool';
   help: string;
+  /** Number knobs: the normal value (default 1, a multiplier), and the editor's step and minimum. */
+  def?: number;
+  step?: number;
+  min?: number;
 }
 const SPEED: TuneField = { key: 'speed', label: 'Move speed', kind: 'num', help: '1 = normal, 0.5 = half speed' };
 const SIGHT: TuneField = { key: 'sight', label: 'Sight range', kind: 'num', help: 'How far away it notices you (1 = normal)' };
@@ -158,7 +162,13 @@ export const ENEMY_TUNING: Record<string, TuneField[]> = {
   grub: [SPEED, SIGHT, COOL,
     { key: 'burrow', label: 'Burrows again', kind: 'bool', help: 'Digs back under after an attack. Off: stays on the surface' }],
   hand: [SIGHT, COOL,
-    { key: 'grip', label: 'Grip time', kind: 'num', help: 'How long it holds you if you do not wiggle free (1 = normal, about 1.7 s)' }],
+    { key: 'mash', label: 'Presses to escape', kind: 'num', def: 10, step: 1, min: 1, help: 'Left, right or jump presses it takes to break its grip (it lets go by itself after 2.5 s)' },
+    { key: 'leash', label: 'Leash (tiles)', kind: 'num', def: 0, step: 1, min: 0, help: 'How far it may follow you underground from where it was placed. 0 = anywhere along its floor' },
+    { key: 'trip', label: 'Trips runners', kind: 'bool', help: 'Running over it trips you onto your face instead of holding you' }],
+  devourer: [SPEED, SIGHT, COOL,
+    { key: 'hook', label: 'Chain hook', kind: 'bool', help: 'Lashes out its barbed tongue to drag you into its jaws' },
+    { key: 'chop', label: 'Cleaver chop', kind: 'bool', help: 'Chops at you when you are close' },
+    { key: 'mash', label: 'Presses to escape', kind: 'num', def: 10, step: 1, min: 1, help: 'Left, right or jump presses it takes to tear free of its bite. It keeps biting until you do' }],
   // the Ashen Library (0.6.0), see enemies_library.ts
   tome: [SPEED, SIGHT, COOL,
     { key: 'dive', label: 'Dives', kind: 'bool', help: 'Rears back, then dives at you with its covers shut' }],
@@ -177,13 +187,13 @@ export const BASE_ENEMIES = Object.keys(ENEMY_TUNING);
 /** The room-entity letter for each base enemy. */
 export const ENEMY_LETTER: Record<string, string> = {
   zombie: 'z', bat: 'b', knight: 'k', skeleton: 's', wisp: 'w', drowned: 'd', dog: 'g', harpy: 'y', wraith: 'r', crawler: 'c',
-  hookjaw: 'h', eel: 'e', caster: 'm', ooze: 'o', grub: 'u', hand: 'x', tome: 't', chair: 'a', librarian: 'l', spider: 'p',
+  hookjaw: 'h', eel: 'e', caster: 'm', ooze: 'o', grub: 'u', hand: 'x', tome: 't', chair: 'a', librarian: 'l', spider: 'p', devourer: 'v',
 };
 
 /** Every knob of a base enemy at its normal value. */
 export function defaultTune(base: string): Tune {
   const t: Tune = {};
-  for (const f of ENEMY_TUNING[base] || []) t[f.key] = f.kind === 'num' ? 1 : true;
+  for (const f of ENEMY_TUNING[base] || []) t[f.key] = f.kind === 'num' ? f.def ?? 1 : true;
   return t;
 }
 
@@ -244,6 +254,11 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
     desc: 'A gaoler in a rusted iron muzzle. It flings a chain hook to drag prey to its cleaver. Whip the hook out of the air.',
     drops: [{ item: 'heartB', chance: 12 }, { item: 'meat', chance: 8 }, { item: 'potion', chance: 5 }],
   },
+  devourer: {
+    hp: 110, atk: 20, def: 4, xp: 40, name: 'Devourer', portrait: 'walk',
+    desc: 'Little more than a mouth on legs. Its barbed tongue lashes out and drags you in, and its whole body opens to swallow your head. It does not let go. Mash to tear free, or be eaten a bite at a time.',
+    drops: [{ item: 'heartB', chance: 18 }, { item: 'meat', chance: 10 }, { item: 'potion', chance: 8 }, { item: 'elixir', chance: 2 }],
+  },
   eel: {
     hp: 30, atk: 14, def: 1, xp: 14, name: 'Mire Eel', portrait: 'swim',
     desc: 'Pale and blind, it hunts by the ripples of anything that swims. Faster than you in the water. Stay out of it, or fight on the shore.',
@@ -266,7 +281,7 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
   },
   hand: {
     hp: 20, atk: 0, def: 0, xp: 8, name: 'Gravehand', portrait: 'reach',
-    desc: 'A dead hand that waits under the floor. It never hurts you, it only holds on. Wiggle left and right or jump to break free, before something else finds you. Whip it while it is up.',
+    desc: 'A dead hand that swims unseen under the floor, following your steps. When the dirt rumbles at your feet, move! It closes around your ankles and holds on: mash left, right or jump to break free. Run over it and it trips you flat.',
     drops: [{ item: 'heartS', chance: 25 }, { item: 'heartB', chance: 5 }],
   },
   tome: {

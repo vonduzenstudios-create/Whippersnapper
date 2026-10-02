@@ -18,7 +18,7 @@ npm run typecheck  # tsc --noEmit (build does NOT type check)
 npm run build      # production build to dist/
 ```
 
-Use `npm.cmd` on Windows PowerShell if `npm` is blocked. Debug: `window.game`, `#tour` (cycles all map cells), `#boss` / `#boss=hound` / `#boss=bellmother` (jump to a boss with 99,999 HP), `#hub` (the Undervault, Wyrm dead), `#relics` (same, with both relics), `#test=<enemy id>` / `#test=boss:<id>` / `#test` (enemy test chamber, also the enemy editor's TEST button, see `game/test_chamber.ts`; `#lab` is an alias), `game.input.script` (fake held inputs), `/editor.html` (map editor), F2 in game (edit the current room), `/enemies.html` (enemy editor).
+Use `npm.cmd` on Windows PowerShell if `npm` is blocked. Debug: `window.game`, `#tour` (cycles all map cells), `#boss` / `#boss=hound` / `#boss=bellmother` (jump to a boss with 99,999 HP), `#hub` (the Undervault, Wyrm dead), `#relics` (same, with both relics), `#test=<enemy id>` / `#test=boss:<id>` / `#test` (enemy test chamber, also the enemy editor's TEST button, see `game/test_chamber.ts`; `#lab` is an alias), `game.input.script` (fake held inputs), `/editor.html` (map editor), F2 in game (edit the current room), `/enemies.html` (enemy editor; F3 in the game opens it), TEST ENEMY on the title menu (any enemy or boss).
 
 ## Gotchas that have bitten before
 

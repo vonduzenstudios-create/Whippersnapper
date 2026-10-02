@@ -70,6 +70,16 @@ Update this file when you verify something or finish a listed item.
   - The new-game flow goes title → twin → difficulty → intro → play, and `Hunter.difficulty` is stored. Average damage from a 13-ATK hit at DEF 6 is Normal 9.7, Hard 16.1 and Brutal 22.8. While running at Normal it's 13.0 (armor ignored).
   - Running: 2.47 px/frame (1.5× walk), five afterimages trailing.
 
+- 0.12.2 redraws (2026-10-02), in the browser pane: every Devourer frame seen at 3× (tentacles, the tongue curled out in the wind-up, the body tipped mouth-down in the bite). The tongue was seen in flight at 5×. The bite seen at 6× covers her head and shoulders; the tentacles drape round her. The Gravehand's new grip seen at 8× and 10× in game. Typecheck and build pass.
+- 0.12.1 tweaks (2026-10-02), in the browser pane: the Devourer's frames and its bite (seen at 3× and 7×) show the long neck, and the bite's jaws cover her whole head. The Gravehand's warning measured 20 frames, and its dirt trail was seen at 6×. Typecheck and build pass.
+- Enemy and shield changes (0.12.0, 2026-10-02), checked with typecheck, build and scripted runs in the browser pane, no console errors:
+  - TEST ENEMY on the title opens the list (bosses first, variants tagged). Gnarlfang started its arena fight. Two chamber tests in a row from the title left one Test Chamber room, with the first test's enemy gone. The enemy editor shows the Devourer and the Gravehand's new fields (10 presses, leash 0, trips).
+  - Spear Knight: with the hero put behind it on the ground, it started turning 3 frames later and faced her at frame 28; the turn ended at frame 53. With the shield raised 50 px in front of it, it thrust three times (blocked: 11, 9, 9) and shoved her back ~16 px each time.
+  - Wild Dog: its pounce into the raised shield was blocked (6 damage). It tumbled back ~70 px and got up 56 frames later.
+  - Shield drop: a touch hit sent the shield off her arm. It bounced twice and was gone after 80 frames (cooldown 90).
+  - Gravehand: it tracked a standing hero, grabbed her and let go by itself after ~2.5 s. Against a running hero it kept pace under her, rumbled, and tripped her (7 damage after DEF). The fist, seen at 9×, sits round her boots in front of her. The trip frames were seen at 6×.
+  - Hookjaw: the chop fell 7–8 frames after she arrived (it used to take 24+).
+  - Devourer: it hooked her into its jaws and bit every ~0.4 s (seen at 5×: the jaws cover her head). 10 presses at ~10 a second freed her in ~1 s, and it reeled back. All its frames were seen at 3–4×.
 - Shield aiming (0.11.0, 2026-10-02), scripted in the test chamber: guard-walking is 0.247 px/frame; Up, Up+Right and Up+Left give 0 (Up+Left turns her left). Blocks: flat shot level/diag yes, up no; lobs from 100 and 180 px diag/up yes, level no; straight-down rock up only. The rendered frame (only the shield drawn) shows the diagonal's top behind its bottom (\ facing right), the pose the user picked.
 - Shields, knife, run, spider and test chambers (0.10.0, 2026-10-02), checked with typecheck and scripted runs plus screenshots in the browser pane, no console errors:
   - Shield: a buckler cut the Spear Knight's thrust from 15–18 to 12–14, she kept her footing (1.2 px/frame shove, 40 frames of grace). Guarding walks at 0.825 px/frame (half of 1.65) and can't run. A touch hit dropped the shield for 90 frames. Three spider webs in a row were stopped with no damage and no slow. Arc check: the level shield covers −30°..60° in 15° steps, tilted −60°..15°; behind and straight overhead never. Bone lobs from 140 and 180 px were stopped by the tilted shield and by neither stance from 60–100 px, and the level shield stopped none. The raised pose was looked at in screenshots (the user asked for the top to lean forward, `/`).
@@ -115,6 +125,8 @@ Update this file when you verify something or finish a listed item.
   - Not seen on screen yet: the crouch throw borrows the crouching-whip frames.
 
 ## Not verified yet
+
+- 0.12.0 by hand: whether the 20-frame rumble and the faint trail are fair (a Gravehand can't be outrun, so jumping at the rumble is the only dodge), how the trip and the 10-press mash feel on a real keyboard and gamepad, and the Devourer's damage (40% of its ATK a bite). The new shield block values (50–90%) haven't been played against. The Knight's "almost three hits" window was worked out from frame counts, not played. The Devourer isn't placed in any room.
 
 - 0.10.0 by hand: how the shield feels (half speed, the arc sizes, the 90-frame knock-down), the run on a real gamepad's RT and the shield on LT, the new sounds (`block`, `shieldUp`, `shieldDown`, `snap`, `skitter`), the Gallows Spider's speeds and spit rate. None of the new items or the spider are placed in the world. The knife's mark is worth little against today's low enemy DEF values (0–5).
 

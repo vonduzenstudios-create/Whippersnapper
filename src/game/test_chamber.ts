@@ -1,5 +1,5 @@
-// Enemy test chambers (0.10.0, replaces the old #lab room). The enemy editor's TEST
-// button opens the game with #test=<enemy id> (a base enemy or a variant): the hero
+// Enemy test chambers (0.10.0, replaces the old #lab room). The title menu's TEST ENEMY list
+// (0.12.0) starts one directly. The enemy editor's TEST button opens the game with #test=<enemy id> (a base enemy or a variant): the hero
 // starts in a sealed room with that enemy, set up where it belongs (eels in the pool,
 // tomes in a bookcase, spiders and crawlers under a ceiling). It comes back a moment
 // after it dies. #test=boss:<id> starts that boss's real fight instead, and plain #test
@@ -112,14 +112,35 @@ function testable() {
   return Object.keys(ENEMY).filter((id) => ENEMY_LETTER[ENEMY[id].base || id]);
 }
 
+/** One line of the title menu's TEST ENEMY list. `arg` is what startTest() takes. */
+export interface TestEntry {
+  arg: string;
+  name: string;
+  tag: string; // BOSS, VARIANT, or blank
+}
+/** Everything the TEST ENEMY list offers: the bosses first, then every enemy and variant. */
+export function testEntries(): TestEntry[] {
+  const bosses = Object.keys(BOSSES).map((id) => ({ arg: `boss:${id}`, name: ENEMY[id]?.name || BOSSES[id].name, tag: 'BOSS' }));
+  const enemies = testable().map((id) => ({ arg: id, name: ENEMY[id].name, tag: ENEMY[id].base && ENEMY[id].base !== id ? 'VARIANT' : '' }));
+  return [...bosses, ...enemies];
+}
+
 /**
- * Open a test from the URL hash: `test=<enemy id>`, `test=boss:<boss id>`, `test` or `lab`.
+ * Open a test: `<enemy id>`, `boss:<boss id>` or '' (the empty chamber). Called from the
+ * URL hash (`#test=...`) and from the title menu's TEST ENEMY list.
  */
 export function startTest(g: Game, arg: string) {
   applyEditorCopy(g);
   g.hunter = testHunter(g.heroChoice);
   g.applyHero();
   g.testRun = 'test';
+  g.testTick = null;
+  g.visited = new Set();
+  g.cutscene = null;
+  g.input.script = null;
+  g.boss = null;
+  g.trans = null;
+  g.fade = 0;
   g.state = 'play';
   if (arg.startsWith('boss:')) return startBossTest(g, arg.slice(5));
   startChamber(g, ENEMY[arg] ? arg : '');
@@ -133,77 +154,97 @@ function startBossTest(g: Game, id: string) {
   g.message(`TEST: ${(BOSSES[def.boss!]?.name || id).toUpperCase()}`, 240);
 }
 
+/** The chamber's state. A module-level object, so a second test (from the title) reuses the room and keys. */
+const lab = {
+  kind: '', // the enemy being tested ('' = none)
+  mine: [] as Enemy[], // the tested enemies currently alive
+  respawnT: 0,
+  keysBound: false,
+};
+
+function chamberDef(g: Game) {
+  let def = g.defs.find((d) => d.id === LAB_ID);
+  if (!def) {
+    def = buildLabRoom();
+    g.defs.push(def);
+    g.rebuildGrid();
+  }
+  return def;
+}
+
+function enterChamber(g: Game) {
+  const def = chamberDef(g);
+  const base = ENEMY[lab.kind]?.base || lab.kind;
+  const p = def.ents.find((e) => e.t === 'P')!;
+  const x = NEAR_POOL.includes(base) ? 27 * TILE : p.x * TILE + 8;
+  g.loadRoom(def, x, (p.y + 1) * TILE);
+  lab.mine = [];
+  lab.respawnT = 0;
+  if (lab.kind) spawnOne(g);
+  g.message(lab.kind ? `TEST: ${ENEMY[lab.kind].name.toUpperCase()}` : 'TEST CHAMBER', 180);
+}
+
+function spawnOne(g: Game) {
+  const base = ENEMY[lab.kind].base || lab.kind;
+  const [x, bottom] = spawnSpot(base);
+  const en = spawnEnemy(g, ENEMY_LETTER[base], x, bottom, lab.kind);
+  if (!(en instanceof Enemy)) return;
+  g.spawn(en);
+  lab.mine.push(en);
+  g.fx.burst(x, bottom - 12, 'smoke', 4, 8, { vy: -0.5, life: 30, fade: true });
+  g.audio.play('blink');
+}
+
+function clearChamber(g: Game) {
+  for (const en of g.ents) if (en instanceof Enemy) en.dead = true;
+  lab.mine = [];
+}
+
 function startChamber(g: Game, first: string) {
-  const def = buildLabRoom();
-  g.defs.push(def);
-  g.rebuildGrid();
-  let kind = first; // the enemy being tested ('' = none)
-  let mine: Enemy[] = []; // the tested enemies currently alive
-  let respawnT = 0;
-
-  const enter = () => {
-    const base = ENEMY[kind]?.base || kind;
-    const p = def.ents.find((e) => e.t === 'P')!;
-    const x = NEAR_POOL.includes(base) ? 27 * TILE : p.x * TILE + 8;
-    g.loadRoom(def, x, (p.y + 1) * TILE);
-    mine = [];
-    if (kind) spawnOne();
-    g.message(kind ? `TEST: ${ENEMY[kind].name.toUpperCase()}` : 'TEST CHAMBER', 180);
-  };
-  const spawnOne = () => {
-    const base = ENEMY[kind].base || kind;
-    const [x, bottom] = spawnSpot(base);
-    const en = spawnEnemy(g, ENEMY_LETTER[base], x, bottom, kind);
-    if (!(en instanceof Enemy)) return;
-    g.spawn(en);
-    mine.push(en);
-    g.fx.burst(x, bottom - 12, 'smoke', 4, 8, { vy: -0.5, life: 30, fade: true });
-    g.audio.play('blink');
-  };
-  const clear = () => {
-    for (const en of g.ents) if (en instanceof Enemy) en.dead = true;
-    mine = [];
-  };
-
+  lab.kind = first;
   // per-frame: bring the enemy back after it dies, and keep the key help on screen
   g.testTick = () => {
     if (g.room.def.id !== LAB_ID) return;
-    mine = mine.filter((en) => !en.dead);
-    if (kind && !mine.length && ++respawnT >= RESPAWN) {
-      respawnT = 0;
-      spawnOne();
-    } else if (mine.length) respawnT = 0;
-    g.hint = kind ? 'R: ANOTHER   [ ]: SWITCH   6: CLEAR   0: REFILL' : '[ ]: PICK AN ENEMY   0: REFILL';
+    lab.mine = lab.mine.filter((en) => !en.dead);
+    if (lab.kind && !lab.mine.length && ++lab.respawnT >= RESPAWN) {
+      lab.respawnT = 0;
+      spawnOne(g);
+    } else if (lab.mine.length) lab.respawnT = 0;
+    g.hint = lab.kind ? 'R: ANOTHER   [ ]: SWITCH   6: CLEAR   0: REFILL' : '[ ]: PICK AN ENEMY   0: REFILL';
   };
+  if (!lab.keysBound) {
+    lab.keysBound = true;
+    window.addEventListener('keydown', (e) => chamberKey(g, e));
+  }
+  enterChamber(g);
+}
 
-  window.addEventListener('keydown', (e) => {
-    if (g.state !== 'play' || g.room.def.id !== LAB_ID) return;
-    const h = g.hunter;
-    if (e.code === 'KeyR' && kind) spawnOne();
-    else if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
-      const list = testable();
-      const i = list.indexOf(kind), d = e.code === 'BracketRight' ? 1 : -1;
-      kind = list[(i + d + list.length) % list.length];
-      clear();
-      enter();
-    } else if (e.code === 'Digit6') {
-      clear();
-      respawnT = -9999; // stays empty until R or a switch
-      g.message('ENEMIES CLEARED', 90);
-    } else if (e.code === 'Digit7') {
-      h.glide = !h.glide;
-      g.message(`DUSKWING SHROUD ${h.glide ? 'ON' : 'OFF'}`, 90);
-    } else if (e.code === 'Digit8') {
-      h.swim = !h.swim;
-      g.message(`UNDERTOW PEARL ${h.swim ? 'ON' : 'OFF'}`, 90);
-    } else if (e.code === 'Digit9') {
-      h.ward = !h.ward;
-      g.message(`ASHGLASS WARD ${h.ward ? 'ON' : 'OFF'}`, 90);
-    } else if (e.code === 'Digit0') {
-      h.hp = h.maxHp;
-      h.hearts = h.maxHearts;
-      g.message('HP AND HEARTS REFILLED', 90);
-    }
-  });
-  enter();
+function chamberKey(g: Game, e: KeyboardEvent) {
+  if (g.state !== 'play' || g.room.def.id !== LAB_ID) return;
+  const h = g.hunter;
+  if (e.code === 'KeyR' && lab.kind) spawnOne(g);
+  else if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
+    const list = testable();
+    const i = list.indexOf(lab.kind), d = e.code === 'BracketRight' ? 1 : -1;
+    lab.kind = list[(i + d + list.length) % list.length];
+    clearChamber(g);
+    enterChamber(g);
+  } else if (e.code === 'Digit6') {
+    clearChamber(g);
+    lab.respawnT = -9999; // stays empty until R or a switch
+    g.message('ENEMIES CLEARED', 90);
+  } else if (e.code === 'Digit7') {
+    h.glide = !h.glide;
+    g.message(`DUSKWING SHROUD ${h.glide ? 'ON' : 'OFF'}`, 90);
+  } else if (e.code === 'Digit8') {
+    h.swim = !h.swim;
+    g.message(`UNDERTOW PEARL ${h.swim ? 'ON' : 'OFF'}`, 90);
+  } else if (e.code === 'Digit9') {
+    h.ward = !h.ward;
+    g.message(`ASHGLASS WARD ${h.ward ? 'ON' : 'OFF'}`, 90);
+  } else if (e.code === 'Digit0') {
+    h.hp = h.maxHp;
+    h.hearts = h.maxHearts;
+    g.message('HP AND HEARTS REFILLED', 90);
+  }
 }

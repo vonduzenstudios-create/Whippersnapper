@@ -4,7 +4,8 @@
 //   Gloomcaster (m)  teleports around and casts a slow, homing hex that slows you and pops wards
 //   Rot Ooze (o)     hops after you and splits into smaller oozes when killed
 //   Grave Grub (u)   travels under the floor as a mound, bursts up beneath you, then lies stranded
-//   Gravehand (x)    a dead hand under the floor: grabs your ankles and holds you until you wiggle free
+//   Gravehand (x)    swims unseen under the floor after you: grabs your ankles (mash free), trips you if you run
+//   Devourer (v)     a stronger Hookjaw: its hook drags you into its jaws, which bite until you mash free
 // Like the other enemies they read speed/ranges/abilities through num()/can(), so
 // enemy-editor variants work.
 import { Sprite } from '../gfx/view';
@@ -15,11 +16,15 @@ import { groundAt, moveBody } from '../world/room';
 import { floorBelow } from './enemies_expansion';
 import { clamp, rand, overlap } from '../core/util';
 import { GRAVITY, MAX_FALL, TILE } from '../config';
+import type { Holder } from './player';
 
 // ---------------------------------------------------------------- hookjaw
 
 const HOOK_RANGE = 176; // how far the chain reaches
 const HOOK_LINKS = 10;
+const TONGUE_SEGS = 22;
+const CHOP_WIND = 24; // frames a normal chop is raised before it falls
+const QUICK_WIND = 8; // ...and after the hook drags her in (counted from when she arrives)
 
 /** The thrown hook and its chain. It isn't hostile itself: it yanks the hero instead of hurting her. */
 export class HookChain extends Ent {
@@ -36,19 +41,20 @@ export class HookChain extends Ent {
     this.dy = Math.sin(angle);
     this.hw = this.hh = 5;
     this.whipTarget = true; // whip it out of the air
+    const A = g.sheets.fx.anims, tongue = owner.tongue;
     this.sprite = new Sprite(g.sheets.fx, g.view.sprites, 14);
-    this.sprite.setFrame(g.sheets.fx.anims.hook[0]);
-    for (let i = 0; i < HOOK_LINKS; i++) {
+    this.sprite.setFrame((tongue ? A.tongueTip : A.hook)[0]);
+    // a tongue needs more, overlapping segments to read as one piece of flesh
+    for (let i = 0; i < (tongue ? TONGUE_SEGS : HOOK_LINKS); i++) {
       const s = new Sprite(g.sheets.fx, g.view.sprites, 13);
-      s.setFrame(g.sheets.fx.anims.link[0]);
-      s.tint(0.8, 0.7, 0.65); // rusty
+      s.setFrame((tongue ? A.tongueSeg : A.link)[0]);
+      if (!tongue) s.tint(0.8, 0.7, 0.65); // rusty
       this.links.push(s);
     }
   }
-  /** Where the chain leaves the Hookjaw's hand. */
+  /** Where the chain leaves the Hookjaw's hand (or the tongue its mouth). */
   origin(): [number, number] {
-    const o = this.owner;
-    return [o.x + o.facing * 10, o.y - 4];
+    return this.owner.hookFrom();
   }
   onHit(g: Game) {
     if (!this.out) return;
@@ -87,7 +93,7 @@ export class HookChain extends Ent {
         this.whipTarget = false;
         if (p.wardT > 0) p.blockHit(this.x, this.y);
         else if (p.shieldFaces(-this.dx, -this.dy)) p.shieldClank(this.y); // knocked aside by the shield
-        else if (p.yank(o.x + o.facing * 22)) {
+        else if (p.yank(o.pullTo())) {
           this.caught = true;
           o.reelIn(g);
         }
@@ -104,14 +110,15 @@ export class HookChain extends Ent {
       this.y = oy + ((this.y - oy) / d) * this.len;
     }
     // draw the chain from the hand to the tip
-    for (let i = 0; i < HOOK_LINKS; i++) {
-      const f = (i + 1) / (HOOK_LINKS + 1);
+    const n = this.links.length;
+    for (let i = 0; i < n; i++) {
+      const f = (i + 1) / (n + 1);
       this.links[i].place(ox + (this.x - ox) * f, oy + (this.y - oy) * f + Math.sin(f * Math.PI) * 3);
     }
     const s = this.sprite!;
     s.place(this.x, this.y);
     s.mesh.rotation.z = -Math.atan2(this.y - oy, this.x - ox);
-    if (this.t % 6 === 0 && this.out) g.audio.play('chain');
+    if (this.t % 6 === 0 && this.out) g.audio.play(this.owner.tongue ? 'squelch' : 'chain');
   }
   destroy() {
     for (const l of this.links) l.dispose();
@@ -120,25 +127,41 @@ export class HookChain extends Ent {
   }
 }
 
+/** Hookjaw states, plus the Devourer's (jaws open, biting, knocked back). */
+type HookState = 'walk' | 'wind' | 'throw' | 'chop' | 'rest' | 'jaws' | 'bite' | 'reel';
+
 export class Hookjaw extends Enemy {
-  state: 'walk' | 'wind' | 'throw' | 'chop' | 'rest' = 'walk';
+  state: HookState = 'walk';
   st = 0;
   cool = 40;
   hook: HookChain | null = null;
-  constructor(g: Game, kind: string, x: number, bottom: number) {
-    super(g, kind, x, bottom, 8, 18);
+  quick = false; // this chop follows a hook: it falls soon after she arrives
+  tongue = false; // its "hook" is a tongue (the Devourer)
+  constructor(g: Game, kind: string, x: number, bottom: number, hw = 8, hh = 18) {
+    super(g, kind, x, bottom, hw, hh);
     this.heavy = true; // no flinching: stop the hook instead
   }
-  set(st: Hookjaw['state']) {
+  set(st: HookState) {
     this.state = st;
     this.st = 0;
   }
-  /** The hook caught the hero: get the cleaver ready for when she arrives. */
+  /** Where the hook's chain leaves it: the hook hand. */
+  hookFrom(): [number, number] {
+    return [this.x + this.facing * 10, this.y - 4];
+  }
+  /** Where the hook drags the hero to. */
+  pullTo() {
+    return this.x + this.facing * 22;
+  }
+  /** The hook caught the hero: raise the cleaver, and bring it down as soon as she arrives. */
   reelIn(g: Game) {
     this.set('chop');
-    this.st = -14; // a longer wind-up than a normal chop, so she has time to react once she lands
+    this.st = CHOP_WIND - QUICK_WIND;
+    this.quick = true;
     g.audio.play('growl');
   }
+  /** States a subclass adds (the Devourer's bite). */
+  special(_g: Game) {}
   update(g: Game) {
     this.baseUpdate(g);
     const p = g.player, A = this.anims, s = this.sprite!;
@@ -169,7 +192,7 @@ export class Hookjaw extends Enemy {
         // whirls the chain overhead, then lets fly
         this.vx = 0;
         s.setFrame(A.wind[0]);
-        if (this.st % 8 === 1) g.audio.play('chain');
+        if (this.st % 8 === 1) g.audio.play(this.tongue ? 'squelch' : 'chain');
         if (this.st >= 26) {
           const [hx, hy] = [this.x + this.facing * 10, this.y - 4];
           let a = Math.atan2(p.y - 4 - hy, p.x - hx);
@@ -192,9 +215,11 @@ export class Hookjaw extends Enemy {
         }
         break;
       case 'chop': {
-        // raise the cleaver, then bring it down in front
+        // raise the cleaver, then bring it down in front. After a hook it hangs raised
+        // while she's dragged in, then falls QUICK_WIND frames after she lands at its feet.
         this.vx = 0;
-        const WIND = 24;
+        const WIND = CHOP_WIND;
+        if (this.quick && p.state === 'yank') this.st = WIND - QUICK_WIND;
         s.setFrame(A.chop[this.st < WIND ? 0 : 1]);
         if (this.st === WIND) {
           g.audio.play('whip');
@@ -205,7 +230,10 @@ export class Hookjaw extends Enemy {
           const blade = { x: this.x + this.facing * 20, y: this.y - 2, hw: 14, hh: 16 };
           if (p.alive && overlap(blade, p)) p.takeDamage(this.atk + 4, this.x, false, true, 'melee', blade.y);
         }
-        if (this.st > WIND + 22) this.set('rest');
+        if (this.st > WIND + 22) {
+          this.quick = false;
+          this.set('rest');
+        }
         break;
       }
       case 'rest':
@@ -216,12 +244,111 @@ export class Hookjaw extends Enemy {
           this.set('walk');
         }
         break;
+      default:
+        this.special(g);
     }
     this.physics(g);
     this.place();
   }
   die(g: Game) {
     if (this.hook) this.hook.dead = true;
+    super.die(g);
+  }
+}
+
+// ---------------------------------------------------------------- devourer
+
+const BITE_DX = 16; // her center sits this far in front of the Devourer's while it has her head
+const BITE_EVERY = 24; // frames between bites (0.4 s)
+
+/**
+ * A stronger Hookjaw: a great round mouth on legs. Its "hook" is its barbed tongue, which drags
+ * the hero into its open body instead of under a cleaver, and it clamps down over her head: she's held in place, bitten every 0.4 s, and can't
+ * attack until she mashes LEFT/RIGHT/JUMP free (`mash` presses). Tearing free knocks it
+ * reeling back, open to a few hits.
+ */
+export class Devourer extends Hookjaw implements Holder {
+  constructor(g: Game, kind: string, x: number, bottom: number) {
+    super(g, kind, x, bottom, 10, 22);
+    this.feet = 22;
+    this.tongue = true;
+  }
+  /** The tongue leaves from the front of its mouth. */
+  hookFrom(): [number, number] {
+    return [this.x + this.facing * 14, this.y - 4];
+  }
+  pullTo() {
+    return this.x + this.facing * BITE_DX;
+  }
+  /** The hook caught her: open wide and wait for her to arrive. */
+  reelIn(g: Game) {
+    this.set('jaws');
+    g.audio.play('growl');
+  }
+  released(mashed: boolean) {
+    if (!mashed) return this.set('rest'); // she died in its jaws
+    // torn free: it reels back, stunned
+    this.set('reel');
+    this.vx = -this.facing * 3;
+    this.vy = -1.5;
+    this.flashT = 8;
+  }
+  special(g: Game) {
+    const p = g.player, A = this.anims, s = this.sprite!;
+    switch (this.state) {
+      case 'jaws':
+        // jaws hinged open to the chest, waiting for her
+        this.vx = 0;
+        s.setFrame(A.jaws[0]);
+        if (p.state === 'yank') this.st = 1;
+        else if (this.st > 2 && p.alive && Math.abs(p.x - this.pullTo()) < 14 && Math.abs(p.bottom - this.bottom) < 30 && p.grab(this, this.num('mash'), 1e9, true)) {
+          this.set('bite');
+          this.st = BITE_EVERY - 1; // the first bite lands at once
+        } else if (this.st > 30) this.set('rest'); // she got away (or never arrived)
+        break;
+      case 'bite': {
+        this.vx = 0;
+        if (p.holdBy !== this) {
+          this.set('rest');
+          break;
+        }
+        // holds her head in its jaws, drawn over her
+        const tx = this.pullTo();
+        if (!g.room.solidPx(tx, p.y)) p.x = tx;
+        p.facing = -this.facing as 1 | -1;
+        const chomp = this.st % BITE_EVERY;
+        s.setFrame(A.bite[chomp < 8 ? 1 : 0]);
+        if (chomp === 0) {
+          p.chew(Math.round(this.atk * 0.4));
+          g.audio.play('bite');
+          g.fx.burst(tx, p.y - 12, 'ember', 3, 4, { speed: 1.2, grav: 0.15, life: 20, tint: [1.2, 0.2, 0.2] });
+        }
+        break;
+      }
+      case 'reel':
+        // knocked back by her escape: easy pickings for a moment
+        this.vx *= 0.88;
+        s.setFrame(A.reel[0]);
+        if (this.st > 60) {
+          this.cool = 140 * this.num('cooldown');
+          this.set('walk');
+        }
+        break;
+    }
+  }
+  update(g: Game) {
+    super.update(g);
+    // over her while it bites, so its jaws close round her head
+    this.sprite!.mesh.renderOrder = this.state === 'bite' ? 13 : 10;
+  }
+  die(g: Game) {
+    const p = g.player;
+    if (p.holdBy === this) {
+      p.holdT = 0;
+      p.holdBy = null;
+      p.holdLock = false;
+      p.freeT = 60;
+    }
     super.die(g);
   }
 }
@@ -674,20 +801,28 @@ export class Grub extends Enemy {
 
 // ---------------------------------------------------------------- gravehand
 
-const HAND_GRIP = 100; // frames it holds the hero if she doesn't wiggle free (Player has the wiggle rules)
+const HAND_TRACK = 2.6; // px/frame it swims under the floor: a touch faster than a run
+const HAND_WARN = 20; // the dirt rumbles under her feet this long (1/3 s) before it strikes
+const HAND_SNAP = 8; // frames after bursting up that it can still close on her
+const HAND_RESTED = 600; // after she mashes free it lies quiet for 10 s
+const HAND_TRIP_DMG = 10; // what a face-first fall costs
 
 /**
- * A dead hand under the floor. It never deals damage: it grabs the hero's ankles and holds
- * her still until the grip runs out or she wiggles/jumps free, so everything else in the
- * room gets free hits. It's only hittable while it's up.
+ * A dead hand that swims under the floor, following the hero along it, betrayed only by a
+ * faint trail of stirred dirt. When it's under her feet the dirt rumbles for a third of a second, then it bursts up: standing or
+ * walking, it closes around her ankles and holds her (mash LEFT/RIGHT/JUMP to break free,
+ * see Player.grab); running, it trips her flat. Jumping at the rumble makes it miss.
+ * It deals no damage of its own, and it can only be hit while it's up.
  */
-export class Gravehand extends Enemy {
+export class Gravehand extends Enemy implements Holder {
   state: 'under' | 'warn' | 'reach' | 'hold' | 'sink' = 'under';
   st = 0;
   cool = 30;
+  homeX: number; // where it was placed (the leash is measured from here)
   constructor(g: Game, kind: string, x: number, bottom: number) {
     super(g, kind, x, bottom, 7, 14);
     this.feet = 0;
+    this.homeX = x;
     this.hostile = false; // contact never hurts, the grab is its only attack
     this.touchDmg = 0;
     this.atk = 0;
@@ -702,62 +837,103 @@ export class Gravehand extends Enemy {
   up(on: boolean) {
     this.whipTarget = on;
   }
+  /** The hero got loose (Player.updateHold): mashed free = it sulks for a long while. */
+  released(mashed: boolean) {
+    this.set('sink');
+    this.cool = mashed ? HAND_RESTED : 150 * this.num('cooldown');
+  }
+  /** Swim under the floor toward `tx`, staying on this floor and inside the leash. */
+  track(g: Game, tx: number) {
+    const leash = this.num('leash') * TILE;
+    if (leash > 0) tx = clamp(tx, this.homeX - leash, this.homeX + leash);
+    const step = clamp(tx - this.x, -HAND_TRACK, HAND_TRACK);
+    if (!step) return;
+    const nx = this.x + step, lead = nx + Math.sign(step) * 4;
+    // the floor has to carry on there, with no wall in the way
+    if (!groundAt(g.room, lead, this.bottom) || g.room.solidPx(lead, this.bottom - 4)) return;
+    this.x = nx;
+    // the faint trail: a puff of stirred dirt every few frames while it moves
+    if (this.t % 5 === 0) g.fx.burst(this.x + rand(-3, 3), this.bottom - 1, 'dust', 1, 1, { vy: -0.3, life: 16, fade: true, tint: [0.7, 0.6, 0.55] });
+  }
   update(g: Game) {
     this.baseUpdate(g);
     const p = g.player, s = this.sprite!, A = this.anims;
     this.st++;
     if (this.cool > 0) this.cool--;
-    const dx = Math.abs(p.x - this.x);
-    // she's standing on this floor, close enough to be seized
-    const near = (range: number) => p.alive && p.onGround && dx < range && Math.abs(p.bottom - this.bottom) < 6;
+    // she's over this floor: standing on it, or in the air above it
+    const above = p.alive && p.bottom <= this.bottom + 6 && p.bottom > this.bottom - 100 && Math.abs(p.x - this.x) < 260 * this.num('sight');
+    const onIt = p.alive && p.onGround && Math.abs(p.bottom - this.bottom) < 6;
     let shakeX = 0;
+    s.mesh.renderOrder = 10;
     switch (this.state) {
       case 'under':
         s.visible = false;
-        if (this.cool <= 0 && near(30 * this.num('sight'))) {
+        if (above && p.state !== 'trip') this.track(g, p.x);
+        if (this.cool <= 0 && onIt && p.holdT <= 0 && p.freeT <= 0 && Math.abs(p.x - this.x) < 6) {
           this.set('warn');
           g.audio.play('burrow');
         }
         break;
       case 'warn':
-        // the warning: fingertips twitch in the dirt. Step away!
+        // the warning: the dirt heaves under her feet, following her. Jump!
+        if (above) this.track(g, p.x);
         s.visible = true;
-        s.anim('tips', this.t / 60, 10);
-        if (this.st % 6 === 0) g.fx.burst(this.x + rand(-6, 6), this.bottom - 3, 'dust', 1, 2, { vy: -1 });
-        if (this.st >= 34) {
+        s.setFrame(A.rumble[Math.floor(this.st / 3) % 2]);
+        shakeX = this.st % 4 < 2 ? -1 : 1;
+        if (this.st % 3 === 0) g.fx.burst(this.x + rand(-7, 7), this.bottom - 2, 'dust', 1, 2, { vy: -1.2 });
+        if (this.st >= HAND_WARN) {
           this.set('reach');
           this.up(true);
           g.audio.play('crumble');
           g.fx.burst(this.x, this.bottom - 4, 'dust', 5, 8, { speed: 1.8, grav: 0.2, life: 26 });
         }
         break;
-      case 'reach':
-        // up and grabbing at whatever stands on it. It stays up a moment if it misses.
+      case 'reach': {
+        // bursts up and snaps shut on whatever stands there; it lingers a moment if it misses
         s.anim('reach', this.t / 60, 7);
-        if (near(12) && p.grab(this, HAND_GRIP * this.num('grip'))) {
-          this.set('hold');
-          g.audio.play('growl');
-        } else if (this.st > 44) this.set('sink');
+        const close = onIt && Math.abs(p.x - this.x) < 12;
+        if (close && this.st <= HAND_SNAP) {
+          if (p.running && this.can('trip')) {
+            if (p.trip(HAND_TRIP_DMG)) {
+              g.audio.play('growl');
+              this.cool = 150 * this.num('cooldown');
+              this.set('sink');
+            }
+          } else if (p.grab(this, this.num('mash'))) {
+            this.set('hold');
+            g.audio.play('growl');
+          }
+        } else if (this.st > 36) {
+          this.cool = 60 * this.num('cooldown');
+          this.set('sink');
+        }
         break;
+      }
       case 'hold':
-        // clenched around her ankles; it lets go the moment she's free
-        s.anim('grip', this.t / 60, 12);
-        shakeX = this.st % 4 < 2 ? -1 : 1;
-        if (p.holdBy !== this || p.holdT <= 0) this.set('sink');
+        // a fist closed round her ankles, drawn in front of her
+        if (p.holdBy !== this) {
+          this.set('sink');
+          break;
+        }
+        this.x = p.x;
+        s.mesh.renderOrder = 13;
+        s.anim('fist', this.t / 60, 12);
         break;
       case 'sink':
         s.setFrame(A.low[0]);
         if (this.st === 1) this.up(false);
         if (this.st % 4 === 0) g.fx.burst(this.x + rand(-5, 5), this.bottom - 3, 'dust', 1, 2, { vy: -0.8 });
         if (this.st >= 16) {
-          this.cool = 150 * this.num('cooldown');
+          this.cool = Math.max(this.cool, 60);
           this.set('under');
         }
         break;
     }
     this.vx = 0;
     this.physics(g);
-    s.place(this.x + shakeX, this.bottom, this.facing < 0);
+    // the fist turns with her, so the fingers wrap round the front of her boots
+    const flip = this.state === 'hold' ? p.facing < 0 : this.facing < 0;
+    s.place(this.x + shakeX, this.bottom, flip);
   }
   die(g: Game) {
     // killing it frees her, with the usual grace so a neighbor can't grab right back

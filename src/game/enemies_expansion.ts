@@ -65,7 +65,7 @@ export function shockPair(g: Game, x: number, floorY: number, speed: number, dmg
 // ---------------------------------------------------------------- wild dog
 
 export class Dog extends Enemy {
-  state: 'prowl' | 'crouch' | 'run' | 'pounce' | 'skid' = 'prowl';
+  state: 'prowl' | 'crouch' | 'run' | 'pounce' | 'skid' | 'tumble' = 'prowl';
   lunges = ['pounce'];
   st = 0;
   cool = 30;
@@ -74,6 +74,16 @@ export class Dog extends Enemy {
     this.feet = 11;
     this.facing = Math.random() < 0.5 ? -1 : 1;
   }
+  /** Its pounce hit the shield: it bounces off, tumbling, and has to scramble back up. */
+  onBlocked(g: Game) {
+    this.state = 'tumble';
+    this.st = 0;
+    this.vx = -this.facing * 2;
+    this.vy = -2.6;
+    this.onGround = false;
+    g.audio.play('bark');
+    g.fx.burst(this.x + this.facing * this.hw, this.y, 'spark', 1, 2);
+  }
   update(g: Game) {
     this.baseUpdate(g);
     const p = g.player;
@@ -81,6 +91,7 @@ export class Dog extends Enemy {
     if (this.cool > 0) this.cool--;
     const dx = p.x - this.x, adx = Math.abs(dx), dy = Math.abs(p.bottom - this.bottom);
     const spd = this.num('speed');
+    this.sprite!.mesh.rotation.z = 0;
     const A = this.anims, s = this.sprite!;
     const set = (st: Dog['state']) => {
       this.state = st;
@@ -122,6 +133,23 @@ export class Dog extends Enemy {
         case 'pounce':
           s.setFrame(A.leap[0]);
           if (this.onGround && this.st > 4) set('skid');
+          break;
+        case 'tumble':
+          // head over heels in the air, then sprawled on its side until it scrambles up
+          if (!this.onGround || this.st < 4) {
+            s.setFrame(A.leap[0]);
+            s.mesh.rotation.z = this.st * 0.4 * this.facing;
+          } else {
+            this.vx *= 0.8;
+            s.setFrame(A.crouch[0]);
+            if (this.st < 40) s.mesh.rotation.z = (Math.PI / 2) * this.facing; // on its side
+            if (this.st % 10 === 0) g.fx.burst(this.x, this.bottom - 2, 'dust', 1, 2);
+          }
+          if (this.st > 55 && this.onGround) {
+            set('prowl');
+            this.cool = 40 * this.num('cooldown');
+            this.faceToward(p.x);
+          }
           break;
         case 'skid':
           this.vx *= 0.86;
