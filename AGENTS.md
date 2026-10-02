@@ -18,7 +18,7 @@ npm run typecheck  # tsc --noEmit (build does NOT type check)
 npm run build      # production build to dist/
 ```
 
-Use `npm.cmd` on Windows PowerShell if `npm` is blocked. Debug: `window.game`, `#tour` (cycles all map cells), `#boss` / `#boss=hound` / `#boss=bellmother` (jump to a boss with 99,999 HP), `#hub` (the Undervault, Wyrm dead), `#relics` (same, with both relics), `#lab` (sandbox for the experimental relics/enemies, see `game/lab.ts`), `game.input.script` (fake held inputs), `/editor.html` (map editor), F2 in game (edit the current room), `/enemies.html` (enemy editor).
+Use `npm.cmd` on Windows PowerShell if `npm` is blocked. Debug: `window.game`, `#tour` (cycles all map cells), `#boss` / `#boss=hound` / `#boss=bellmother` (jump to a boss with 99,999 HP), `#hub` (the Undervault, Wyrm dead), `#relics` (same, with both relics), `#test=<enemy id>` / `#test=boss:<id>` / `#test` (enemy test chamber, also the enemy editor's TEST button, see `game/test_chamber.ts`; `#lab` is an alias), `game.input.script` (fake held inputs), `/editor.html` (map editor), F2 in game (edit the current room), `/enemies.html` (enemy editor).
 
 ## Gotchas that have bitten before
 
@@ -40,6 +40,7 @@ Use `npm.cmd` on Windows PowerShell if `npm` is blocked. Debug: `window.game`, `
 - `spawnEnemy` lives in `game/spawn.ts`, not enemies.ts, to avoid an import loop with `enemies_expansion.ts`.
 - Furniture tiles `K` (bookcase) and `D` (table) are walk-through with a standable top (`Room.oneWayAt`), painted on their own layer behind the sprites. Rustling Tomes (`t`) must be placed on `K` tiles: they sleep there and fly out (`enemies_library.ts`). Chairs `n` (prop) and `a` (Restless Chair) face a table within 3 tiles. Door/hole alignment and the climb checks for those rooms are in [docs/level-design.md](docs/level-design.md).
 - Ramps `/` and `\` rise one tile every two; along a row they pair up from the low end (low half, high half). Fill solid under them. `moveBody` stands a body on the slope by its center; `Room.blocks` lets a grounded body step up lips of 8 px or less where a ramp meets a landing.
+- Hostile ents report how they hurt through `hitType()` (touch / melee / shot / magic), which decides what the shield does. A new enemy's lunge states go in its `lunges` list; fire-type `EnemyShot`s are magic.
 - Story text uses `{NAME}`/`{CHILD}`/`{THEY}`/`{THEIR}` tokens for the chosen twin; `Game.showDialog` fills them in (`heroText`).
 
 ## Where to read more

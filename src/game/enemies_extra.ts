@@ -1,4 +1,4 @@
-// Experimental enemies (0.4.0), not placed in the world yet. Try them in the #lab test room.
+// Experimental enemies (0.4.0), not placed in the world yet. Try them in the test chamber (#test=<id>).
 //   Hookjaw (h)      throws a chain hook that drags you to its cleaver
 //   Mire Eel (e)     hunts swimmers, lunges underwater, leaps at you from the surface
 //   Gloomcaster (m)  teleports around and casts a slow, homing hex that slows you and pops wards
@@ -82,10 +82,11 @@ export class HookChain extends Ent {
         this.out = false;
         this.whipTarget = false;
         if (this.len < HOOK_RANGE) g.audio.play('clink');
-      } else if (p.alive && p.invuln <= 0 && overlap(this, { x: p.x, y: p.y, hw: p.hw, hh: p.hh - 2 })) {
+      } else if (p.alive && p.invuln <= 0 && (overlap(this, { x: p.x, y: p.y, hw: p.hw, hh: p.hh - 2 }) || (p.guarding && overlap(this, p.shieldBox())))) {
         this.out = false;
         this.whipTarget = false;
         if (p.wardT > 0) p.blockHit(this.x, this.y);
+        else if (p.shieldFaces(-this.dx, -this.dy)) p.shieldClank(this.y); // knocked aside by the shield
         else if (p.yank(o.x + o.facing * 22)) {
           this.caught = true;
           o.reelIn(g);
@@ -202,7 +203,7 @@ export class Hookjaw extends Enemy {
         }
         if (this.st >= WIND && this.st < WIND + 6) {
           const blade = { x: this.x + this.facing * 20, y: this.y - 2, hw: 14, hh: 16 };
-          if (p.alive && overlap(blade, p)) p.takeDamage(this.atk + 4, this.x);
+          if (p.alive && overlap(blade, p)) p.takeDamage(this.atk + 4, this.x, false, true, 'melee', blade.y);
         }
         if (this.st > WIND + 22) this.set('rest');
         break;
@@ -229,6 +230,7 @@ export class Hookjaw extends Enemy {
 
 export class Eel extends Enemy {
   state: 'swim' | 'chase' | 'lunge' | 'leap' | 'flop' = 'swim';
+  lunges = ['lunge', 'leap'];
   st = 0;
   cool = 40;
   lost = 0; // frames since the hero left the water
@@ -379,7 +381,7 @@ export class HexBolt extends Ent {
     if (p.alive && p.invuln <= 0 && overlap(this, { x: p.x, y: p.y, hw: p.hw - 1, hh: p.hh - 2 })) {
       this.dead = true;
       if (p.wardT > 0) p.popWard(); // hexes shatter the Ashglass Ward instead of being blocked
-      else if (p.takeDamage(this.dmg, this.x) === false && p.state === 'hurt') p.hex(200);
+      else if (p.takeDamage(this.dmg, this.x, false, true, 'magic', this.y) === false && p.state === 'hurt') p.hex(200);
       g.fx.burst(this.x, this.y, 'star', 8, 5, { speed: 1.8, life: 30, fade: true, tint: [1.2, 0.6, 1.6] });
     }
   }

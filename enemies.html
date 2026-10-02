@@ -29,6 +29,7 @@
     nav .item.sel { background: #4a1828; border-left-color: var(--gold); }
     nav .item.variant { padding-left: 22px; color: #c8b8c8; }
     nav .item .mark { color: #ffb080; }
+    nav .group { margin: 12px 0 4px; padding: 0 8px; color: var(--gold); font-size: 12px; letter-spacing: 1px; }
     nav .actions { display: grid; gap: 6px; margin-top: 14px; }
     #content { padding: 14px 18px; display: grid; grid-template-columns: minmax(380px, 1fr) minmax(320px, 440px); gap: 18px; align-items: start; }
     section { background: var(--panel); border: 1px solid var(--line); padding: 10px 14px 12px; margin-bottom: 14px; }
@@ -63,11 +64,13 @@
     <nav>
       <div id="list"></div>
       <div class="actions">
+        <button id="test" class="primary" title="Opens the game in a test chamber with this enemy (unsaved changes included)">Test this enemy</button>
         <button id="variant">+ Make a variant of this</button>
         <button id="delete">Delete variant</button>
         <button id="reset">Reset to code version</button>
       </div>
       <p class="note">Variants keep the AI of the enemy they're based on. Place them in rooms from the map editor's ENEMIES tab.</p>
+      <p class="note">TEST opens the game in a separate tab. Inside the chamber: R spawns another, [ and ] switch enemies, 6 clears, 0 refills HP.</p>
     </nav>
     <div id="content"></div>
   </main>

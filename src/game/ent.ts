@@ -1,7 +1,16 @@
 import type { Sprite } from '../gfx/view';
 import type { Game } from './game';
 
-export type HitKind = 'whip' | 'holy' | 'cross' | 'dangle';
+export type HitKind = 'whip' | 'holy' | 'cross' | 'dangle' | 'knife';
+
+/**
+ * How a hostile thing hurts the hero, which decides what her shield does about it:
+ *   touch  walking into an enemy's body: the shield doesn't help (and gets knocked down)
+ *   melee  a weapon strike or a deliberate lunge: the shield cuts the damage
+ *   shot   a physical projectile (bone, book, feather, rock, web, hook): the shield stops it
+ *   magic  fire, hexes and shockwaves: the shield doesn't help (and gets knocked down)
+ */
+export type DmgType = 'touch' | 'melee' | 'shot' | 'magic';
 
 /** What the game and HUD need from a boss (see BOSSES in game/bosses.ts). */
 export interface Boss extends Ent {
@@ -28,9 +37,15 @@ export abstract class Ent {
   touchDmg = 0;
   def = 0;
   lastHit = -1;
+  /** Frames left of a Throwing Knife's mark: the next other hit ignores half its DEF. */
+  exposedT = 0;
   /** Hit ids are remembered per source for a few frames so multi-hit attacks behave. */
   hitMemo: Map<number, number> = new Map();
   abstract update(g: Game): void;
+  /** What kind of hit touching this deals right now (see DmgType). */
+  hitType(): DmgType {
+    return 'touch';
+  }
   onHit?(g: Game, dmg: number, fromX: number, crit: boolean, kind: HitKind): void;
   destroy() {
     if (this.sprite) this.sprite.dispose();

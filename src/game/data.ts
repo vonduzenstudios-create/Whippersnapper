@@ -3,7 +3,7 @@
 // which is applied on top of the code table below.
 import ENEMY_EDITS from './enemy_edits.json';
 
-export type Slot = 'whip' | 'armor' | 'acc' | 'use' | 'sub' | 'max' | 'relic';
+export type Slot = 'whip' | 'shield' | 'armor' | 'acc' | 'use' | 'sub' | 'max' | 'relic';
 
 export interface ItemDef {
   id: string;
@@ -20,6 +20,12 @@ export interface ItemDef {
   fire?: boolean;
   frost?: boolean; // icy blue chain (looks only)
   heal?: number;
+  /** Shields: the share of a blocked melee hit that the shield soaks up (0.2 = 20% less damage). */
+  block?: number;
+  /** Shields: which painted face the raised shield shows (see the relicfx sheet). */
+  look?: 'wood' | 'iron' | 'bone' | 'ash';
+  /** Accessories: hits no longer knock you back. */
+  noKnock?: boolean;
 }
 
 export const ITEMS: Record<string, ItemDef> = {
@@ -28,6 +34,12 @@ export const ITEMS: Record<string, ItemDef> = {
   whip_barbed: { id: 'whip_barbed', name: 'Barbed Chain', slot: 'whip', icon: 'whip', desc: 'Hooked barbs tear flesh. ATK+18', atk: 18, len: 68 },
   whip_ember: { id: 'whip_ember', name: 'Ember Chain', slot: 'whip', icon: 'whip', desc: 'Forged in a dying star. Burns. ATK+26', atk: 26, len: 76, fire: true },
   whip_rime: { id: 'whip_rime', name: 'Rime Chain', slot: 'whip', icon: 'whip', desc: 'Cooled in water that never moves. ATK+32', atk: 32, len: 80, frost: true },
+  // shields (off hand): hold SHIELD to raise one. Only the buckler is given out so far;
+  // the others exist but aren't placed in the world yet.
+  shield_buckler: { id: 'shield_buckler', name: 'Wooden Buckler', slot: 'shield', icon: 'shieldWood', look: 'wood', desc: 'Oak rimmed in iron. Blocks 20% of melee.', block: 0.2 },
+  shield_heater: { id: 'shield_heater', name: 'Iron Heater', slot: 'shield', icon: 'shieldIron', look: 'iron', desc: 'A soldier\'s shield. Blocks 35% of melee. DEF+2', block: 0.35, def: 2 },
+  shield_ossuary: { id: 'shield_ossuary', name: 'Ossuary Pavise', slot: 'shield', icon: 'shieldBone', look: 'bone', desc: 'Skulls set in black iron. Blocks 50% of melee. CON+3', block: 0.5, con: 3 },
+  shield_ashen: { id: 'shield_ashen', name: 'Ashen Aegis', slot: 'shield', icon: 'shieldAsh', look: 'ash', desc: 'Still warm from the pyre. Blocks 70% of melee. DEF+5', block: 0.7, def: 5 },
   armor_coat: { id: 'armor_coat', name: 'Hunter Coat', slot: 'armor', icon: 'armor', desc: 'Oiled leather coat. DEF+2', def: 2 },
   armor_mail: { id: 'armor_mail', name: "Hunter's Mail", slot: 'armor', icon: 'armor', desc: 'Chain mail under leather. DEF+6', def: 6 },
   armor_bone: { id: 'armor_bone', name: 'Bone Plate', slot: 'armor', icon: 'armor', desc: 'Grim but sturdy. DEF+10 LCK-2', def: 10, lck: -2 },
@@ -38,10 +50,12 @@ export const ITEMS: Record<string, ItemDef> = {
   acc_moon: { id: 'acc_moon', name: 'Moon Charm', slot: 'acc', icon: 'ring', desc: 'Silver crescent. LCK+6', lck: 6 },
   acc_blood: { id: 'acc_blood', name: 'Blood Ring', slot: 'acc', icon: 'ring', desc: 'Warm to the touch. STR+4', str: 4 },
   acc_garnet: { id: 'acc_garnet', name: 'Garnet Brooch', slot: 'acc', icon: 'ring', desc: 'A ward against harm. CON+4', con: 4 },
+  acc_rootstone: { id: 'acc_rootstone', name: 'Rootstone', slot: 'acc', icon: 'rootstone', desc: 'A grave-stone shard grown through with roots. Hits no longer knock you back.', noKnock: true },
   potion: { id: 'potion', name: 'Potion', slot: 'use', icon: 'potion', desc: 'Restores 40 HP.', heal: 40 },
   elixir: { id: 'elixir', name: 'Elixir', slot: 'use', icon: 'potion', desc: 'Restores all HP.', heal: 9999 },
   sub_holy: { id: 'sub_holy', name: 'Holy Water', slot: 'sub', icon: 'holy', desc: 'Bursts into blue flame. 1 heart.' },
   sub_cross: { id: 'sub_cross', name: 'Cross', slot: 'sub', icon: 'cross', desc: 'Flies out and returns. 2 hearts.' },
+  sub_knife: { id: 'sub_knife', name: 'Throwing Knife', slot: 'sub', icon: 'knife', desc: 'Fast and light. Marks a foe: the next hit ignores half its DEF. 1 heart.' },
   life_up: { id: 'life_up', name: 'Life Max Up', slot: 'max', icon: 'lifeUp', desc: 'Max HP +15' },
   heart_up: { id: 'heart_up', name: 'Heart Max Up', slot: 'max', icon: 'heartUp', desc: 'Max hearts +10' },
   // minor upgrades hidden in secret corners
@@ -50,13 +64,13 @@ export const ITEMS: Record<string, ItemDef> = {
   relic_grapple: { id: 'relic_grapple', name: 'Chain Grapple', slot: 'relic', icon: 'relic', desc: 'Whip iron rings to swing.' },
   relic_mantle: { id: 'relic_mantle', name: 'Raven Mantle', slot: 'relic', icon: 'mantle', desc: 'Jump again in midair.' },
   relic_greaves: { id: 'relic_greaves', name: 'Frostrunner Greaves', slot: 'relic', icon: 'greaves', desc: 'Down + dash to slide.' },
-  // experimental relics (0.4.0): not placed in the world yet, try them in the #lab test room
+  // experimental relics (0.4.0): not placed in the world yet, try them in the test chamber (#test)
   relic_shroud: { id: 'relic_shroud', name: 'Duskwing Shroud', slot: 'relic', icon: 'shroud', desc: 'Hold jump while falling to glide.' },
   relic_pearl: { id: 'relic_pearl', name: 'Undertow Pearl', slot: 'relic', icon: 'pearl', desc: 'Move freely and at full speed in water.' },
   relic_ward: { id: 'relic_ward', name: 'Ashglass Ward', slot: 'relic', icon: 'ward', desc: 'Raise a shield bubble. 3 hearts.' },
 };
 
-export const SUB_COST: Record<string, number> = { sub_holy: 1, sub_cross: 2 };
+export const SUB_COST: Record<string, number> = { sub_holy: 1, sub_cross: 2, sub_knife: 1 };
 /** Hearts spent to raise the Ashglass Ward's shield bubble. */
 export const WARD_COST = 3;
 
@@ -154,13 +168,16 @@ export const ENEMY_TUNING: Record<string, TuneField[]> = {
   librarian: [SPEED, SIGHT, COOL,
     { key: 'throw', label: 'Throws books', kind: 'bool', help: 'Half in an arc, half straight at you' },
     { key: 'hop', label: 'Hops away', kind: 'bool', help: 'Jumps back when you get close' }],
+  spider: [SPEED, SIGHT, COOL,
+    { key: 'spit', label: 'Spits webs', kind: 'bool', help: 'Spits a web glob that slows you while it hangs on its thread' },
+    { key: 'climb', label: 'Climbs back up', kind: 'bool', help: 'Climbs its thread back to the ceiling after a while. Off: it stays down' }],
 };
 /** Base enemies the editor can make variants of (not the boss). */
 export const BASE_ENEMIES = Object.keys(ENEMY_TUNING);
 /** The room-entity letter for each base enemy. */
 export const ENEMY_LETTER: Record<string, string> = {
   zombie: 'z', bat: 'b', knight: 'k', skeleton: 's', wisp: 'w', drowned: 'd', dog: 'g', harpy: 'y', wraith: 'r', crawler: 'c',
-  hookjaw: 'h', eel: 'e', caster: 'm', ooze: 'o', grub: 'u', hand: 'x', tome: 't', chair: 'a', librarian: 'l',
+  hookjaw: 'h', eel: 'e', caster: 'm', ooze: 'o', grub: 'u', hand: 'x', tome: 't', chair: 'a', librarian: 'l', spider: 'p',
 };
 
 /** Every knob of a base enemy at its normal value. */
@@ -266,6 +283,11 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
     hp: 30, atk: 13, def: 2, xp: 12, name: 'Bone Librarian', portrait: 'walk',
     desc: 'Still shelving the Archivist\'s books, centuries after the last reader left. Disturb it and it throws them at you: some lobbed high, some straight at your head.',
     drops: [{ item: 'heartS', chance: 22 }, { item: 'heartB', chance: 8 }, { item: 'potion', chance: 3 }],
+  },
+  spider: {
+    hp: 26, atk: 12, def: 1, xp: 13, name: 'Gallows Spider', portrait: 'hang',
+    desc: 'Lowers itself on a silk line to look you in the eye, then spits webs that bind your legs. Cut the thread with the whip and it drops to the floor.',
+    drops: [{ item: 'heartS', chance: 24 }, { item: 'heartB', chance: 7 }, { item: 'potion', chance: 3 }],
   },
   wyrm: {
     hp: 900, atk: 22, def: 4, xp: 600, name: 'Ossuary Wyrm', portrait: 'skull',

@@ -1,11 +1,14 @@
 import { Sprite } from '../gfx/view';
-import { Ent, HitKind } from './ent';
+import { Ent, HitKind, DmgType } from './ent';
 import type { Game } from './game';
 import { moveBody, groundAt } from '../world/room';
 import { ENEMY, Tune, defaultTune } from './data';
 import { sign, clamp, rand, overlap } from '../core/util';
 import { GRAVITY, MAX_FALL } from '../config';
 import { EnemyShot, rollEnemyDrop } from './objects';
+
+/** Frames a Throwing Knife's mark lasts if nothing else hits the enemy (5 s). */
+const EXPOSE_TIME = 300;
 
 export abstract class Enemy extends Ent {
   hp: number;
@@ -23,6 +26,17 @@ export abstract class Enemy extends Ent {
   feet = 18; // sprite anchor to bottom offset
   /** Behavior knobs from the enemy editor (see ENEMY_TUNING in data.ts). */
   tune: Tune;
+  /**
+   * States that are deliberate lunges (a pounce, a dive, a charge). Touching the enemy in
+   * one of them counts as a melee blow, so the hero's shield can block it. Any other
+   * touch is plain contact, which goes through the shield.
+   */
+  lunges: string[] = [];
+  private markGlow = false; // the knife-mark glow is showing
+  /** Carries a shield of its own: a Throwing Knife can't mark it. */
+  get shielded() {
+    return false;
+  }
   /** `kind` is the ENEMY id: a base enemy like 'drowned' or a variant made in the enemy editor. */
   constructor(g: Game, public kind: string, x: number, bottom: number, hw: number, hh: number) {
     super();
@@ -59,7 +73,12 @@ export abstract class Enemy extends Ent {
   faceToward(px: number) {
     this.facing = px < this.x ? -1 : 1;
   }
+  hitType(): DmgType {
+    return this.lunges.includes((this as any).state) ? 'melee' : 'touch';
+  }
   onHit(g: Game, dmg: number, fromX: number, crit: boolean, kind: HitKind) {
+    // a Throwing Knife marks it (see Game.dealHit): it glows until the next hit lands
+    if (kind === 'knife' && !this.shielded) this.exposedT = EXPOSE_TIME;
     this.hp -= dmg;
     this.flashT = 8;
     g.damageNumber(this.x, this.y - this.hh - 4, dmg, crit ? '#ffe040' : '#ffffff');
@@ -98,6 +117,12 @@ export abstract class Enemy extends Ent {
     }
     const s = this.sprite!;
     s.flash = this.flashT > 0 ? (this.flashT % 4 < 2 ? 0.9 : 0.4) : 0;
+    // marked by a knife: a slow pale pulse
+    if (this.exposedT > 0) {
+      this.exposedT--;
+      s.glow = this.exposedT > 0 ? 0.3 + Math.sin(this.t * 0.2) * 0.2 : 0;
+    } else if (this.markGlow) s.glow = 0; // the mark was used up by a hit
+    this.markGlow = this.exposedT > 0;
   }
   place() {
     // all character art is drawn facing right, so mirror when facing left
@@ -209,6 +234,9 @@ export class Knight extends Enemy {
     this.heavy = true;
     this.feet = 19;
   }
+  get shielded() {
+    return this.can('shield');
+  }
   onHit(g: Game, dmg: number, fromX: number, crit: boolean, kind: HitKind) {
     // shield blocks hits from the front at half damage
     const front = this.can('shield') && sign(fromX - this.x) === this.facing && this.state !== 'thrust';
@@ -247,7 +275,7 @@ export class Knight extends Enemy {
         this.vx = this.st < 6 ? this.facing * 2.6 : 0;
         this.sprite!.setFrame(A.thrust[this.st < 4 ? 0 : 1]);
         const spear = { x: this.x + this.facing * 36, y: this.y - 2, hw: 15, hh: 4 };
-        if (p.alive && overlap(spear, p)) p.takeDamage(this.atk + 2, this.x);
+        if (p.alive && overlap(spear, p)) p.takeDamage(this.atk + 2, this.x, false, true, 'melee', this.y - 2);
         if (this.st > 22) {
           this.state = 'cool';
           this.st = 0;
@@ -368,6 +396,7 @@ export class Wisp extends Enemy {
 // ---------------------------------------------------------------- drowned
 export class Drowned extends Enemy {
   state: 'lurk' | 'leap' | 'walk' | 'spit' = 'lurk';
+  lunges = ['leap'];
   st = 0;
   cool: number;
   constructor(g: Game, kind: string, x: number, bottom: number) {

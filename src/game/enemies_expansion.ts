@@ -3,7 +3,7 @@
 // Like the older enemies, they read speed/ranges/abilities through num()/can() so
 // enemy-editor variants work.
 import { Sprite } from '../gfx/view';
-import { Ent } from './ent';
+import { Ent, DmgType } from './ent';
 import type { Game } from './game';
 import { Enemy } from './enemies';
 import { groundAt } from '../world/room';
@@ -25,6 +25,10 @@ export class Shockwave extends Ent {
     this.hostile = true;
     this.touchDmg = dmg;
     this.sprite = new Sprite(g.sheets.fx, g.view.sprites, 14);
+  }
+  /** A wave of force, not a thing you can catch on a shield. */
+  hitType(): DmgType {
+    return 'magic';
   }
   update(g: Game) {
     this.t++;
@@ -62,6 +66,7 @@ export function shockPair(g: Game, x: number, floorY: number, speed: number, dmg
 
 export class Dog extends Enemy {
   state: 'prowl' | 'crouch' | 'run' | 'pounce' | 'skid' = 'prowl';
+  lunges = ['pounce'];
   st = 0;
   cool = 30;
   constructor(g: Game, kind: string, x: number, bottom: number) {

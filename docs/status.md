@@ -70,6 +70,15 @@ Update this file when you verify something or finish a listed item.
   - The new-game flow goes title → twin → difficulty → intro → play, and `Hunter.difficulty` is stored. Average damage from a 13-ATK hit at DEF 6 is Normal 9.7, Hard 16.1 and Brutal 22.8. While running at Normal it's 13.0 (armor ignored).
   - Running: 2.47 px/frame (1.5× walk), five afterimages trailing.
 
+- Shield aiming (0.11.0, 2026-10-02), scripted in the test chamber: guard-walking is 0.247 px/frame; Up, Up+Right and Up+Left give 0 (Up+Left turns her left). Blocks: flat shot level/diag yes, up no; lobs from 100 and 180 px diag/up yes, level no; straight-down rock up only. The rendered frame (only the shield drawn) shows the diagonal's top behind its bottom (\ facing right), the pose the user picked.
+- Shields, knife, run, spider and test chambers (0.10.0, 2026-10-02), checked with typecheck and scripted runs plus screenshots in the browser pane, no console errors:
+  - Shield: a buckler cut the Spear Knight's thrust from 15–18 to 12–14, she kept her footing (1.2 px/frame shove, 40 frames of grace). Guarding walks at 0.825 px/frame (half of 1.65) and can't run. A touch hit dropped the shield for 90 frames. Three spider webs in a row were stopped with no damage and no slow. Arc check: the level shield covers −30°..60° in 15° steps, tilted −60°..15°; behind and straight overhead never. Bone lobs from 140 and 180 px were stopped by the tilted shield and by neither stance from 60–100 px, and the level shield stopped none. The raised pose was looked at in screenshots (the user asked for the top to lean forward, `/`).
+  - Rootstone: a hit left her in the normal state with no knockback and 100 frames of grace.
+  - Run: holding RUN + Right gives 2.47 px/frame; releasing RUN drops to 1.65.
+  - Knife: six thrown in one second (1 heart each). It never marked the shielded Spear Knight. On the Hookjaw (DEF 3) it marked every time, and whip damage went from 10.35 to 11.62 on average, with the mark used up by that hit. The streak and the glow were seen on screen.
+  - Spider: perch → drop to her height → hang → spit (the web hit for 2 and slowed her for 150 frames). A whip point on the thread, clear of the body, cut it with no damage: fall, land, crawl. Its crawl frames were redrawn after a look in the enemy editor.
+  - Test chambers: `[`/`]` cycled through all 25 enemies and variants with no errors, each in its spot (crawler under the slab, tome shelved in the bookcase, eel and Drowned in the pool). `#test=boss:bellmother` started the real fight (1000 HP, the hero can be hurt). The editor's button (a real click) carried an unsaved HP change into the test; opening `#test=spider` by hand used the saved HP. The editor lists the three bosses with stats and an animated preview.
+  - The equipment page's SHIELD row and picker fit; the controls page and the title card fit with RUN and SHIELD.
 - TEST ROOM title option (0.9.0, 2026-10-02), checked with typecheck and in the browser pane: the list opens, pages and scrolls (58 rooms), picking the Antechamber starts there with every relic, and a sweep through `testRoom` for all 58 rooms put the hero on open ground in each. Not yet checked: a save point during a test run, and the game-over restart, in real play.
 - Experimental relics and enemies (0.4.0, 2026-10-02), checked with typecheck and frame-stepped scripted runs in the `#lab` room in the browser pane, no console errors:
   - Glide: off the pillar it crossed the spike trench and landed ~450 px away with no damage. Without the Shroud the same jump lands at the trench's edge.
@@ -106,6 +115,8 @@ Update this file when you verify something or finish a listed item.
   - Not seen on screen yet: the crouch throw borrows the crouching-whip frames.
 
 ## Not verified yet
+
+- 0.10.0 by hand: how the shield feels (half speed, the arc sizes, the 90-frame knock-down), the run on a real gamepad's RT and the shield on LT, the new sounds (`block`, `shieldUp`, `shieldDown`, `snap`, `skitter`), the Gallows Spider's speeds and spit rate. None of the new items or the spider are placed in the world. The knife's mark is worth little against today's low enemy DEF values (0–5).
 
 - 0.4.0 experimental relics and enemies: nobody has played them by hand or heard the new sounds (`glide`, `ward`, `wardHit`, `wardPop`, `wardOff`, `chain`, `bite`, `hex`, `blink`, `squelch`, `burrow`). Stats, timings and the 3-heart ward cost are first guesses. The glide wings are small and mostly sit behind her body. The new enemies' sprites have only been seen at normal zoom.
 

@@ -4,7 +4,7 @@ import { Input } from '../core/input';
 import { AudioEngine } from '../audio/audio';
 import { Music } from '../audio/music';
 import { HERO, HERO_M, buildHeroSheet, buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildWyrmSheet, buildLibrarianSheet } from '../gfx/art_chars';
-import { buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet, buildHookjawSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet } from '../gfx/art_beasts';
+import { buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet, buildHookjawSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet } from '../gfx/art_beasts';
 import { buildHoundSheet, buildCinderHoundSheet, buildBellMotherSheet } from '../gfx/art_bosses';
 import { buildItemSheet, buildCandleSheet, buildFxSheet, buildFireSheet, buildRelicFxSheet } from '../gfx/art_items';
 import { paintTiles } from '../gfx/tiles';
@@ -53,6 +53,7 @@ export interface Sheets {
   tome: Sheet;
   chair: Sheet;
   librarian: Sheet;
+  spider: Sheet;
   hound: Sheet;
   houndCinder: Sheet;
   bellmother: Sheet;
@@ -125,6 +126,8 @@ export class Game {
   touring = false;
   /** Id of the room picked from TEST ROOM on the title ('' = a normal game). Blocks saving. */
   testRun = '';
+  /** Extra per-frame logic of the enemy test chamber (game/test_chamber.ts); null in normal play. */
+  testTick: (() => void) | null = null;
   bossName = 0;
   deathT = 0;
   victoryT = 0;
@@ -158,6 +161,7 @@ export class Game {
       tome: buildSheet(buildTomeSheet()),
       chair: buildSheet(buildChairSheet()),
       librarian: buildSheet(buildLibrarianSheet()),
+      spider: buildSheet(buildSpiderSheet()),
       hound: buildSheet(buildHoundSheet()),
       houndCinder: buildSheet(buildCinderHoundSheet()), // Gnarlfang's second form
       bellmother: buildSheet(buildBellMotherSheet()),
@@ -215,6 +219,7 @@ export class Game {
 
   newGame() {
     this.testRun = '';
+    this.testTick = null;
     this.hunter = new Hunter();
     this.hunter.hero = this.heroChoice;
     this.hunter.difficulty = this.difficultyChoice;
@@ -243,10 +248,12 @@ export class Game {
     h.hearts = h.maxHearts = 99;
     h.grapple = h.doubleJump = h.slide = true;
     h.glide = h.swim = h.ward = true;
-    h.subs = ['sub_holy', 'sub_cross'];
+    h.subs = ['sub_holy', 'sub_cross', 'sub_knife'];
     h.sub = 'sub_holy';
+    for (const id of ['shield_heater', 'shield_ossuary', 'shield_ashen', 'acc_rootstone']) h.owned.push(id);
     this.hunter = h;
     this.testRun = def.id;
+    this.testTick = null;
     this.applyHero();
     this.visited = new Set();
     this.cutscene = null;
@@ -261,6 +268,7 @@ export class Game {
 
   continueGame() {
     this.testRun = '';
+    this.testTick = null;
     this.cutscene = null;
     this.input.script = null;
     this.trans = null;
@@ -517,7 +525,13 @@ export class Game {
   private dealHit(e: Ent, base: number, fromX: number, kind: HitKind) {
     const crit = Math.random() < this.hunter.lck / 160;
     const raw = base * rand(0.9, 1.1) * (crit ? 1.5 : 1);
-    const dmg = Math.max(1, Math.round(raw - e.def));
+    // a Throwing Knife's mark: this hit ignores half the DEF, and uses the mark up
+    let def = e.def;
+    if (e.exposedT > 0 && kind !== 'knife') {
+      def *= 0.5;
+      e.exposedT = 0;
+    }
+    const dmg = Math.max(1, Math.round(raw - def));
     e.onHit?.(this, dmg, fromX, crit, kind);
   }
 
@@ -541,15 +555,19 @@ export class Game {
     }
   }
 
+  /** Hit everything overlapping box `b` (once per hitId). Returns how many things it hit. */
   attackBox(b: Box, hitId: number, base: number, fromX: number, kind: HitKind) {
+    let n = 0;
     for (const e of this.ents) {
       if (!e.whipTarget || e.dead || e.lastHit === hitId || e === (b as any)) continue;
       const any = e as any;
       if (any.hitBox ? any.hitBox(b) : overlap(b, e)) {
         e.lastHit = hitId;
         this.dealHit(e, base, fromX, kind);
+        n++;
       }
     }
+    return n;
   }
 
   damageNumber(x: number, y: number, v: number | string, c: string) {
@@ -816,12 +834,26 @@ export class Game {
     }
     this.hunter.time++;
     this.hint = '';
+    this.testTick?.();
     p.update();
     if (this.drainT > 0) this.updateDrain();
     if (this.room.def.tide) this.updateTide();
     for (let i = 0; i < this.ents.length; i++) {
       const e = this.ents[i];
       if (!e.dead) e.update(this);
+    }
+    // the raised shield stops physical shots that fly into it from the side it faces
+    if (p.guarding) {
+      const sb = p.shieldBox();
+      for (const e of this.ents) {
+        if (!e.hostile || e.dead || e.hitType() !== 'shot' || !overlap(e, sb)) continue;
+        // judge it by the way it's flying (back along its path), or by where it is if it isn't moving
+        const v = e as any, vx = v.vx || 0, vy = v.vy || 0;
+        if (!(vx || vy ? p.shieldFaces(-vx, -vy) : p.shieldFaces(e.x - p.x, e.y - p.y))) continue;
+        p.shieldClank(e.y);
+        if (e instanceof EnemyShot) e.strike(this, false);
+        else e.dead = true;
+      }
     }
     // contact damage
     if (p.alive && p.invuln <= 0 && p.state !== 'dead') {
@@ -830,11 +862,13 @@ export class Game {
         if (!e.hostile || e.dead) continue;
         const any = e as any;
         if (any.touches ? any.touches(pb) : overlap(e, pb)) {
-          p.takeDamage(e.touchDmg, e.x);
-          if (e instanceof EnemyShot) {
-            e.dead = true;
-            this.fx.burst(e.x, e.y, 'burst', 1);
-          }
+          // a shot "comes from" back along its flight, so the shield judges its real angle
+          const type = e.hitType();
+          const shot = type === 'shot' && any.vx !== undefined;
+          const fx = shot ? e.x - any.vx * 8 : e.x, fy = shot ? e.y - any.vy * 8 : e.y;
+          const hp = this.hunter.hp;
+          p.takeDamage(e.touchDmg, fx, false, true, type, fy);
+          if (e instanceof EnemyShot) e.strike(this, this.hunter.hp < hp);
           break;
         }
       }

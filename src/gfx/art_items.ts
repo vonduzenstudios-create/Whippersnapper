@@ -152,6 +152,58 @@ export function buildItemSheet(): SheetBuilder {
     p.poly([[3, 12], [13, 12], [11, 15], [5, 15]], hex('#3a3440'));
     p.line(4, 12, 12, 12, hex('#6a6470'));
   });
+  // shields (off hand), seen face on
+  mk('shieldWood', (p) => {
+    // round buckler: oak planks, iron rim and boss
+    p.circle(8, 8, 6.8, hex('#5a5e6a'));
+    p.circle(8, 8, 5.6, hex('#8a5a30'));
+    for (const x of [5, 8, 11]) p.line(x, 3, x, 13, hex('#6a4220'));
+    p.circle(8, 8, 1.8, hex('#9aa0b0'));
+    p.set(7, 7, hex('#e0e4f0'));
+    p.set(4, 4, hex('#a8acbc'));
+  });
+  mk('shieldIron', (p) => {
+    // heater: flat top, pointed foot, a red stripe down the middle
+    p.poly([[2, 2], [14, 2], [14, 8], [8, 15], [2, 8]], hex('#4a4e5c'));
+    p.poly([[3, 3], [13, 3], [13, 8], [8, 13.5], [3, 8]], hex('#8a8ea0'));
+    p.rect(7, 3, 3, 10, hex('#a02030'));
+    p.line(3, 3, 6, 3, hex('#d8dce8'));
+  });
+  mk('shieldBone', (p) => {
+    // tall pavise of black iron with a skull set in it
+    p.rect(3, 1, 10, 14, hex('#2a2a34'));
+    p.rect(4, 2, 8, 12, hex('#4a4a58'));
+    p.circle(8, 7, 2.6, hex('#e8e0c8'));
+    p.rect(7, 9, 3, 2, hex('#e8e0c8'));
+    p.set(7, 7, hex('#2a2a34'));
+    p.set(9, 7, hex('#2a2a34'));
+    p.line(4, 13, 12, 13, hex('#e8e0c8'));
+  });
+  mk('shieldAsh', (p) => {
+    // kite of charcoal split by glowing veins
+    p.poly([[8, 1], [14, 4], [12, 11], [8, 15], [4, 11], [2, 4]], hex('#2a2224'));
+    p.poly([[8, 2], [13, 4.5], [11.5, 10.5], [8, 13.5], [4.5, 10.5], [3, 4.5]], hex('#4a3a3a'));
+    p.line(8, 3, 8, 13, hex('#ff8a30'));
+    p.line(5, 6, 8, 8, hex('#ff6a20'));
+    p.line(11, 6, 8, 8, hex('#ff6a20'));
+    p.set(8, 8, hex('#ffe0a0'));
+  });
+  mk('knife', (p) => {
+    // a slim throwing knife, point up and to the right
+    p.line(4, 12, 13, 3, hex('#c8ccd8'), 1.6);
+    p.line(6, 11, 13, 4, hex('#ffffff'));
+    p.line(2, 14, 5, 11, hex('#6a4a2a'), 2);
+    p.line(3, 9, 7, 13, hex('#8a8ea0'));
+  });
+  mk('rootstone', (p) => {
+    // a grey grave-stone shard bound in green roots
+    p.poly([[5, 2], [11, 3], [13, 13], [3, 14]], hex('#5a5a62'));
+    p.poly([[6, 3], [10, 4], [11, 12], [5, 12]], hex('#8a8a92'));
+    p.line(3, 7, 13, 9, hex('#3a6a2a'));
+    p.line(4, 12, 10, 2, hex('#4a8a34'));
+    p.set(7, 6, hex('#9ad070'));
+    p.set(11, 9, hex('#9ad070'));
+  });
   mk('gold', (p) => {
     p.circle(8, 8, 4, hex('#d8b040'));
     p.circle(8, 8, 2.5, hex('#f0d060'));
@@ -427,6 +479,31 @@ export function buildFxSheet(): SheetBuilder {
       p.poly([[8, 9], [13, 5], [13, 7], [8, 10]], paper);
     }
   }, hex('#1a1010'));
+  // the Throwing Knife in flight (points right), and the streak it leaves
+  add('knife', 1, (p) => {
+    p.line(3, 8, 6, 8, hex('#6a4a2a'), 2); // grip
+    p.line(6, 6, 6, 10, hex('#8a8ea0')); // guard
+    p.poly([[7, 7], [12, 7.5], [14, 8], [12, 8.5], [7, 9]], hex('#c8ccd8'));
+    p.line(7, 7, 12, 7, hex('#ffffff'));
+  }, hex('#1a1424'));
+  add('streak', 1, (p) => {
+    p.line(1, 8, 14, 8, hex('#a8c8ff', 150));
+    p.line(6, 8, 14, 8, hex('#e8f0ff', 220));
+  });
+  // a Gallows Spider's web glob: a sticky white clot with strands
+  add('web', 2, (p, i) => {
+    const w = hex('#f0f0e8'), d = hex('#b8b8b0');
+    p.circle(8, 8, 2.2 + i, w);
+    for (let k = 0; k < 6; k++) {
+      const a = k * 1.05 + i * 0.5, r = 4 + i * 2;
+      p.line(8, 8, 8 + Math.cos(a) * r, 8 + Math.sin(a) * r, d);
+    }
+    p.set(7, 7, hex('#ffffff'));
+  });
+  // a strand of spider silk: stretched to length in game (Sprite mesh scale)
+  add('silk', 1, (p) => {
+    for (let y = 0; y < 16; y++) p.set(8, y, hex('#d8d8d0', 200));
+  });
   // a rising air bubble (eels, swimming with the Undertow Pearl)
   add('bubble', 1, (p) => {
     p.circle(8, 8, 2, hex('#c8f0ff'));
@@ -488,7 +565,57 @@ export function buildRelicFxSheet(): SheetBuilder {
     return p;
   };
   b.add('bubble', bubble(0), bubble(1), bubble(2), bubble(3));
+  // the raised shield, seen from the side: a narrow face held out in front of her.
+  // Frame 0: held level. Frame 1: aimed up and forward, its top leaning back over her head (\ when
+  // facing right). Frame 2: held flat overhead.
+  const looks: Record<string, (p: PixelCanvas) => void> = {
+    wood: (p) => {
+      p.ellipse(8, 12, 4, 10, hex('#5a5e6a'));
+      p.ellipse(8, 12, 3, 9, hex('#8a5a30'));
+      p.line(8, 4, 8, 20, hex('#6a4220'));
+      p.set(9, 12, hex('#c8ccd8'));
+    },
+    iron: (p) => {
+      p.poly([[4, 2], [12, 2], [12, 15], [8, 23], [4, 15]], hex('#4a4e5c'));
+      p.poly([[5, 3], [11, 3], [11, 15], [8, 21], [5, 15]], hex('#8a8ea0'));
+      p.rect(7, 3, 2, 16, hex('#a02030'));
+      p.line(5, 3, 5, 14, hex('#d8dce8'));
+    },
+    bone: (p) => {
+      p.rect(4, 0, 8, 24, hex('#2a2a34'));
+      p.rect(5, 1, 6, 22, hex('#4a4a58'));
+      p.circle(8, 9, 2.2, hex('#e8e0c8'));
+      p.set(7, 9, hex('#2a2a34'));
+      p.set(9, 9, hex('#2a2a34'));
+      p.rect(7, 11, 3, 2, hex('#e8e0c8'));
+    },
+    ash: (p) => {
+      p.poly([[8, 0], [12, 3], [11, 15], [8, 24], [5, 15], [4, 3]], hex('#2a2224'));
+      p.poly([[8, 1], [11, 4], [10, 15], [8, 22], [6, 15], [5, 4]], hex('#4a3a3a'));
+      p.line(8, 3, 8, 20, hex('#ff8a30'));
+      p.set(8, 10, hex('#ffe0a0'));
+    },
+  };
+  for (const [look, paint] of Object.entries(looks)) {
+    const face = new PixelCanvas(16, 24);
+    paint(face);
+    face.outline(hex('#120a12'));
+    b.add(`shield_${look}`, placeRotated(b.canvas(), face, 0), placeRotated(b.canvas(), face, -0.75), placeRotated(b.canvas(), face, -Math.PI / 2));
+  }
   return b;
+}
+
+/** Copy `src` into the middle of `dst`, turned by `angle` radians (nearest pixel, so it stays crisp). */
+function placeRotated(dst: PixelCanvas, src: PixelCanvas, angle: number) {
+  const cx = dst.w / 2, cy = dst.h / 2, sx = src.w / 2, sy = src.h / 2;
+  const cos = Math.cos(-angle), sin = Math.sin(-angle);
+  for (let y = 0; y < dst.h; y++)
+    for (let x = 0; x < dst.w; x++) {
+      const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+      const c = src.get(Math.floor(dx * cos - dy * sin + sx), Math.floor(dx * sin + dy * cos + sy));
+      if (c[3]) dst.set(x, y, c);
+    }
+  return dst;
 }
 
 /** Tall flame for holy water fire and the wyrm's burning breath. */

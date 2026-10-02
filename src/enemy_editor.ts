@@ -8,10 +8,12 @@
 import { baseEnemies, BASE_ENEMIES, ENEMY_TUNING, EnemyStats, EnemyEdits, Drop, ITEMS, PICKUP_NAMES, defaultTune, Tune } from './game/data';
 import ENEMY_EDITS from './game/enemy_edits.json';
 import { buildSheet, sheetColors, recolorSheet, Sheet } from './gfx/view';
-import { buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildLibrarianSheet } from './gfx/art_chars';
+import { buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildLibrarianSheet, buildWyrmSheet } from './gfx/art_chars';
+import { buildHoundSheet, buildBellMotherSheet } from './gfx/art_bosses';
+import { TEST_EDITS_KEY } from './config';
 import {
   buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet,
-  buildHookjawSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet,
+  buildHookjawSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet,
 } from './gfx/art_beasts';
 
 const BASE_SHEETS: Record<string, Sheet> = {
@@ -34,6 +36,13 @@ const BASE_SHEETS: Record<string, Sheet> = {
   tome: buildSheet(buildTomeSheet()),
   chair: buildSheet(buildChairSheet()),
   librarian: buildSheet(buildLibrarianSheet()),
+  spider: buildSheet(buildSpiderSheet()),
+};
+/** The bosses: their stats and text can be edited here, but not their colors, and they have no variants. */
+const BOSS_SHEETS: Record<string, Sheet> = {
+  wyrm: buildSheet(buildWyrmSheet()),
+  hound: buildSheet(buildHoundSheet()),
+  bellmother: buildSheet(buildBellMotherSheet()),
 };
 const PALETTES: Record<string, { hex: string; count: number }[]> = {};
 for (const [k, s] of Object.entries(BASE_SHEETS)) PALETTES[k] = sheetColors(s);
@@ -56,11 +65,14 @@ let renames: Record<string, string> = {};
 let sel = 'zombie';
 
 const isBase = (id: string) => BASE_ENEMIES.includes(id);
+const isBoss = (id: string) => !!BOSS_SHEETS[id] && !!CODE[id];
+/** An enemy written in data.ts (a base enemy or a boss), as opposed to an editor-made variant. */
+const isCode = (id: string) => isBase(id) || isBoss(id);
 const baseOf = (id: string) => (isBase(id) ? id : edits[id]?.base) || 'zombie';
 
 /** What an enemy looks like right now (code version + edits). */
 function current(id: string): EnemyStats {
-  if (isBase(id)) return { ...CODE[id], ...edits[id], base: id };
+  if (isCode(id)) return { ...CODE[id], ...edits[id], base: id };
   return edits[id];
 }
 
@@ -69,7 +81,7 @@ function store(id: string, st: EnemyStats) {
   const clean: EnemyStats = JSON.parse(JSON.stringify(st));
   if (clean.colors && !Object.keys(clean.colors).length) delete clean.colors;
   if (clean.tune && !Object.keys(clean.tune).length) delete clean.tune;
-  if (isBase(id) && JSON.stringify(clean) === JSON.stringify(CODE[id])) delete edits[id];
+  if (isCode(id) && JSON.stringify(clean) === JSON.stringify(CODE[id])) delete edits[id];
   else edits[id] = clean;
   refreshStatus();
 }
@@ -143,8 +155,17 @@ function drawList() {
       list.append(item);
     }
   }
-  ($('delete') as HTMLButtonElement).disabled = isBase(sel);
-  ($('reset') as HTMLButtonElement).disabled = !isBase(sel) || !edits[sel];
+  list.append(el('div', { className: 'group' }, 'BOSSES'));
+  for (const id of Object.keys(BOSS_SHEETS)) {
+    const item = el('div', { className: `item${id === sel ? ' sel' : ''}` }, current(id).name);
+    if (edits[id]) item.append(el('span', { className: 'mark' }, ' *'));
+    item.title = `${id} (boss)`;
+    item.onclick = () => select(id);
+    list.append(item);
+  }
+  ($('variant') as HTMLButtonElement).disabled = isBoss(sel);
+  ($('delete') as HTMLButtonElement).disabled = isCode(sel);
+  ($('reset') as HTMLButtonElement).disabled = !isCode(sel) || !edits[sel];
 }
 
 function select(id: string) {
@@ -168,6 +189,7 @@ function numberInput(value: number, onChange: (v: number) => void, step = 1, min
 }
 
 function drawForm() {
+  if (isBoss(sel)) return drawBossForm();
   const st = current(sel), base = baseOf(sel), content = $('content');
   const left = el('div'), right = el('div');
   content.replaceChildren(left, right);
@@ -253,6 +275,38 @@ function drawForm() {
   drawPreview();
 }
 
+/** A boss: name, text and stats can change. Its attacks are in code, and it has no colors or variants. */
+function drawBossForm() {
+  const st = current(sel), content = $('content');
+  const left = el('div'), right = el('div');
+  content.replaceChildren(left, right);
+  const name = el('input', { value: st.name });
+  name.oninput = () => {
+    update((s) => (s.name = name.value));
+    drawList();
+  };
+  const desc = el('textarea', { value: st.desc });
+  desc.oninput = () => update((s) => (s.desc = desc.value));
+  const stat = (key: 'hp' | 'atk' | 'def' | 'xp', label: string) =>
+    el('label', {}, label, numberInput(st[key], (v) => update((s) => (s[key] = Math.round(v)))));
+  left.append(
+    section('Identity',
+      row('ID', el('input', { value: sel, readOnly: true }), 'Bosses keep their id'),
+      row('Name', name, 'Shown in the bestiary (the fight banner has its own name in game/bosses.ts)'),
+      row('Bestiary text', desc)),
+    section('Stats',
+      el('div', { className: 'stats' }, stat('hp', 'HP'), stat('atk', 'ATK'), stat('def', 'DEF'), stat('xp', 'EXP')),
+      el('p', { className: 'note' }, 'ATK is the damage of touching it; its attacks have their own numbers in code. Gnarlfang rises again with part of this HP.')),
+  );
+  preview = el('canvas', { width: 160, height: 80 });
+  preview.id = 'preview';
+  animSel = el('select');
+  for (const a of Object.keys(BOSS_SHEETS[sel].anims)) animSel.add(new Option(a, a, false, a === CODE[sel].portrait));
+  right.append(section('Preview', preview, row('Animation', animSel),
+    el('p', { className: 'note' }, 'Bosses are made of several sprites in game; this is the main one. See bosses.html for every frame.')));
+  drawPreview();
+}
+
 function colorSection(base: string) {
   const sec = section('Colors');
   const pal = PALETTES[base];
@@ -324,6 +378,7 @@ function drawFrameAt(c: CanvasRenderingContext2D, s: Sheet, idx: number, cx: num
 
 function drawPreview() {
   if (!preview) return;
+  if (isBoss(sel)) return drawBossPreview();
   const base = baseOf(sel), orig = BASE_SHEETS[base], mine = sheetFor(sel);
   // scale so the widest sheet (the knight's spear) still fits half the canvas
   const scale = Math.max(1, Math.floor(Math.min(80 / orig.cw, 80 / orig.ch) * 2) / 2);
@@ -341,6 +396,23 @@ function drawPreview() {
   drawFrameAt(c, orig, idx, W / 4 + 4, H - 6, scale);
   drawFrameAt(c, mine, idx, (W * 3) / 4 - 4, H - 6, scale);
 }
+/** One boss sprite, centered and as large as fits. */
+function drawBossPreview() {
+  const s = BOSS_SHEETS[sel];
+  const scale = Math.max(1, Math.floor(Math.min(240 / s.cw, 160 / s.ch) * 2) / 2);
+  const W = Math.round(s.cw * scale + 24), H = Math.round(s.ch * scale + 12);
+  if (preview.width !== W || preview.height !== H) {
+    preview.width = W;
+    preview.height = H;
+  }
+  const c = preview.getContext('2d')!;
+  c.imageSmoothingEnabled = false;
+  c.fillStyle = '#1a1220';
+  c.fillRect(0, 0, W, H);
+  const anim = s.anims[animSel.value] || s.anims[Object.keys(s.anims)[0]];
+  drawFrameAt(c, s, anim[Math.floor(performance.now() / 160) % anim.length], W / 2, H - 6, scale);
+}
+
 const loop = () => {
   drawPreview();
   requestAnimationFrame(loop);
@@ -394,8 +466,23 @@ $('delete').onclick = () => {
   select(base);
 };
 
+// TEST: open the game in the enemy test chamber with this enemy (or this boss's fight).
+// The working copy goes along through localStorage, so unsaved changes are tested too.
+$('test').onclick = () => {
+  // the stamp ties the copy to this one test tab (the game ignores copies with another stamp),
+  // and the changing query string makes the tab reload even if only the hash differs
+  const t = String(Date.now());
+  try {
+    localStorage.setItem(TEST_EDITS_KEY, JSON.stringify({ t, edits }));
+  } catch {
+    say('Could not hand over unsaved changes: the test uses the saved enemies', 'err');
+  }
+  const what = isBoss(sel) ? `boss:${sel}` : sel;
+  window.open(`index.html?t=${t}#test=${what}`, 'nocturne_test');
+};
+
 $('reset').onclick = () => {
-  if (!isBase(sel) || !edits[sel]) return;
+  if (!isCode(sel) || !edits[sel]) return;
   if (!confirm(`Reset ${CODE[sel].name} to the version in data.ts?`)) return;
   delete edits[sel];
   refreshStatus();

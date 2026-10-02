@@ -4,7 +4,7 @@
 
 ```
 src/
-  main.ts           entry point, plus the #tour/#boss/#hub/#relics/#lab debug hooks
+  main.ts           entry point, plus the #tour/#boss/#hub/#relics/#test debug hooks
   config.ts         VW/VH 384x224, TILE 16, a map cell = 24x14 tiles, GRAVITY, save keys
   core/input.ts     keyboard + gamepad actions, menu edges, rebinding, localStorage binds
   core/util.ts      math, seeded rng, hash2, Box overlap
@@ -32,13 +32,14 @@ src/
   game/enemies_expansion.ts  Dog, Harpy, Wraith, Crawler, and the floor Shockwave
   game/enemies_library.ts  the Rustling Tome (sleeps in a bookcase, tears loose, flaps and dives), the Restless Chair and the prop chair, the Bone Librarian (a Skeleton subclass that throws books)
   game/enemies_extra.ts  experimental (not placed yet): Hookjaw + HookChain, Eel, Caster + HexBolt, Ooze, Grub, Gravehand
-  game/lab.ts       the #lab test room for experimental relics and enemies (number-key spawner)
+  game/enemies_spider.ts  the Gallows Spider (silk thread, web spit, falls when the thread is cut)
+  game/test_chamber.ts  enemy test chambers (#test=<id>, #test=boss:<id>, #lab): the room, spawn spots, respawn, keys
   game/spawn.ts     spawnEnemy(): room letter → enemy (its own file to avoid an import loop)
   game/bosses.ts    BOSSES table: name/banner, flag, victory screen, constructor per boss id
   game/boss.ts      Wyrm: trail-following segments, pattern state machine, multi-hitbox
   game/hound.ts     Gnarlfang (Hound Pit boss)
   game/bellmother.ts  the Bell-Mother (Great Belfry boss)
-  game/objects.ts   Candle, Pickup, RingAnchor, Altar, Sign (signposts + lore stones), HolyFlask/HolyFire, CrossProj, EnemyShot
+  game/objects.ts   Candle, Pickup, RingAnchor, Altar, Sign (signposts + lore stones), HolyFlask/HolyFire, CrossProj, KnifeProj, EnemyShot
   game/fx.ts        pooled sprite particles
   game/stats.ts     Hunter (persistent stats/inventory/flags, save/load)
   game/data.ts      ITEMS, ENEMY stat table (+ enemy_edits.json), ENEMY_TUNING behavior knobs, SUB_COST, xpForLevel

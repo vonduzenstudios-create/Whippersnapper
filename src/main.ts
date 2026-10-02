@@ -1,10 +1,10 @@
 import { Game } from './game/game';
-import { startLab } from './game/lab';
+import { startTest } from './game/test_chamber';
 
 const game = new Game();
 game.start();
 const g: any = game;
-const hash = location.hash.slice(1);
+const hash = decodeURIComponent(location.hash.slice(1));
 /** Start playing in a room (as if the Wyrm were already dead), for testing. */
 const startIn = (id: string, x: number, bottom: number) => {
   g.hunter.bossDefeated = true;
@@ -30,5 +30,6 @@ if (hash === 'hub' || hash === 'relics') {
   startIn('undervault', 40, 26 * 16);
   if (hash === 'relics') g.hunter.doubleJump = g.hunter.slide = true;
 }
-// #lab = the test room for the experimental relics and enemies (see game/lab.ts)
-if (hash === 'lab') startLab(game);
+// #test=<enemy id> = the enemy test chamber with that enemy (the enemy editor's TEST button),
+// #test=boss:<id> = that boss's fight, #test or #lab = the chamber empty (see game/test_chamber.ts)
+if (hash === 'lab' || hash === 'test' || hash.startsWith('test=')) startTest(game, hash.split('=')[1] || '');

@@ -21,6 +21,7 @@ import { TILE } from '../config';
  */
 export class Tome extends Enemy {
   state: 'shelved' | 'rattle' | 'burst' | 'flap' | 'wind' | 'dive' = 'shelved';
+  lunges = ['dive'];
   st = 0;
   /** Frames until a shelved tome starts to rattle (-1 = still asleep). */
   wake = -1;
@@ -235,6 +236,7 @@ export class ChairProp extends Ent {
  */
 export class Chair extends Enemy {
   state: 'still' | 'wake' | 'float' | 'wind' | 'charge' | 'rise' | 'drop' | 'rest' = 'still';
+  lunges = ['charge', 'drop'];
   st = 0;
   cool = 0;
   spin = 0;

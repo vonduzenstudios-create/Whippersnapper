@@ -13,3 +13,5 @@ export const MAX_FALL = 6.5;
 
 export const SAVE_KEY = 'nocturne_of_ash_save_v1';
 export const BIND_KEY = 'nocturne_of_ash_binds_v1';
+/** Where the enemy editor leaves its unsaved enemies for a TEST run (read by game/test_chamber.ts). */
+export const TEST_EDITS_KEY = 'nocturne_of_ash_test_enemies';

@@ -26,7 +26,9 @@ To make a production build, run `npm run build`. The output goes to `dist/`.
 | Jump | Z or K | A |
 | Whip (8 directions with the d-pad) | X or J | X |
 | Sub-weapon | C or L | Y |
-| Backdash | Shift or V | B / RB |
+| Run (hold while moving) | Left Shift | RT |
+| Raise shield (hold) | F or I | LT |
+| Backdash | V | B |
 | Shield bubble (needs the Ashglass Ward) | Up + C or L | Up + Y |
 | Menu | Enter / Esc | Start |
 | Map | Tab / M | Back |
@@ -34,7 +36,8 @@ To make a production build, run `npm run build`. The output goes to `dist/`.
 - Hold the whip button after a strike to dangle the chain.
 - Down + Jump drops you through ledges.
 - Sub-weapons can be thrown while crouching, and you stay crouched.
-- Tap left or right twice and hold it to run. Running leaves afterimages, but your armor doesn't count while you run.
+- Hold Run while moving to run. Running leaves afterimages, but your armor doesn't count while you run.
+- Hold Shield to raise your shield: you creep at 15% speed but can still jump and crouch. Hold Up + Left/Right to aim it up and forward, or Up alone to hold it overhead; while aiming up you stand still. It cuts the damage of weapon strikes and lunges from the side it faces, and stops bones, books, feathers, rocks and webs. Walking into an enemy, fire, hexes and shockwaves go straight through it and knock it down for a moment.
 - In water, Jump swims upward. With your head at the surface, Jump leaps high out of the water.
 - On the map: move the cursor with the stick, d-pad or arrows. Zoom with the right stick (up/down) or Q / E. Jump places an X marker, or removes the one under the cursor. Markers are saved with your game.
 - Once you have the **Chain Grapple**, whip toward an iron ring to latch on. Left/Right swings, Up/Down climbs, and Jump lets go. Hold Up while jumping for a higher launch.
@@ -84,7 +87,7 @@ Debugging:
 - The running game is exposed as `window.game` in the browser console. For example, `game.hunter.grapple = true` gives you the grapple.
 - Add `#tour` to the URL to cycle the camera through every map cell.
 - Add `#boss` to the URL to jump straight into the boss fight with debug HP.
-- Add `#lab` to the URL for the Test Chamber, a sandbox for the experimental relics and enemies. Keys 1-5, X and T spawn enemies, 6 clears them, 7/8/9 toggle the three new relics, and 0 refills HP and hearts.
+- The enemy editor's **Test this enemy** button opens the Test Chamber with that enemy (unsaved changes included), or a boss's real fight. By hand: `#test=<enemy id>`, `#test=boss:<id>`, or `#test` / `#lab` for the empty chamber. Inside: R spawns another, [ and ] switch enemies, 6 clears, 7/8/9 toggle the experimental relics, 0 refills HP and hearts.
 
 ## Changelog
 
@@ -95,6 +98,32 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 - **MAJOR** stays at 0 while this is a tech demo.
 
 The same number is in `package.json`. Newest version first.
+
+### 0.11.0 (2026-10-02)
+
+**Shield aiming.**
+
+- Walking with the shield raised is much slower: 15% of walking speed (was 50%).
+- Up + Left/Right while shielding aims the shield diagonally (up and forward), Up alone holds it flat overhead. Aiming up plants your feet: Left/Right only turn you and aim.
+- The overhead shield blocks things falling straight down (a change from 0.10.0, where nothing could). The diagonal one stops arcing lobs, including close ones; the level one stops shots coming straight at you.
+- The diagonal shield now leans the right way: top back over her head, face up and forward.
+- Fix: a shot falling straight down was judged at the wrong angle (it mixed its position with its flight direction).
+
+### 0.10.0 (2026-10-02)
+
+**Shields, the Throwing Knife, the Gallows Spider, run on RT and enemy test chambers.**
+
+- New equipment slot, SHIELD (off hand). New games start with the Wooden Buckler (20% melee block), and older saves get one too. Three better shields exist but aren't placed yet: Iron Heater (35%, DEF+2), Ossuary Pavise (50%, CON+3) and Ashen Aegis (70%, DEF+5).
+- Hold Shield (LT, or F / I on the keyboard) to raise it. You move at half speed and can't run, but you can jump and crouch, and it turns with you. Up tilts it: level, it covers from a little above straight ahead down to your feet; tilted, it catches long lobs from up to about 65° overhead, but never straight down.
+- What the shield does depends on the hit. Melee (spear thrust, cleaver chop, and lunges: dog pounce, chair charge and stomp, tome dive, eel and Drowned leaps) from the side it faces: damage cut by the shield's block value, with a short shove instead of knockback. Physical shots (bones, books, feathers, rocks, spider webs, the Hookjaw's hook) from that side are stopped. Walking into an enemy, and magic (fire, hexes, shockwaves), go through and knock the shield down for 1.5 s. Boss contact counts as walking into them.
+- New accessory, the Rootstone: hits no longer knock you back (not placed yet).
+- New sub-weapon, the Throwing Knife (1 heart, not placed yet): a fast straight dagger with a streak behind it, up to 3 in the air, thrown with a quick flick. It's weak, but it marks what it hits: the marked enemy glows, and the next other hit ignores half its DEF. Bosses and shielded Spear Knights can't be marked.
+- Run is now held on RT (Left Shift on the keyboard). The double-tap run is gone. The backdash stays on B / V (Shift no longer backdashes).
+- New enemy, the Gallows Spider (`p`): it waits under a ceiling, lowers itself on a silk line to your height when you pass, sways there spitting web globs that slow you, then climbs back up. Hit the thread (with anything) and it drops to the floor and scuttles after you. Not placed in any room yet.
+- Enemy test chambers replace `#lab`. In the enemy editor, pick any enemy and press **Test this enemy**: the game opens in the chamber with it in its proper spot (eels in the pool, tomes in the bookcase, spiders and crawlers under the ceiling slab, chairs by the table), and it comes back 2 s after it dies. Unsaved editor changes are used. For a boss, the button starts its real fight.
+- The enemy editor lists the bosses: view their sprites and edit their name, bestiary text and stats.
+- The test hunter (chamber and TEST ROOM) carries every shield, the Rootstone and the knife.
+- The font has [ and ] now. The title controls card and the controls page show Run and Shield.
 
 ### 0.9.0 (2026-10-02)
 
@@ -156,7 +185,7 @@ Experimental relics and enemies. None of them are placed in the world yet. Try t
 - Grave Grub: travels under the floor as a mound of earth, bursts up beneath you, then lies stranded and vulnerable.
 
 **Tools**
-- `#lab`: a sandbox room off the map, with spawn and toggle keys.
+- `#lab`: a sandbox room off the map, with spawn and toggle keys (replaced by the enemy test chamber in 0.10.0).
 - The enemy editor now shows the expansion enemies and the new ones (it was missing their sprite sheets).
 
 ### 0.3.2 (2026-10-02)

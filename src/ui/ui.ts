@@ -10,6 +10,9 @@ import { clamp } from '../core/util';
 import { INTRO, CINE, VICTORY_LINES, HEROES, HeroId, heroText } from '../game/story';
 import { ZONE_INFO } from '../world/rooms';
 
+/** The equipment slots on the EQUIP page, top to bottom. */
+type EquipSlot = 'whip' | 'shield' | 'armor' | 'acc1' | 'acc2';
+
 const ROOM_ROWS = 12; // rooms shown at once in the TEST ROOM list
 const INTRO_SPEED = 0.45; // px per frame the crawl scrolls up
 const INTRO_FRAMES = Math.ceil((VH + INTRO.length * 14 + 30) / INTRO_SPEED);
@@ -374,11 +377,11 @@ export class UI {
       g.audio.play('cancel');
     };
     if (tab === 'equip') {
-      const slots = ['whip', 'armor', 'acc1', 'acc2'] as const;
+      const slots = ['whip', 'shield', 'armor', 'acc1', 'acc2'] as const;
       if (this.focus === 'panel') {
         if (inp.cancel || inp.mLeft) return back();
-        if (inp.mUp) this.sel = (this.sel + 3) % 4;
-        if (inp.mDown) this.sel = (this.sel + 1) % 4;
+        if (inp.mUp) this.sel = (this.sel + slots.length - 1) % slots.length;
+        if (inp.mDown) this.sel = (this.sel + 1) % slots.length;
         if (inp.mUp || inp.mDown) g.audio.play('menu');
         if (inp.confirm) {
           this.focus = 'pick';
@@ -486,11 +489,11 @@ export class UI {
     }
   }
 
-  equipChoices(slot: 'whip' | 'armor' | 'acc1' | 'acc2'): string[] {
+  equipChoices(slot: EquipSlot): string[] {
     const h = this.g.hunter;
     const want = slot === 'acc1' || slot === 'acc2' ? 'acc' : slot;
     const list = h.owned.filter((id) => ITEMS[id] && ITEMS[id].slot === want);
-    if (want === 'acc') list.unshift('');
+    if (want === 'acc' || want === 'shield') list.unshift('');
     return list;
   }
 
@@ -787,7 +790,9 @@ export class UI {
       ['JUMP', 'Z / K', 'A'],
       ['WHIP', 'X / J  (+DIR)', 'X'],
       ['SUB-WEAPON', 'C / L', 'Y'],
-      ['BACKDASH', 'SHIFT / V', 'B / RB'],
+      ['RUN', 'HOLD SHIFT', 'RT'],
+      ['SHIELD', 'HOLD F / I', 'LT'],
+      ['BACKDASH', 'V', 'B'],
       ['MENU', 'ENTER / ESC', 'START'],
       ['MAP', 'TAB / M', 'BACK'],
     ];
@@ -795,9 +800,9 @@ export class UI {
     drawText(c, 'KEYS', x + 82, y + 7, GOLD);
     drawText(c, 'PAD', x + 170, y + 7, GOLD);
     rows.forEach((r, i) => {
-      drawText(c, r[0], x + 8, y + 19 + i * 11, PALE);
-      drawText(c, r[1], x + 82, y + 19 + i * 11, DIM);
-      drawText(c, r[2], x + 170, y + 19 + i * 11, DIM);
+      drawText(c, r[0], x + 8, y + 18 + i * 9, PALE);
+      drawText(c, r[1], x + 82, y + 18 + i * 9, DIM);
+      drawText(c, r[2], x + 170, y + 18 + i * 9, DIM);
     });
   }
 
@@ -936,6 +941,7 @@ export class UI {
     drawText(c, `RELICS: ${relics.length ? relics.join(', ') : '---'}`, x + 12, y + 120, relics.length ? GOLD : DIM);
     drawText(c, `SUB-WEAPON: ${h.sub ? ITEMS[h.sub].name.toUpperCase() : '---'}`, x + 12, y + 132, PALE);
     const tips = ['HOLD WHIP AFTER A STRIKE TO DANGLE IT.', 'DOWN + JUMP DROPS THROUGH LEDGES.', 'WHIP UP/DIAGONAL WITH THE D-PAD.'];
+    if (h.equip.shield) tips.push('HOLD SHIELD TO BLOCK. UP TILTS IT.');
     if (h.doubleJump) tips.push('JUMP AGAIN IN MIDAIR TO DOUBLE JUMP.');
     if (h.slide) tips.push('DOWN + DASH SLIDES UNDER LOW GAPS.');
     if (h.glide) tips.push('HOLD JUMP WHILE FALLING TO GLIDE.');
@@ -946,7 +952,7 @@ export class UI {
 
   drawEquip(x: number, y: number, w: number) {
     const c = this.ctx, h = this.g.hunter;
-    const slots: [string, 'whip' | 'armor' | 'acc1' | 'acc2'][] = [['WHIP', 'whip'], ['ARMOR', 'armor'], ['ACC 1', 'acc1'], ['ACC 2', 'acc2']];
+    const slots: [string, EquipSlot][] = [['WHIP', 'whip'], ['SHIELD', 'shield'], ['ARMOR', 'armor'], ['ACC 1', 'acc1'], ['ACC 2', 'acc2']];
     drawText(c, 'EQUIPMENT', x + 10, y + 10, GOLD);
     slots.forEach(([lab, key], i) => {
       const sel = this.focus !== 'tabs' && i === this.sel;
@@ -961,19 +967,19 @@ export class UI {
         drawText(c, ITEMS[id].name.toUpperCase(), x + 74, y + 28 + i * 18, PALE);
       } else drawText(c, '---', x + 74, y + 28 + i * 18, DIM);
     });
-    drawText(c, `ATK ${h.atk}   DEF ${h.def}   STR ${h.str}   CON ${h.con}   LCK ${h.lck}`, x + 10, y + 104, PALE);
+    drawText(c, `ATK ${h.atk}   DEF ${h.def}   STR ${h.str}   CON ${h.con}   LCK ${h.lck}`, x + 10, y + 120, PALE);
     if (this.focus === 'pick') {
       const list = this.equipChoices(slots[this.sel][1]);
-      const bx = x + 20, by = y + 116;
-      this.panel(bx, by, w - 40, Math.min(list.length, 5) * 12 + 14, 1);
-      const start = Math.max(0, Math.min(this.pickSel - 2, list.length - 5));
-      list.slice(start, start + 5).forEach((id, j) => {
+      const bx = x + 20, by = y + 128;
+      this.panel(bx, by, w - 40, Math.min(list.length, 4) * 12 + 14, 1);
+      const start = Math.max(0, Math.min(this.pickSel - 1, list.length - 4));
+      list.slice(start, start + 4).forEach((id, j) => {
         const i = start + j;
         const sel = i === this.pickSel;
         drawText(c, (sel ? '> ' : '  ') + (id ? ITEMS[id].name.toUpperCase() : 'NONE'), bx + 8, by + 8 + j * 12, sel ? PALE : DIM);
       });
       const id = list[this.pickSel];
-      if (id) drawText(c, ITEMS[id].desc.toUpperCase(), x + w / 2, y + 190, GOLD, '#000', 'center');
+      if (id) drawText(c, ITEMS[id].desc.toUpperCase(), x + w / 2, y + 196, GOLD, '#000', 'center');
     } else if (this.focus === 'panel') drawText(c, 'CONFIRM: CHANGE   CANCEL: BACK', x + w / 2, y + 190, DIM, '#000', 'center');
   }
 
@@ -1070,7 +1076,7 @@ export class UI {
 
   drawControls(x: number, y: number, w: number) {
     const c = this.ctx, inp = this.g.input;
-    const ROW = 12; // row height, tight enough to fit every action above the footer
+    const ROW = 11; // row height, tight enough to fit every action above the footer
     drawText(c, 'CONTROLS', x + 10, y + 10, GOLD);
     drawText(c, 'KEYS', x + 110, y + 10, DIM);
     drawText(c, 'PAD', x + 200, y + 10, DIM);
@@ -1079,7 +1085,7 @@ export class UI {
       const yy = y + 24 + i * ROW;
       if (sel) {
         c.fillStyle = this.focus === 'capture' ? '#6a1828' : '#4a1828';
-        c.fillRect(x + 6, yy - 3, w - 12, 12);
+        c.fillRect(x + 6, yy - 2, w - 12, 11);
       }
       drawText(c, ACTION_LABEL[a] || a.toUpperCase(), x + 10, yy, sel ? PALE : DIM);
       drawText(c, inp.bindKeys[a].map(keyLabel).join(' / '), x + 110, yy, PALE);
@@ -1089,7 +1095,7 @@ export class UI {
     const rsel = this.focus !== 'tabs' && this.sel === REBINDABLE.length;
     if (rsel) {
       c.fillStyle = '#4a1828';
-      c.fillRect(x + 6, ry - 3, w - 12, 12);
+      c.fillRect(x + 6, ry - 2, w - 12, 11);
     }
     drawText(c, 'RESET TO DEFAULTS', x + 10, ry, rsel ? PALE : DIM);
     if (this.focus === 'capture') drawText(c, 'PRESS A KEY OR PAD BUTTON...', x + w / 2, y + ph(y), RED, '#000', 'center');

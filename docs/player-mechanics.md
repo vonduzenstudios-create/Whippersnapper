@@ -4,10 +4,24 @@ All of this lives in `src/game/player.ts` unless noted.
 
 ## Run
 
-Tap left or right, then press the same direction again within 15 frames and hold it: the hero runs at 1.5× walking speed (`RUN_MUL`, `RUN_TAP`). Releasing or turning drops back to a walk. The run carries into jumps, so running jumps go farther (about 1.2× the old 1.25× run).
+Hold RUN (RT, Left Shift) while moving: the hero runs at 1.5× walking speed (`RUN_MUL`). A run starts on the ground and carries into jumps, so running jumps go farther. Letting go of RUN or the direction drops back to a walk, and you can't run with the shield raised. (Before 0.10.0 this was a double tap.)
 
 - Afterimages: `Player.echoes` is a pool of `ECHOES` hero sprites (render order 11). `tickEchoes()` (end of `update()`) drops one every `ECHO_EVERY` frames while moving at run speed, and `renderEchoes()` draws them tinted blue, fading out. `loadRoom` clears them.
 - While `running` is set, `takeDamage` ignores armor (defense counts as 0).
+
+## Shield (0.10.0)
+
+The off-hand slot (`Hunter.equip.shield`, items with `slot: 'shield'`). Each shield has `block` (the share of a blocked melee hit it soaks up) and `look` (which face the `relicfx` sheet draws: `shield_<look>`, frame 0 level, frame 1 diagonal with its top leaning back over her head (\ facing right), frame 2 flat overhead). New games start with `shield_buckler`; `Hunter.load` gives older saves one.
+
+- Hold SHIELD (LT, F / I) to raise it (`Player.guarding`). Only in the normal state, so a whip or throw lowers it for that moment. Walking speed ×`GUARD_MUL` (0.15), no running; jumping and crouching work. `guardAim`: UP + a direction is `diag`, UP alone is `up` (overhead); in either she doesn't move, and left/right only turn her (0.11.0).
+- `shieldFaces(dx, dy)` decides what it covers: a direction from her toward the hit, in front of her, within `GUARD_ARC` for the current aim, in degrees from straight ahead (negative = above, below −90 = above and behind): level −30°..70°, diag −80°..0°, up −125°..−55°. `shieldBox()` is where it's drawn and where shots get caught (judged by their flight direction).
+- Every hostile ent says how it hurts through `Ent.hitType()` (`DmgType` in `ent.ts`): `touch` (the default: bodies, bosses), `melee` (weapon strikes, and enemies in one of their `Enemy.lunges` states), `shot` (physical `EnemyShot`s: bone, book, feather, rock, web) and `magic` (fire shots, `HexBolt`, `Shockwave`). Direct strikes pass the type to `takeDamage(raw, fromX, ignoreInvuln, fromEnemy, type, fromY)`.
+- Melee from a covered side: damage × (1 − block), a 1.2 px/frame shove instead of knockback, and `BLOCK_INVULN` (40) frames of grace. Shots: caught on the shield box every frame (`Game.updatePlay`), or at body contact if they came from a covered side (a shot "comes from" 8 frames back along its flight, so arcs are judged by their real angle); no damage. The Hookjaw's hook bounces off. Touch or magic hits go through and knock the shield down for `SHIELD_COOL` (90) frames.
+- Measured (0.11.0): a buckler turns a 15–18 spear thrust into 12–14. Flat shot: level and diag block, up doesn't. Bone lobs from 100 and 180 px: diag and up block, level doesn't. A rock falling straight down: only up blocks.
+
+## Rootstone (0.10.0)
+
+`acc_rootstone` (`ItemDef.noKnock`, `Hunter.noKnock`): a hit still hurts and gives the usual 100 frames of grace, but she keeps her footing and her control (no hurt state, no knockback). A hit still knocks her off a grapple ring.
 
 ## Swimming
 
@@ -38,11 +52,11 @@ In water (`Player.inWater`), pressing Jump off the ground is a swim stroke (`SWI
 
 ## Experimental relics (0.4.0)
 
-Not placed in the world yet. Try them in the `#lab` room. Each has a `Hunter` flag (defaults to false, so old saves load) set by `addItem()`.
+Not placed in the world yet. Try them in the test chamber (`#test`). Each has a `Hunter` flag (defaults to false, so old saves load) set by `addItem()`.
 
 - **Duskwing Shroud** (`relic_shroud`, `Hunter.glide`): holding Jump while falling (normal state, not in water) glides. Gravity drops to 0.3×, the fall speed is capped at `GLIDE_FALL` (0.75 px/frame) and air speed is ×`GLIDE_MUL` (1.2). Moth wings (`relicfx` sheet, render order 11) show behind her. Gliding off the lab pillar carries her ~450 px while dropping 80. It doesn't use up the double jump, so double jump, then hold to glide.
 - **Undertow Pearl** (`relic_pearl`, `Hunter.swim`): in water there's no 0.6× slowdown (walk and run at full speed: 99 px/s instead of 59), she barely sinks (gravity 0.2×, max fall 1.2), Up/Down swim at `FREE_SWIM_V` (2.2), swim strokes are 1.4× stronger, the floor jump isn't weakened, and the slide works underwater. The surface leap is unchanged, so tidal-room gates that rely on the leap height still hold.
-- **Ashglass Ward** (`relic_ward`, `Hunter.ward`): the new **SHIELD** action (F / I, pad RT, rebindable) spends `WARD_COST` (3) hearts to raise a bubble for `WARD_TIME` (180 frames). While it's up, `takeDamage` ignores every hit from a monster (`fromEnemy`), with sparks via `blockHit()`; spikes still hurt. Enemy shots that touch it are destroyed as usual. It flickers in its last 45 frames, then can't be raised again for `WARD_COOL` (60). A Gloomcaster hex **pops** it outright (`popWard()`, 30 frames of grace), and a Hookjaw hook bounces off it.
+- **Ashglass Ward** (`relic_ward`, `Hunter.ward`): Up + SUB-WEAPON (since 0.4.1) spends `WARD_COST` (3) hearts to raise a bubble for `WARD_TIME` (180 frames). While it's up, `takeDamage` ignores every hit from a monster (`fromEnemy`), with sparks via `blockHit()`; spikes still hurt. Enemy shots that touch it are destroyed as usual. It flickers in its last 45 frames, then can't be raised again for `WARD_COOL` (60). A Gloomcaster hex **pops** it outright (`popWard()`, 30 frames of grace), and a Hookjaw hook bounces off it.
 
 Enemy effects on the hero, also new in 0.4.0:
 - `Player.grab(by, time)` / `holdT`: a Gravehand's grip (no damage, no invulnerability). While `holdT > 0` she can't walk, jump or dash, knockback is cancelled, and she strains in place. `HOLD_TIME` is 100 frames; each left/right press takes off `WIGGLE_CUT` (16), a jump press `JUMP_CUT` (45) and kicks her free with a small hop. Attacks, sub-weapons and the ward still work. After breaking free, `freeT` (60 frames) stops hands grabbing her again. A warded hero is not grabbed at all.
@@ -55,7 +69,8 @@ Holding attack after a strike dangles the chain. A newly pressed direction flick
 
 ## Sub-weapons
 
-- Holy Water costs 1 heart, Boomerang Cross costs 2 (`SUB_COST` in `game/data.ts`).
+- Holy Water costs 1 heart, Boomerang Cross costs 2, Throwing Knife 1 (`SUB_COST` in `game/data.ts`).
+- Throwing Knife (0.10.0, `KnifeProj` in `objects.ts`): released on frame `KNIFE_RELEASE` (3) of a throw that ends on frame `KNIFE_END` (9), about 6 a second; at most `KNIFE_MAX` (3) in the air. Flies straight at 7.5 px/frame, damage `3 + STR × 0.4`, stops at the first thing it hits. It marks an `Enemy` (`exposedT`, 300 frames, a pulsing glow) unless it is `shielded` (Spear Knights with their shield); bosses aren't `Enemy`s, so they're never marked. `Game.dealHit` halves the DEF for the next non-knife hit on a marked enemy and clears the mark.
 - `Hunter.subs` lists every sub-weapon found and `Hunter.sub` is the selected one.
 - Q/E or LB/RB cycle them (`subPrev`/`subNext` actions). RB used to be a second dash button.
 - They can be thrown while hanging from a grapple ring without letting go. Left/Right aims the throw, otherwise it goes the way you're swinging (`Player.paySub()` + `releaseSub(x, y)`).
@@ -68,9 +83,9 @@ Broken stones stay broken (saved in `Hunter.broken`). Hidden paths built on this
 
 ## Damage
 
-Classic-hard: knockback on every hit. Spike pits deal damage and respawn the player at the last safe spot.
+Classic-hard: knockback on every hit (unless the shield blocks it or the Rootstone is worn). Spike pits deal damage and respawn the player at the last safe spot.
 
-`Player.takeDamage(raw, fromX, ignoreInvuln, fromEnemy = true)`: damage = `raw × difficulty × (0.9..1.1) − DEF × 0.55`, at least 1. The difficulty multiplier comes from `DIFFICULTIES[Hunter.difficulty]` in `game/data.ts` (Normal 1, Hard 1.5, Brutal 2). Spikes pass `fromEnemy = false` and are never scaled. Because DEF is subtracted after the multiplier, Hard and Brutal hurt a bit more than 1.5× / 2× at low levels. DEF is 0 while running.
+`Player.takeDamage(raw, fromX, ignoreInvuln, fromEnemy = true, type = 'touch', fromY)` (see Shield for `type`): damage = `raw × difficulty × (0.9..1.1) − DEF × 0.55`, at least 1. The difficulty multiplier comes from `DIFFICULTIES[Hunter.difficulty]` in `game/data.ts` (Normal 1, Hard 1.5, Brutal 2). Spikes pass `fromEnemy = false` and are never scaled. Because DEF is subtracted after the multiplier, Hard and Brutal hurt a bit more than 1.5× / 2× at low levels. DEF is 0 while running.
 
 ## Easter egg
 
@@ -107,7 +122,7 @@ Expansion equipment: Rime Chain (whip, ATK+32, icy blue chain, top of the Aquedu
 
 ### Experimental enemies (`game/enemies_extra.ts`, 0.4.0)
 
-Not placed in any room yet. Spawn them in `#lab` with keys 1–5, or place them with the map editor's ENEMIES tab.
+Not placed in any room yet. Try them with the enemy editor's TEST button, or place them with the map editor's ENEMIES tab.
 
 | Letter | Enemy | Behavior | Knobs |
 |---|---|---|---|
@@ -117,6 +132,14 @@ Not placed in any room yet. Spawn them in `#lab` with keys 1–5, or place them 
 | `o` | Rot Ooze | Hops after you. Sizes 3 → 2 → 1 (HP ×1 / ×0.55 / ×0.3). Killing one bigger than size 1 splits it in two (XP and a bestiary kill each time). Only the smallest pieces roll drops. The pieces inherit the killing blow's hit id, so one swing can't chain through them | `split` |
 | `x` | Gravehand | Hidden under the floor. When you stand within ~30 px on the same floor, fingertips twitch for 34 frames (the warning), then it bursts up for 44 frames and grabs if you're still on the spot and grounded. Does no damage (not `hostile`); the grab is `Player.grab()`. It sinks when you break free and waits 150 frames. HP 20, only hittable while up; killing it frees you | `grip` |
 | `u` | Grave Grub | Untouchable mound under the floor that creeps toward you. Right under you it trembles (26 frames), then bursts up (hostile) and lands stranded for 110 frames, taking 1.5× damage, then digs back down | `burrow` |
+
+### Gallows Spider (`game/enemies_spider.ts`, 0.10.0)
+
+Not placed in any room yet.
+
+| Letter | Enemy | Behavior | Knobs |
+|---|---|---|---|
+| `p` | Gallows Spider | Finds the ceiling above where it's placed and hangs there (`perch`). When you pass within 56 px across and below it (up to 240 px), it lowers itself on a silk line (`drop`, 3.2 px/frame) to your chest height, or as low as the floor allows. `hang`: sways, creeps up or down to stay level with you, and every 110 frames (within 170 px) opens its fangs for 18 frames and spits a web glob (`EnemyShot` kind `web`, half its ATK, `Player.web(150)`: the hex slow, tinted white). After 330 frames it climbs back up and rests 100 frames. Any hit on the thread (`hitAt`/`hitBox` test the line) cuts it: it falls, then scuttles after you on the floor (`crawl`). HP 26 | `spit`, `climb` |
 
 ### Library enemies (`game/enemies_library.ts`, 0.6.0)
 

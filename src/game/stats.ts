@@ -15,9 +15,9 @@ export class Hunter {
   baseStr = 7;
   baseCon = 4;
   baseLck = 5;
-  equip = { whip: 'whip_leather', armor: 'armor_coat', acc1: '', acc2: '' };
+  equip = { whip: 'whip_leather', shield: 'shield_buckler', armor: 'armor_coat', acc1: '', acc2: '' };
   inv: Record<string, number> = { potion: 1 };
-  owned: string[] = ['whip_leather', 'armor_coat'];
+  owned: string[] = ['whip_leather', 'shield_buckler', 'armor_coat'];
   sub = ''; // the selected sub-weapon
   subs: string[] = []; // every sub-weapon found so far
   grapple = false;
@@ -38,7 +38,7 @@ export class Hunter {
 
   private bonus(k: 'str' | 'con' | 'lck' | 'def' | 'atk') {
     let v = 0;
-    for (const id of [this.equip.whip, this.equip.armor, this.equip.acc1, this.equip.acc2]) {
+    for (const id of [this.equip.whip, this.equip.shield, this.equip.armor, this.equip.acc1, this.equip.acc2]) {
       if (!id) continue;
       const it = ITEMS[id] as any;
       if (it[k]) v += it[k];
@@ -62,6 +62,14 @@ export class Hunter {
   }
   get whipLen() {
     return ITEMS[this.equip.whip].len || 56;
+  }
+  /** Share of a blocked melee hit the equipped shield soaks up (0 = no shield). */
+  get block() {
+    return (this.equip.shield && ITEMS[this.equip.shield]?.block) || 0;
+  }
+  /** An accessory (the Rootstone) stops hits from knocking you back. */
+  get noKnock() {
+    return [this.equip.acc1, this.equip.acc2].some((id) => id && ITEMS[id]?.noKnock);
   }
   get fireWhip() {
     return !!ITEMS[this.equip.whip].fire;
@@ -142,6 +150,11 @@ export class Hunter {
       Object.assign(h, JSON.parse(s));
       // saves from before sub-weapon switching only stored the one held weapon
       if (h.sub && !h.subs.includes(h.sub)) h.subs.push(h.sub);
+      // saves from before the shield slot (0.10.0) get the starting buckler
+      if (h.equip.shield === undefined) {
+        h.equip.shield = 'shield_buckler';
+        if (!h.owned.includes('shield_buckler')) h.owned.push('shield_buckler');
+      }
       return h;
     } catch {
       return null;

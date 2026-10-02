@@ -1,11 +1,11 @@
 import { BIND_KEY } from '../config';
 
 // The Ashglass Ward has no button of its own: it's UP + SUB-WEAPON (see Player.update).
-export type Action = 'left' | 'right' | 'up' | 'down' | 'jump' | 'attack' | 'sub' | 'subPrev' | 'subNext' | 'dash' | 'pause' | 'map';
-export const ACTIONS: Action[] = ['left', 'right', 'up', 'down', 'jump', 'attack', 'sub', 'subPrev', 'subNext', 'dash', 'pause', 'map'];
-export const REBINDABLE: Action[] = ['jump', 'attack', 'sub', 'subPrev', 'subNext', 'dash', 'pause', 'map', 'up', 'down', 'left', 'right'];
+export type Action = 'left' | 'right' | 'up' | 'down' | 'jump' | 'attack' | 'sub' | 'subPrev' | 'subNext' | 'dash' | 'run' | 'shield' | 'pause' | 'map';
+export const ACTIONS: Action[] = ['left', 'right', 'up', 'down', 'jump', 'attack', 'sub', 'subPrev', 'subNext', 'dash', 'run', 'shield', 'pause', 'map'];
+export const REBINDABLE: Action[] = ['jump', 'attack', 'sub', 'subPrev', 'subNext', 'run', 'shield', 'dash', 'pause', 'map', 'up', 'down', 'left', 'right'];
 /** Display names for the controls menu (defaults to the upper-cased action id). */
-export const ACTION_LABEL: Partial<Record<Action, string>> = { sub: 'SUB-WEAPON', subPrev: 'SUB PREV', subNext: 'SUB NEXT' };
+export const ACTION_LABEL: Partial<Record<Action, string>> = { sub: 'SUB-WEAPON', subPrev: 'SUB PREV', subNext: 'SUB NEXT', run: 'RUN (HOLD)', shield: 'SHIELD (HOLD)' };
 
 const DEFAULT_KEYS: Record<Action, string[]> = {
   left: ['ArrowLeft', 'KeyA'],
@@ -17,7 +17,9 @@ const DEFAULT_KEYS: Record<Action, string[]> = {
   sub: ['KeyC', 'KeyL'],
   subPrev: ['KeyQ'],
   subNext: ['KeyE'],
-  dash: ['ShiftLeft', 'KeyV'],
+  dash: ['KeyV'],
+  run: ['ShiftLeft'],
+  shield: ['KeyF', 'KeyI'],
   pause: ['Enter', 'Escape'],
   map: ['Tab', 'KeyM'],
 };
@@ -33,6 +35,8 @@ const DEFAULT_PAD: Record<Action, number[]> = {
   subPrev: [4], // LB
   subNext: [5], // RB
   dash: [1],
+  run: [7], // RT
+  shield: [6], // LT
   pause: [9],
   map: [8],
 };
@@ -91,6 +95,9 @@ export class Input {
         // older saves had RB on dash; RB now cycles sub-weapons
         const dash = this.bindPad.dash;
         if (dash.length === 2 && dash[0] === 1 && dash[1] === 5) this.bindPad.dash = [1];
+        // before 0.10.0 left Shift was a backdash key; it is the run key now
+        if (!s.keys?.run) this.bindKeys.dash = this.bindKeys.dash.filter((k) => k !== 'ShiftLeft');
+        if (!this.bindKeys.dash.length) this.bindKeys.dash = ['KeyV'];
       }
     } catch {
       /* storage unavailable */

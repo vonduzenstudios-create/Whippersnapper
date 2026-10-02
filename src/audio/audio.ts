@@ -159,6 +159,25 @@ const SFX: Record<string, Sfx> = {
     a.tone({ type: 'triangle', f0: 1800, dur: 0.2, vol: 0.15 });
     a.tone({ type: 'triangle', f0: 2710, dur: 0.15, vol: 0.1 });
   },
+  // shield (0.10.0): a dull wooden thud with a ring of iron on top
+  block: (a) => {
+    a.tone({ type: 'sine', f0: 160, f1: 70, dur: 0.12, vol: 0.45 });
+    a.noise({ dur: 0.05, vol: 0.3, type: 'bandpass', f0: 1400, q: 3 });
+    a.tone({ type: 'triangle', f0: 1350, dur: 0.14, vol: 0.08, t: 0.01 });
+  },
+  shieldUp: (a) => a.noise({ dur: 0.07, vol: 0.12, type: 'bandpass', f0: 900, f1: 1600, q: 2 }),
+  shieldDown: (a) => {
+    a.tone({ type: 'triangle', f0: 700, f1: 260, dur: 0.18, vol: 0.12 });
+    a.noise({ dur: 0.1, vol: 0.2, type: 'lowpass', f0: 1200, f1: 300 });
+  },
+  // Gallows Spider: the silk snapping, legs ticking on stone (its spit uses 'spit')
+  snap: (a) => {
+    a.tone({ type: 'square', f0: 2600, f1: 1200, dur: 0.03, vol: 0.08 });
+    a.noise({ dur: 0.05, vol: 0.2, type: 'highpass', f0: 5000 });
+  },
+  skitter: (a) => {
+    for (let i = 0; i < 5; i++) a.noise({ dur: 0.015, vol: 0.12, type: 'highpass', f0: 3500, t: i * 0.035 });
+  },
   enemyDie: (a) => {
     a.noise({ dur: 0.4, vol: 0.4, type: 'lowpass', f0: 3000, f1: 200 });
     a.tone({ type: 'square', f0: 500, f1: 60, dur: 0.35, vol: 0.12, lp: 2000 });

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Sprite } from '../gfx/view';
-import { Ent, HitKind } from './ent';
+import { Ent, HitKind, DmgType } from './ent';
 import type { Game } from './game';
 import { moveBody } from '../world/room';
 import { ITEMS, ENEMY, dropChance } from './data';
@@ -381,6 +381,45 @@ export class CrossProj extends Ent {
   }
 }
 
+// ---------------------------------------------------------------- throwing knife
+/**
+ * A fast, straight dagger with a streak behind it. Weak, but it marks what it hits: the
+ * next other hit on that enemy ignores half its DEF (see Enemy.onHit and Game.dealHit).
+ * It stops at the first thing it hits.
+ */
+export class KnifeProj extends Ent {
+  t = 0;
+  hid: number;
+  constructor(g: Game, x: number, y: number, public dir: number) {
+    super();
+    this.x = x;
+    this.y = y;
+    this.hw = 6;
+    this.hh = 2;
+    this.hid = g.newHitId();
+    this.sprite = new Sprite(g.sheets.fx, g.view.sprites, 14);
+    this.sprite.setFrame(g.sheets.fx.anims.knife[0]);
+  }
+  update(g: Game) {
+    this.t++;
+    const step = this.dir * 7.5;
+    this.x += step;
+    this.sprite!.place(this.x, this.y, this.dir < 0);
+    // a fading streak along its path (two per frame so it doesn't break up at this speed)
+    for (const k of [0.25, 0.75]) g.fx.burst(this.x - step * k - this.dir * 6, this.y, 'streak', 1, 0, { life: 9, fade: true, order: 13, glow: 0.4 });
+    if (g.attackBox(this, this.hid, 3 + g.hunter.str * 0.4, this.x - step, 'knife')) {
+      this.dead = true;
+      return;
+    }
+    if (g.room.solidPx(this.x + this.dir * 5, this.y)) {
+      this.dead = true;
+      g.audio.play('clink');
+      g.fx.burst(this.x + this.dir * 4, this.y, 'spark', 1, 0);
+    }
+    if (this.t > 90 || this.x < -32 || this.x > g.room.W + 32) this.dead = true;
+  }
+}
+
 // ---------------------------------------------------------------- enemy projectiles
 export class EnemyShot extends Ent {
   vx: number;
@@ -388,7 +427,7 @@ export class EnemyShot extends Ent {
   grav: number;
   t = 0;
   frames: number[];
-  constructor(g: Game, x: number, y: number, vx: number, vy: number, kind: 'bone' | 'fireball' | 'bigfire' | 'feather' | 'rock' | 'book', dmg: number, grav = 0) {
+  constructor(g: Game, x: number, y: number, vx: number, vy: number, kind: 'bone' | 'fireball' | 'bigfire' | 'feather' | 'rock' | 'book' | 'web', dmg: number, grav = 0) {
     super();
     this.x = x;
     this.y = y;
@@ -406,6 +445,18 @@ export class EnemyShot extends Ent {
     this.kind = kind;
   }
   kind: string;
+  /** Fire is magic (the shield can't stop it); bones, books, feathers, rocks and webs are physical. */
+  hitType(): DmgType {
+    return this.kind === 'fireball' || this.kind === 'bigfire' ? 'magic' : 'shot';
+  }
+  /** It reached the hero. `hurt` is false if the shield or a ward stopped it. */
+  strike(g: Game, hurt: boolean) {
+    this.dead = true;
+    if (this.kind === 'web') {
+      g.fx.burst(this.x, this.y, 'web', 1, 0, { life: 14, fade: true });
+      if (hurt) g.player.web(150);
+    } else g.fx.burst(this.x, this.y, 'burst', 1);
+  }
   update(g: Game) {
     this.t++;
     this.vy += this.grav;
@@ -423,9 +474,10 @@ export class EnemyShot extends Ent {
     if (spins) this.sprite!.mesh.rotation.z += (this.kind === 'book' ? 0.2 : 0.3) * (Math.sign(this.vx) || 1);
     if (fiery && this.t % 4 === 0) g.fx.burst(this.x, this.y, 'ember', 1, 2, { life: 16, vy: -0.3 });
     if (this.t > 360 || this.y > g.room.H + 32 || this.x < -32 || this.x > g.room.W + 32) this.dead = true;
-    if ((this.kind === 'fireball' || this.kind === 'feather' || this.kind === 'rock' || this.kind === 'book') && g.room.solidPx(this.x, this.y)) {
+    if ((this.kind === 'fireball' || this.kind === 'feather' || this.kind === 'rock' || this.kind === 'book' || this.kind === 'web') && g.room.solidPx(this.x, this.y)) {
       this.dead = true;
-      if (this.kind === 'book') g.fx.burst(this.x, this.y, 'page', 4, 4, { speed: 1.2, grav: 0.03, life: 40, rot: 0.2, fade: true });
+      if (this.kind === 'web') g.fx.burst(this.x, this.y, 'web', 1, 0, { life: 30, fade: true });
+      else if (this.kind === 'book') g.fx.burst(this.x, this.y, 'page', 4, 4, { speed: 1.2, grav: 0.03, life: 40, rot: 0.2, fade: true });
       else g.fx.burst(this.x, this.y, fiery ? 'burst' : 'dust', 1);
     }
   }

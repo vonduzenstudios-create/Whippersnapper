@@ -4,13 +4,13 @@ import { clamp, approach, sign, dist } from '../core/util';
 import { GRAVITY, MAX_FALL, TILE } from '../config';
 import type { Game } from './game';
 import { SUB_COST, ITEMS, DIFFICULTIES, WARD_COST } from './data';
-import { HolyFlask, CrossProj } from './objects';
+import { HolyFlask, CrossProj, KnifeProj } from './objects';
+import type { DmgType } from './ent';
 
 const WALK = 1.65;
-const RUN_MUL = 1.5; // double-tap and hold left/right to run this much faster than walking (armor counts as 0 meanwhile)
+const RUN_MUL = 1.5; // hold RUN while moving to go this much faster than walking (armor counts as 0 meanwhile)
 const ECHOES = 5; // fading afterimages trailing behind a run
 const ECHO_EVERY = 5; // frames between afterimages
-const RUN_TAP = 15; // frames allowed between the two taps (1/4 second)
 const JUMP_V = -7.1;
 const LINKS = 12;
 const SWING_G = 0.65; // pendulum gravity scale while hanging from a ring
@@ -33,6 +33,20 @@ const HOLD_TIME = 100; // a Gravehand's grip lasts this many frames if you do no
 const WIGGLE_CUT = 16; // ...each left/right tap takes this much off
 const JUMP_CUT = 45; // ...and a jump press takes this much (about two and a half wiggles)
 const FREE_GRACE = 60; // after breaking free, hands can't grab again for this long
+// shield (off hand)
+const GUARD_MUL = 0.15; // walking speed with the shield raised (85% slower)
+const SHIELD_COOL = 90; // frames the shield can't be raised after a touch or magic hit gets through
+const BLOCK_INVULN = 40; // grace after blocking a melee hit (a full hit gives 100)
+/**
+ * The directions each shield aim covers, in degrees from straight ahead (negative = up,
+ * beyond -90 = up and behind). UP + a direction aims it diagonally, UP alone overhead.
+ */
+const GUARD_ARC = { level: [-30, 70], diag: [-80, 0], up: [-125, -55] } as const;
+type GuardAim = keyof typeof GUARD_ARC;
+// Throwing Knife: a quick flick of the wrist instead of a full throw
+const KNIFE_RELEASE = 3;
+const KNIFE_END = 9;
+const KNIFE_MAX = 3; // knives in the air at once
 
 type PState = 'normal' | 'attack' | 'hurt' | 'dash' | 'throw' | 'hang' | 'dead' | 'toot' | 'slide' | 'yank';
 const TOOT_FRAMES = 60 * 60; // crouch perfectly still for 60 seconds...
@@ -58,6 +72,7 @@ export class Player implements Body {
   dangle = false;
   flickCool = 0;
   throwLow = false; // the current sub-weapon throw started from a crouch
+  throwSub = ''; // the sub-weapon being thrown (it can be switched mid-throw)
   crouchStill = 0; // frames spent crouching without touching anything else
   hitId = 0;
   lastSafe = { x: 0, y: 0 };
@@ -77,9 +92,12 @@ export class Player implements Body {
   djumped = false; // used the double jump since last touching the ground
   spin = 0; // 0..1 progress of the double-jump somersault (0 = not spinning)
   hitWall = false; // last move was stopped by a wall
-  running = false; // double-tapped a direction and still holding it
-  runTap = 0; // frames left in which a second tap starts a run
-  runTapDir = 0; // direction of the first tap
+  running = false; // holding RUN and a direction
+  guarding = false; // shield raised (hold SHIELD)
+  guardAim: GuardAim = 'level'; // where the shield points: UP + a direction = diag, UP alone = up
+  shieldCool = 0; // frames before the shield can be raised again (a touch or magic hit knocked it down)
+  shieldHitT = 0; // throttles the clank when something keeps hitting the shield
+  webbed = false; // the slow comes from a spider's web (pale) rather than a hex (violet)
   /** Afterimages left behind while running: where each was dropped and how old it is. */
   echoes: { s: Sprite; x: number; y: number; frame: number; flip: boolean; age: number }[] = [];
   gliding = false; // Duskwing Shroud: holding jump while falling
@@ -93,12 +111,15 @@ export class Player implements Body {
   freeT = 0; // grace after breaking free of a grip
   wings: Sprite; // drawn behind her while gliding
   bubble: Sprite; // the shield bubble
+  shield: Sprite; // the raised shield, held in front of her
 
   constructor(private g: Game) {
     this.wings = new Sprite(g.sheets.relicfx, g.view.sprites, 11);
     this.wings.visible = false;
     this.bubble = new Sprite(g.sheets.relicfx, g.view.sprites, 13);
     this.bubble.visible = false;
+    this.shield = new Sprite(g.sheets.relicfx, g.view.sprites, 13);
+    this.shield.visible = false;
     this.sprite = new Sprite(g.sheets.hero, g.view.sprites, 12);
     for (let i = 0; i < ECHOES; i++) {
       const s = new Sprite(g.sheets.hero, g.view.sprites, 11);
@@ -160,6 +181,8 @@ export class Player implements Body {
     if (this.wardHitT > 0) this.wardHitT--;
     if (this.slowT > 0) this.slowT--;
     if (this.wardCool > 0) this.wardCool--;
+    if (this.shieldCool > 0) this.shieldCool--;
+    if (this.shieldHitT > 0) this.shieldHitT--;
     if (this.wardT > 0 && --this.wardT === 0) {
       this.wardCool = WARD_COOL;
       g.audio.play('wardOff');
@@ -176,19 +199,19 @@ export class Player implements Body {
     const L = inp.down('left'), R = inp.down('right'), U = inp.down('up'), D = inp.down('down');
     const hdir = (R ? 1 : 0) - (L ? 1 : 0);
 
-    // Run: tap a direction, then press it again quickly and hold it.
-    // Letting go or changing direction drops back to a walk.
-    const tap = (inp.pressed('right') ? 1 : 0) - (inp.pressed('left') ? 1 : 0);
-    if (tap) {
-      const startRun = this.runTap > 0 && this.runTapDir === tap;
-      if (startRun && !this.running && this.onGround && this.state === 'normal' && !this.inWater) {
-        g.fx.burst(this.x - tap * 6, this.bottom - 3, 'dust', 1, 0);
-      }
-      this.running = startRun;
-      this.runTapDir = tap;
-      this.runTap = startRun ? 0 : RUN_TAP;
-    } else if (this.runTap > 0) this.runTap--;
-    if (hdir !== this.runTapDir) this.running = false;
+    // Shield: hold SHIELD to raise it (only in the normal state, so a whip or throw lowers it
+    // for a moment). UP tilts it a little. A touch or magic hit knocks it down for a while.
+    const wasGuarding = this.guarding;
+    this.guarding = !!g.hunter.equip.shield && inp.down('shield') && this.shieldCool <= 0 && this.state === 'normal' && this.holdT <= 0;
+    this.guardAim = this.guarding && U && !this.crouch ? (hdir ? 'diag' : 'up') : 'level';
+    if (this.guarding && !wasGuarding) g.audio.play('shieldUp');
+    if (inp.pressed('shield') && g.hunter.equip.shield && this.shieldCool > 0) g.audio.play('cancel');
+
+    // Run: hold RUN while moving. It starts on the ground and carries into a jump;
+    // letting go of RUN or the direction drops back to a walk. No running behind a shield.
+    const startRun = !this.running && this.onGround;
+    this.running = inp.down('run') && hdir !== 0 && !this.guarding && (this.running || this.onGround);
+    if (this.running && startRun && this.state === 'normal' && !this.inWater) g.fx.burst(this.x - hdir * 6, this.bottom - 3, 'dust', 1, 0);
 
     if (this.state !== 'dead') {
       const cyc = (inp.pressed('subNext') ? 1 : 0) - (inp.pressed('subPrev') ? 1 : 0);
@@ -235,7 +258,9 @@ export class Player implements Body {
         this.crouch = this.onGround && D && !this.inWater;
         this.setHeight(this.crouch ? 12 : 18);
         if (!this.crouch) {
-          const target = hdir * WALK * (this.running ? RUN_MUL : 1) * (glide ? GLIDE_MUL : 1) * wmul;
+          // aiming the shield up (UP, UP+LEFT, UP+RIGHT) plants her feet: the direction only aims
+          const aimOnly = this.guarding && this.guardAim !== 'level';
+          const target = aimOnly ? 0 : hdir * WALK * (this.running ? RUN_MUL : 1) * (this.guarding ? GUARD_MUL : 1) * (glide ? GLIDE_MUL : 1) * wmul;
           if (!this.onGround && Math.abs(this.vx) > Math.max(WALK, Math.abs(target)) + 0.1) {
             // keep swing / launch momentum in the air, steer gently
             this.vx = approach(this.vx, target, hdir && Math.sign(hdir) !== Math.sign(this.vx) ? 0.12 : 0.035);
@@ -376,8 +401,10 @@ export class Player implements Body {
       }
       case 'throw': {
         if (this.onGround) this.vx = 0;
-        if (this.t === 7) this.releaseSub();
-        if (this.t >= 16) this.set('normal');
+        // the knife is a flick of the wrist: it leaves sooner and she recovers sooner
+        const quick = this.throwSub === 'sub_knife';
+        if (this.t === (quick ? KNIFE_RELEASE : 7)) this.releaseSub();
+        if (this.t >= (quick ? KNIFE_END : 16)) this.set('normal');
         break;
       }
       case 'dash': {
@@ -551,6 +578,7 @@ export class Player implements Body {
       return false;
     }
     if (h.sub === 'sub_cross' && this.g.ents.filter((e) => e instanceof CrossProj).length >= 2) return false;
+    if (h.sub === 'sub_knife' && this.g.ents.filter((e) => e instanceof KnifeProj).length >= KNIFE_MAX) return false;
     h.hearts -= cost;
     return true;
   }
@@ -559,6 +587,7 @@ export class Player implements Body {
     if (!this.paySub()) return;
     // a throw from a crouch keeps her crouched (and her smaller hitbox), like a crouching whip
     this.throwLow = this.crouch;
+    this.throwSub = this.g.hunter.sub;
     this.setHeight(this.throwLow ? 12 : 18);
     this.set('throw');
   }
@@ -572,7 +601,7 @@ export class Player implements Body {
     else if (h.sub === 'sub_cross') {
       g.spawn(new CrossProj(g, hx, hy, this.facing));
       g.audio.play('cross');
-    }
+    } else if (h.sub === 'sub_knife') g.spawn(new KnifeProj(g, hx, hy - 2, this.facing));
   }
 
   // ------------------------------------------------------------- whip
@@ -827,8 +856,13 @@ export class Player implements Body {
    * Returns true if the hit killed the player. Enemy hits are scaled by the difficulty;
    * spikes (fromEnemy = false) are not. While running, armor doesn't count: that's the
    * price of the speed.
+   *
+   * `type` says what the raised shield does (see DmgType): melee blows from the side it
+   * faces are cut by the shield's block value, shots from that side are stopped, and touch
+   * or magic hits go straight through and knock the shield down for a while. (fromX, fromY)
+   * is where the hit came from.
    */
-  takeDamage(raw: number, fromX: number, ignoreInvuln = false, fromEnemy = true) {
+  takeDamage(raw: number, fromX: number, ignoreInvuln = false, fromEnemy = true, type: DmgType = 'touch', fromY = this.y) {
     const g = this.g, h = g.hunter;
     if (this.state === 'dead') return true;
     if (!ignoreInvuln && this.invuln > 0) return false;
@@ -837,13 +871,30 @@ export class Player implements Body {
       this.blockHit(fromX, this.y);
       return false;
     }
+    const faced = fromEnemy && this.shieldFaces(fromX - this.x, fromY - this.y);
+    if (faced && type === 'shot') {
+      this.shieldClank(fromY);
+      return false;
+    }
+    const blocked = faced && type === 'melee';
+    if (fromEnemy && (type === 'touch' || type === 'magic') && h.equip.shield) {
+      if (this.guarding) g.audio.play('shieldDown');
+      this.guarding = false;
+      this.shieldCool = SHIELD_COOL;
+    }
     const mul = fromEnemy ? (DIFFICULTIES[h.difficulty] || DIFFICULTIES[0]).dmg : 1;
     const def = this.running ? 0 : h.def;
-    const dmg = Math.max(1, Math.round(raw * mul * (0.9 + Math.random() * 0.2) - def * 0.55));
+    let dmg = Math.max(1, Math.round(raw * mul * (0.9 + Math.random() * 0.2) - def * 0.55));
+    if (blocked) dmg = Math.max(1, Math.round(dmg * (1 - h.block)));
     h.hp -= dmg;
-    g.damageNumber(this.x, this.y - 20, dmg, '#ff5060');
-    g.audio.play('hurt');
-    g.shake(3, 8);
+    g.damageNumber(this.x, this.y - 20, dmg, blocked ? '#c8c8d8' : '#ff5060');
+    if (blocked) {
+      this.shieldClank(fromY);
+      g.shake(1.5, 6);
+    } else {
+      g.audio.play('hurt');
+      g.shake(3, 8);
+    }
     this.ring = null;
     this.dangle = false;
     if (h.hp <= 0) {
@@ -857,6 +908,19 @@ export class Player implements Body {
     }
     if (this.state === 'slide' && !this.fits(STAND_HH)) {
       this.invuln = 100; // no knockback inside a low gap: standing up there would wedge her in the ceiling
+      return false;
+    }
+    if (blocked) {
+      // she holds her ground behind the shield: a short shove back and a short grace
+      if (!h.noKnock) this.vx = (this.x < fromX ? -1 : 1) * 1.2;
+      this.invuln = BLOCK_INVULN;
+      return false;
+    }
+    if (h.noKnock) {
+      // Rootstone: the hit lands, but she keeps her footing and her control
+      // (a hit still shakes her off a grapple ring, like any other)
+      if (this.state === 'hang') this.set('normal');
+      this.invuln = 100;
       return false;
     }
     this.set('hurt');
@@ -906,6 +970,43 @@ export class Player implements Body {
   /** A Gloomcaster's hex slows her down for a while. */
   hex(frames: number) {
     this.slowT = Math.max(this.slowT, frames);
+    this.webbed = false;
+  }
+  /** A Gallows Spider's web glob: the same slow as a hex, but sticky white instead of violet. */
+  web(frames: number) {
+    if (this.slowT > frames && !this.webbed) return; // a longer hex is already on
+    this.slowT = Math.max(this.slowT, frames);
+    this.webbed = true;
+  }
+
+  // ------------------------------------------------------------- shield
+
+  /**
+   * True if the raised shield faces something coming from direction (dx, dy), measured
+   * from her toward it (see GUARD_ARC for what each aim covers).
+   */
+  shieldFaces(dx: number, dy: number) {
+    if (!this.guarding || this.state !== 'normal') return false;
+    const a = (Math.atan2(dy, dx * this.facing) * 180) / Math.PI; // 0 = ahead, -90 = overhead
+    const [lo, hi] = GUARD_ARC[this.guardAim];
+    return a >= lo && a <= hi;
+  }
+  /** The raised shield, as a box in front of her (shots that touch it are stopped). */
+  shieldBox() {
+    const x = this.x + this.facing * 9, cy = this.bottom - 18;
+    if (this.guardAim === 'up') return { x: this.x + this.facing * 2, y: cy - 22, hw: 10, hh: 4 };
+    if (this.guardAim === 'diag') return { x: x - this.facing, y: cy - 13, hw: 7, hh: 6 };
+    if (this.crouch) return { x, y: this.bottom - 9, hw: 4, hh: 8 };
+    return { x, y: cy - 1, hw: 4, hh: 10 };
+  }
+  /** Something struck the shield: a clank and sparks (throttled, since contact can repeat). */
+  shieldClank(fromY: number) {
+    if (this.shieldHitT > 0) return;
+    this.shieldHitT = 8;
+    const b = this.shieldBox();
+    const sx = b.x + this.facing * b.hw, sy = clamp(fromY, b.y - b.hh, b.y + b.hh);
+    this.g.fx.burst(sx, sy, 'spark', 2, 3);
+    this.g.audio.play('block');
   }
   /**
    * A Gravehand seizes her ankles. No damage: she just can't move until the grip runs out or
@@ -1031,7 +1132,20 @@ export class Player implements Body {
     }
   }
 
+  /** The raised shield, held out in front of her (tilted up when she aims it up). */
+  renderShield(blink: boolean) {
+    const sh = this.shield, id = this.g.hunter.equip.shield;
+    sh.visible = this.guarding && this.state === 'normal' && !!id;
+    if (!sh.visible) return;
+    const A = this.g.sheets.relicfx.anims, look = ITEMS[id].look || 'wood';
+    const b = this.shieldBox();
+    sh.setFrame(A[`shield_${look}`][{ level: 0, diag: 1, up: 2 }[this.guardAim]]);
+    sh.place(b.x, b.y, this.facing < 0);
+    sh.opacity = blink ? 0.5 : 1;
+  }
+
   hide() {
+    this.shield.visible = false;
     this.wings.visible = false;
     this.bubble.visible = false;
     for (const e of this.echoes) e.s.visible = false;
@@ -1059,11 +1173,13 @@ export class Player implements Body {
         s.setFrame(A[`atk_${this.atkStance}_${this.atkDir}_${phase}`][0]);
         break;
       }
-      case 'throw':
+      case 'throw': {
         // no crouch-throw art of its own: the crouching whip's wind-up and strike read the same
-        if (this.throwLow) s.setFrame(A[`atk_crouch_0_${this.t < 7 ? 0 : 1}`][0]);
-        else s.setFrame(A.throw[this.t < 7 ? 0 : 1]);
+        const rel = this.throwSub === 'sub_knife' ? KNIFE_RELEASE : 7;
+        if (this.throwLow) s.setFrame(A[`atk_crouch_0_${this.t < rel ? 0 : 1}`][0]);
+        else s.setFrame(A.throw[this.t < rel ? 0 : 1]);
         break;
+      }
       case 'dash':
         s.setFrame(A.dash[this.t < 8 ? 0 : 1]);
         break;
@@ -1091,13 +1207,18 @@ export class Player implements Body {
     s.place(this.x + strain, this.bottom - 18, this.facing < 0);
     const blink = this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln / 3) % 2 === 0;
     s.opacity = blink ? 0.35 : 1;
-    // hexed: a sickly violet cast, with motes rising off her
-    if (this.slowT > 0) {
+    // webbed: pale and sticky, with strands trailing off her
+    if (this.slowT > 0 && this.webbed) {
+      s.tint(1.05, 1.05, 0.95);
+      if (this.animT % 10 === 0) this.g.fx.burst(this.x, this.bottom - 6, 'mote', 1, 6, { vy: 0.3, life: 20, fade: true, tint: [1.2, 1.2, 1.1] });
+    } else if (this.slowT > 0) {
+      // hexed: a sickly violet cast, with motes rising off her
       s.tint(0.85, 0.65, 1.15);
       if (this.animT % 8 === 0) this.g.fx.burst(this.x, this.y, 'mote', 1, 8, { vy: -0.5, life: 24, fade: true, tint: [1.3, 0.5, 1.6] });
     } else s.tint(1, 1, 1);
     this.renderEchoes();
     this.renderRelics();
+    this.renderShield(blink);
     // whip
     const fire = this.g.hunter.fireWhip, frost = !!ITEMS[this.g.hunter.equip.whip]?.frost;
     for (let i = 0; i < LINKS; i++) {

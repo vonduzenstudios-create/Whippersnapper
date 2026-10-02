@@ -733,3 +733,80 @@ export function buildChairSheet(): SheetBuilder {
   b.add('charge', chair(-1, 2));
   return b;
 }
+
+// ================================================================ Gallows Spider
+// A big ash-grey spider with ember eyes and a pale skull marking on its back. It hangs
+// head-down on a silk line ('hang', 'spit') and scuttles on the floor once cut ('crawl').
+// The thread itself is the fx sheet's 'silk' frame, stretched in game (enemies_spider.ts).
+
+export function buildSpiderSheet(): SheetBuilder {
+  const b = new SheetBuilder(32, 28, 16, 14);
+  const body = hex('#4a4450'), bodyD = hex('#2a2430'), bodyL = hex('#6e6878');
+  const leg = hex('#1e1a24'), bone = hex('#e0d8c0'), eye = hex('#ff5030'), fang = hex('#d8d0b8');
+
+  /** Hanging head-down: abdomen on top (where the silk attaches), legs spread to both sides. */
+  const hang = (twitch: number, open: boolean) => {
+    const p = b.canvas();
+    const cx = 16;
+    // four legs a side, each bent at the knee and curling inward at the tip
+    for (let k = 0; k < 4; k++) {
+      const y = 13 + k * 2, out = 7 + (k === 1 || k === 2 ? 2 : 0), up = (k < 2 ? -5 : 4) + (k % 2 ? twitch : -twitch);
+      for (const s of [-1, 1]) {
+        const kx = cx + s * out, ky = y + up;
+        p.line(cx + s * 2, y, kx, ky, leg, 1.4);
+        p.line(kx, ky, kx + s * 4, ky + 5, leg, 1);
+      }
+    }
+    // abdomen with the skull marking, then the head below it
+    p.ellipse(cx, 8, 5.5, 6.5, bodyD);
+    p.ellipse(cx, 7.5, 4.5, 5.5, body);
+    p.circle(cx, 7, 2, bone);
+    p.set(cx - 1, 7, bodyD);
+    p.set(cx + 1, 7, bodyD);
+    p.line(cx - 1, 9, cx + 1, 9, bone);
+    p.set(cx - 2, 4, bodyL);
+    p.ellipse(cx, 16, 3.5, 3, bodyD);
+    p.ellipse(cx, 15.5, 2.8, 2.4, body);
+    for (const x of [cx - 2, cx - 1, cx + 1, cx + 2]) p.set(x, 17, eye);
+    // fangs: together, or spread wide to spit
+    const f = open ? 2.5 : 1;
+    p.line(cx - 1, 19, cx - f, 21 + (open ? 1 : 0), fang);
+    p.line(cx + 1, 19, cx + f, 21 + (open ? 1 : 0), fang);
+    p.outline(hex('#0a0810'));
+    return p;
+  };
+
+  /** On the floor, side view facing right: `step` swings the legs. */
+  const crawl = (step: number) => {
+    const p = b.canvas();
+    const cx = 15, cy = 18;
+    const legNear = hex('#6a6276'), legFar = hex('#3e3846');
+    /** One leg: up from the hip to a high knee, then down and out to the foot. */
+    const limb = (k: number, ph: number, c: RGBA, w: number) => {
+      const hx = cx - 2 + k * 2.5, spread = k - 1.5;
+      const kx = hx + spread * 4 + ph, ky = cy - 9 + Math.abs(spread);
+      p.line(hx, cy, kx, ky, c, w);
+      p.line(kx, ky, hx + spread * 8 + ph * 1.5, cy + 7, c, w * 0.75);
+    };
+    for (let k = 0; k < 4; k++) limb(k, Math.sin(step * 1.6 + k * 1.7 + 1.5) * 2, legFar, 1.3);
+    p.ellipse(cx - 5, cy - 2, 6.5, 5, bodyD);
+    p.ellipse(cx - 5, cy - 2.5, 5.5, 4, body);
+    p.circle(cx - 5, cy - 3, 1.8, bone);
+    p.set(cx - 9, cy - 5, bodyL);
+    p.ellipse(cx + 4, cy, 3.5, 2.8, bodyD);
+    p.ellipse(cx + 4, cy - 0.5, 2.8, 2.2, body);
+    p.set(cx + 6, cy - 1, eye);
+    p.set(cx + 7, cy, eye);
+    p.line(cx + 7, cy + 1, cx + 9, cy + 3, fang);
+    // the near legs go over the body
+    for (let k = 0; k < 4; k++) limb(k, -Math.sin(step * 1.6 + k * 1.7) * 2, legNear, 1.5);
+    p.outline(hex('#0a0810'));
+    return p;
+  };
+
+  b.add('hang', hang(0, false), hang(1, false));
+  b.add('spit', hang(0, true));
+  b.add('crawl', crawl(0), crawl(1), crawl(2), crawl(3));
+  b.add('fall', hang(2, true));
+  return b;
+}

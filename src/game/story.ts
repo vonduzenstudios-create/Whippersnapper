@@ -51,7 +51,7 @@ type KeyName = (a: Action) => string;
 /** Tutorial signposts ('T' entities whose arg is a key here). Shown while the hero is near. */
 export const HINTS: Record<string, (k: KeyName) => string> = {
   move: (k) => `${k('left')} / ${k('right')}: MOVE`,
-  run: (k) => `TAP ${k('right')} TWICE AND HOLD IT: RUN`,
+  run: (k) => `HOLD ${k('run')} WHILE MOVING: RUN`,
   jump: (k) => `${k('jump')}: JUMP   HOLD IT TO JUMP HIGHER`,
   gap: () => 'A RUNNING JUMP CLEARS WIDE GAPS',
   ledge: () => 'JUMP UP THROUGH THIN LEDGES FROM BELOW',
