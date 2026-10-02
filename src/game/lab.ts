@@ -4,6 +4,10 @@
 //
 // Keys while inside it:
 //   1-5  spawn a Hookjaw / Mire Eel / Gloomcaster / Rot Ooze / Grave Grub
+//   X    spawn a Gravehand
+//   T    spawn a Rustling Tome (it sleeps until you are close, then tears loose)
+//   Y    spawn a Restless Chair (it stands still until you are close)
+//   U    spawn a Bone Librarian (it shelves books, back turned, until you are close)
 //   6    clear all enemies
 //   7-9  toggle the Duskwing Shroud / Undertow Pearl / Ashglass Ward
 //   0    refill HP and hearts
@@ -34,12 +38,12 @@ export function buildLabRoom(): RoomDef {
   b.fill(58, 13, 8, 1, '='); // a ledge over the arena
   b.e(26, 17, 'P').e(27, 17, 'T', 'lab');
   b.e(9, 23, 'e').e(17, 21, 'e');
-  b.e(55, 17, 'u').e(60, 17, 'o').e(65, 17, 'h').e(69, 17, 'm');
+  b.e(53, 17, 'x').e(55, 17, 'u').e(60, 17, 'o').e(65, 17, 'h').e(69, 17, 'm');
   return b.build(LAB_ID, 'Test Chamber', 'lab', 'flooded', 40, 40);
 }
 
 /** Which enemy letter each number key spawns. */
-const SPAWN_KEYS: Record<string, string> = { Digit1: 'h', Digit2: 'e', Digit3: 'm', Digit4: 'o', Digit5: 'u' };
+const SPAWN_KEYS: Record<string, string> = { Digit1: 'h', Digit2: 'e', Digit3: 'm', Digit4: 'o', Digit5: 'u', KeyX: 'x', KeyT: 't', KeyY: 'a', KeyU: 'l' };
 
 /** A hunter with every relic, plenty of HP and a full heart pouch. */
 function labHunter() {

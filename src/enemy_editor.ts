@@ -8,10 +8,10 @@
 import { baseEnemies, BASE_ENEMIES, ENEMY_TUNING, EnemyStats, EnemyEdits, Drop, ITEMS, PICKUP_NAMES, defaultTune, Tune } from './game/data';
 import ENEMY_EDITS from './game/enemy_edits.json';
 import { buildSheet, sheetColors, recolorSheet, Sheet } from './gfx/view';
-import { buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet } from './gfx/art_chars';
+import { buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildLibrarianSheet } from './gfx/art_chars';
 import {
   buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet,
-  buildHookjawSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet,
+  buildHookjawSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet,
 } from './gfx/art_beasts';
 
 const BASE_SHEETS: Record<string, Sheet> = {
@@ -30,6 +30,10 @@ const BASE_SHEETS: Record<string, Sheet> = {
   caster: buildSheet(buildCasterSheet()),
   ooze: buildSheet(buildOozeSheet()),
   grub: buildSheet(buildGrubSheet()),
+  hand: buildSheet(buildHandSheet()),
+  tome: buildSheet(buildTomeSheet()),
+  chair: buildSheet(buildChairSheet()),
+  librarian: buildSheet(buildLibrarianSheet()),
 };
 const PALETTES: Record<string, { hex: string; count: number }[]> = {};
 for (const [k, s] of Object.entries(BASE_SHEETS)) PALETTES[k] = sheetColors(s);

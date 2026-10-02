@@ -213,7 +213,7 @@ export function buildExpansionRooms(): RoomDef[] {
   // B3 ── Harpy Rookery (2 x 1): nests on the beams. The highest nest needs a double jump.
   {
     const b = new RB(2, 1);
-    b.shell().door('R', 0);
+    b.shell().door('L', 0).door('R', 0); // the west door leads into the Ashen Library
     plats(b, [[6, 10, 6], [20, 10, 6], [34, 10, 6]]);
     plats(b, [[13, 4, 5]]); // high nest: 6 rows above the beams
     b.e(15, 3, 'i', 'acc_bell').e(40, 11, 'T', 'lore_rookery');

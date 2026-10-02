@@ -5,7 +5,8 @@ import type { Ent } from './ent';
 import { ENEMY, ENEMY_LETTER } from './data';
 import { Zombie, Bat, Knight, Skeleton, Wisp, Drowned } from './enemies';
 import { Dog, Harpy, Wraith, Crawler } from './enemies_expansion';
-import { Hookjaw, Eel, Caster, Ooze, Grub } from './enemies_extra';
+import { Hookjaw, Eel, Caster, Ooze, Grub, Gravehand } from './enemies_extra';
+import { Tome, Chair, Librarian } from './enemies_library';
 
 /**
  * Spawn the enemy for room-entity letter `t`. `variant` (the entity's arg) is an
@@ -44,8 +45,16 @@ export function spawnEnemy(g: Game, t: string, x: number, bottom: number, varian
       return new Caster(g, kind, x, bottom);
     case 'ooze':
       return new Ooze(g, kind, x, bottom);
+    case 'hand':
+      return new Gravehand(g, kind, x, bottom);
     case 'grub':
       return new Grub(g, kind, x, bottom);
+    case 'tome':
+      return new Tome(g, kind, x, bottom);
+    case 'chair':
+      return new Chair(g, kind, x, bottom);
+    case 'librarian':
+      return new Librarian(g, kind, x, bottom);
   }
   return null;
 }

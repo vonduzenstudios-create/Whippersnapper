@@ -489,7 +489,38 @@ function songAqueduct(): Song {
   };
 }
 
+/** The Ashen Library: a hushed music box over slow organ, a dry clock-tick underneath. */
+function songLibrary(): Song {
+  const C = ['Dm', 'Dm', 'A#M', 'FM', 'Gm', 'Dm', 'A7', 'A7'];
+  const mel = `
+    d5 - - - f5 - - - a5 - - - g5 - f5 -
+    e5 - - - d5 - - - c5 - - - d5 - - -
+    f5 - - - a#5 - - - d6 - - - c6 - a#5 -
+    a5 - - - - - - - g5 - - - f5 - - -
+    g5 - - - a#5 - - - d6 - - - c6 - a#5 -
+    a5 - - - g5 - f5 - e5 - - - d5 - - -
+    c#5 - - - e5 - - - g5 - - - a5 - g5 -
+    e5 - - - - - - - c#5 - - - a4 - . .`;
+  let dr: Note[] = [];
+  for (let b = 0; b < 8; b++) dr = dr.concat(drums('t . . . h . . . t . . . h . . .', b * 16).map((n) => ({ ...n, v: n.v * 0.55 })));
+  return {
+    name: 'library',
+    bpm: 84,
+    steps: 128,
+    loop: true,
+    tracks: [
+      { inst: 'bell', vol: 0.1, notes: seq(mel, 0, 0.75), rev: 0.85 },
+      { inst: 'harpsi', vol: 0.06, notes: arp(C, [0, 2, 1, 2, 0, 2, 1, 2], 4, 0.4), rev: 0.6 },
+      { inst: 'organ', vol: 0.07, notes: pads(C, 3, 0.5), rev: 0.8 },
+      { inst: 'choir', vol: 0.05, notes: pads(C, 4, 0.45), rev: 0.9 },
+      { inst: 'bass', vol: 0.13, notes: bassLine(C, 'r - - - - - - - f - - - r - - -', 2, 0.6) },
+      { inst: 'drums', vol: 0.25, notes: dr },
+    ],
+  };
+}
+
 export const SONGS: Record<string, () => Song> = {
+  library: songLibrary,
   undervault: songUndervault,
   kennels: songKennels,
   belfry: songBelfry,

@@ -461,18 +461,18 @@ export function buildZombieSheet(): SheetBuilder {
   return b;
 }
 
-export function buildSkeletonSheet(): SheetBuilder {
+export function buildSkeletonSheet(librarian = false): SheetBuilder {
   const b = new SheetBuilder(40, 48, 20, 28);
   const base = (o: Partial<Pose>): Pose => ({ hx: 20, hy: 32, lean: 4, fl: [10, 6], bl: [-10, 6], fa: [20, 30], ba: [-15, 20], ...o });
-  const frames = (name: string, poses: Pose[], bone = false) =>
+  const frames = (name: string, poses: Pose[], held = false) =>
     b.add(
       name,
       ...poses.map((q) => {
         const p = b.canvas();
         const r = drawHumanoid(p, SKELETON, q);
-        if (bone) {
-          p.line(r.hand[0] - 3, r.hand[1] - 2, r.hand[0] + 3, r.hand[1] + 2, hex('#e8e0c0'), 2);
-        }
+        if (librarian) librarianCap(p, r.head[0], r.head[1], false);
+        if (held && librarian) heldBook(p, r.hand[0], r.hand[1], LIB_BOOKS[0]);
+        else if (held) p.line(r.hand[0] - 3, r.hand[1] - 2, r.hand[0] + 3, r.hand[1] + 2, hex('#e8e0c0'), 2);
         return finish(p, O);
       }),
     );
@@ -482,6 +482,117 @@ export function buildSkeletonSheet(): SheetBuilder {
   }));
   frames('throw', [base({ fa: [-150, 30], lean: -6 }), base({ fa: [120, 0], lean: 12 })], true);
   frames('hop', [base({ hy: 30, fl: [40, 60], bl: [0, 50], fa: [60, 30], ba: [-60, 30] })]);
+  return b;
+}
+
+// ---------------------------------------------------------------- bone librarian
+
+/** Book cover colors the librarian handles (the first is the one it throws). */
+const LIB_BOOKS = [hex('#7a2a30'), hex('#2a4a6a'), hex('#5a4a1a')];
+const LIB_CAP = hex('#3a2a4a'), LIB_CAP_D = hex('#22182e'), LIB_TASSEL = hex('#d8a030');
+
+/** The librarian's little cap: a soft square scholar's cap with a gold tassel hanging at the back. */
+function librarianCap(p: PixelCanvas, hx: number, hy: number, fromBehind: boolean) {
+  const x = Math.round(hx), y = Math.round(hy);
+  p.rect(x - 4, y - 5, 8, 2, LIB_CAP); // the band, sitting on the crown of the skull
+  p.rect(x - 3, y - 7, 6, 2, LIB_CAP); // the soft top
+  p.line(x - 3, y - 4, x + 3, y - 4, LIB_CAP_D);
+  if (fromBehind) {
+    // seen from the back the tassel hangs straight down the middle
+    p.set(x, y - 7, LIB_TASSEL);
+    p.line(x, y - 6, x, y - 2, LIB_TASSEL);
+  } else {
+    // seen from the side it hangs down the back (art faces right, so the back is left)
+    p.set(x, y - 7, LIB_TASSEL);
+    p.line(x - 1, y - 7, x - 5, y - 5, LIB_TASSEL);
+    p.line(x - 5, y - 5, x - 5, y - 2, LIB_TASSEL);
+  }
+}
+
+/** A closed book held in a hand, cover side out, pages showing along the top. */
+function heldBook(p: PixelCanvas, x: number, y: number, cover: RGBA) {
+  const bx = Math.round(x) - 2, by = Math.round(y) - 5;
+  p.rect(bx, by, 5, 6, cover);
+  p.line(bx, by, bx + 4, by, hex('#efe4c4'));
+  p.line(bx, by + 1, bx, by + 5, shade(cover, 0.6)); // spine
+  p.set(bx + 2, by + 3, hex('#d8a030'));
+}
+
+/**
+ * The librarian from behind, facing its bookshelf (the back of the skull, spine and ribs,
+ * arms reaching up). `frame` 0-3 is one loop of shelving: push a book in with the right hand,
+ * lower it, pull one out with the left, look it over.
+ */
+function librarianBack(p: PixelCanvas, frame: number) {
+  const bone = SKELETON.pants, boneD = SKELETON.pantsD;
+  const cx = 20;
+  const sway = frame === 3 ? 1 : 0; // leans to read the book in its hand
+  // legs and pelvis
+  p.line(cx - 2, 32, cx - 3, 45, boneD, 2);
+  p.line(cx + 2, 32, cx + 3, 45, boneD, 2);
+  p.rect(cx - 5, 45, 3, 1, bone);
+  p.rect(cx + 2, 45, 3, 1, bone);
+  p.line(cx - 3, 32, cx + 3, 32, bone, 2);
+  // spine and ribs (symmetric from behind)
+  p.line(cx, 32, cx + sway, 21, boneD, 2);
+  for (let i = 0; i < 4; i++) {
+    const y = 29 - i * 2, w = 2.5 + i * 0.6;
+    p.line(cx - w + sway * 0.5, y, cx + w + sway * 0.5, y, bone);
+  }
+  p.line(cx - 4 + sway, 21, cx + 4 + sway, 21, bone, 2); // shoulders
+  // arms: [elbow, hand] for the right then left, per frame (y-down, relative to the shoulders)
+  const R: [number, number][][] = [
+    [[cx + 7, 16], [cx + 6, 9]], // right hand up at the shelf, pushing a book in
+    [[cx + 7, 16], [cx + 6, 10]], // the book is in
+    [[cx + 6, 26], [cx + 5, 31]], // right arm lowered
+    [[cx + 6, 26], [cx + 5, 31]],
+  ];
+  const L: [number, number][][] = [
+    [[cx - 6, 26], [cx - 5, 31]],
+    [[cx - 6, 26], [cx - 5, 31]],
+    [[cx - 7, 16], [cx - 6, 10]], // left hand up, pulling a book out
+    [[cx - 5, 22], [cx - 1, 20]], // holding it up in front of the face to read
+  ];
+  const arm = (sx: number, [e, h]: [number, number][]) => {
+    p.line(sx + sway, 22, e[0] + sway, e[1], bone, 2);
+    p.line(e[0] + sway, e[1], h[0] + sway, h[1], bone, 2);
+    p.circle(h[0] + sway, h[1], 1.2, bone);
+    return [h[0] + sway, h[1]] as [number, number];
+  };
+  const rh = arm(cx + 4, R[frame]);
+  const lh = arm(cx - 4, L[frame]);
+  // the books: the one being shelved (only its bottom edge shows under the hand), and the one pulled out
+  if (frame === 0) p.rect(rh[0] - 2, rh[1] - 6, 4, 5, LIB_BOOKS[1]);
+  if (frame === 2) p.rect(lh[0] - 2, lh[1] - 6, 4, 5, LIB_BOOKS[2]);
+  // back of the skull and the cap (drawn after frame 3's book, since the book is in front of the face)
+  p.circle(cx + sway, 16.5, 3.6, bone);
+  p.line(cx - 2 + sway, 18, cx + 2 + sway, 18, boneD);
+  librarianCap(p, cx + sway, 16.5, true);
+  // frame 3: just the edges of the open book show either side of the skull
+  if (frame === 3) {
+    p.rect(cx - 5 + sway, 17, 2, 4, LIB_BOOKS[2]);
+    p.rect(cx + 4 + sway, 17, 2, 4, LIB_BOOKS[2]);
+  }
+}
+
+/**
+ * The Bone Librarian: the skeleton's sheet with a little cap and books instead of bones,
+ * plus 'tend' (from behind, shelving books) and 'turn' (looking back over its shoulder).
+ */
+export function buildLibrarianSheet(): SheetBuilder {
+  const b = buildSkeletonSheet(true);
+  b.add('tend', ...[0, 1, 2, 3].map((f) => {
+    const p = b.canvas();
+    librarianBack(p, f);
+    return finish(p, O);
+  }));
+  // startled: half turned, arm still raised toward the shelf
+  {
+    const p = b.canvas();
+    const r = drawHumanoid(p, SKELETON, { hx: 20, hy: 31, lean: -8, fl: [14, 10], bl: [-12, 8], fa: [150, 10], ba: [-20, 20], headDy: -1 });
+    librarianCap(p, r.head[0], r.head[1], false);
+    b.add('turn', finish(p, O));
+  }
   return b;
 }
 

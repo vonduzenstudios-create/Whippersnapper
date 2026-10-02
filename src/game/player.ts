@@ -29,6 +29,10 @@ const FREE_SWIM_V = 2.2; // Undertow Pearl: swim speed up/down while holding UP/
 const WARD_TIME = 180; // Ashglass Ward: frames the bubble lasts (3 s)
 const WARD_COOL = 60; // frames after it fades or pops before it can be raised again
 const SLOW_MUL = 0.55; // walking speed while hexed by a Gloomcaster
+const HOLD_TIME = 100; // a Gravehand's grip lasts this many frames if you do nothing (~1.7 s)
+const WIGGLE_CUT = 16; // ...each left/right tap takes this much off
+const JUMP_CUT = 45; // ...and a jump press takes this much (about two and a half wiggles)
+const FREE_GRACE = 60; // after breaking free, hands can't grab again for this long
 
 type PState = 'normal' | 'attack' | 'hurt' | 'dash' | 'throw' | 'hang' | 'dead' | 'toot' | 'slide' | 'yank';
 const TOOT_FRAMES = 60 * 60; // crouch perfectly still for 60 seconds...
@@ -84,6 +88,9 @@ export class Player implements Body {
   wardHitT = 0; // throttles the "blocked" sparks while something keeps touching the bubble
   slowT = 0; // frames left of a Gloomcaster's hex (slower walking)
   yankX = 0; // where a Hookjaw's chain is dragging her
+  holdT = 0; // frames left of a Gravehand's grip (0 = free): can't walk, jump or dash
+  holdBy: object | null = null; // the hand that has her
+  freeT = 0; // grace after breaking free of a grip
   wings: Sprite; // drawn behind her while gliding
   bubble: Sprite; // the shield bubble
 
@@ -195,6 +202,8 @@ export class Player implements Body {
 
     if (inp.pressed('jump')) this.jumpBuf = 7;
     else if (this.jumpBuf > 0) this.jumpBuf--;
+    if (this.freeT > 0) this.freeT--;
+    if (this.holdT > 0) this.updateHold();
     if (this.onGround) {
       this.coyote = 6;
       this.djumped = false;
@@ -289,7 +298,7 @@ export class Player implements Body {
           this.set('toot');
         } else if (inp.pressed('attack')) this.startAttack(U, D, hdir);
         else if (inp.pressed('sub')) this.startThrow();
-        else if (inp.pressed('dash') && this.onGround) {
+        else if (inp.pressed('dash') && this.onGround && this.holdT <= 0) {
           if (g.hunter.slide && D && (!this.inWater || freeSwim)) this.startSlide();
           else {
             this.set('dash');
@@ -406,6 +415,12 @@ export class Player implements Body {
         break;
     }
 
+    // held by a Gravehand: rooted to the spot, knockback included
+    if (this.holdT > 0) {
+      this.vx = 0;
+      this.vy = Math.max(this.vy, 0);
+    }
+
     // physics
     this.vy = Math.min(this.vy + gravity, maxFall);
     if (this.dropT > 0) this.dropT--;
@@ -420,7 +435,7 @@ export class Player implements Body {
     if (this.onGround && this.state === 'normal' && !this.onSpikesBelow()) {
       const tx = Math.floor(this.x / TILE), ty = Math.floor((this.bottom + 1) / TILE);
       if (room.solidAt(tx - 1, ty) && room.solidAt(tx + 1, ty)) this.lastSafe = { x: this.x, y: this.y };
-      else if (room.solidAt(tx, ty) || room.tile(tx, ty) === '=') this.lastSafe = { x: this.x, y: this.y };
+      else if (room.floorAt(tx, ty)) this.lastSafe = { x: this.x, y: this.y };
     }
     this.checkSpikes();
     this.updateWhip();
@@ -464,7 +479,7 @@ export class Player implements Body {
     const room = this.g.room;
     const l = Math.floor((this.x - this.hw) / TILE), r = Math.floor((this.x + this.hw - 0.01) / TILE);
     const t = Math.floor((this.bottom - hh * 2) / TILE), b = Math.floor((this.bottom - 0.01) / TILE);
-    for (let y = t; y <= b; y++) for (let x = l; x <= r; x++) if (room.solidAt(x, y)) return false;
+    for (let y = t; y <= b; y++) for (let x = l; x <= r; x++) if (room.blocks(x, y, this.bottom)) return false;
     return true;
   }
 
@@ -475,7 +490,7 @@ export class Player implements Body {
     let one = false;
     for (let tx = l; tx <= r; tx++) {
       if (room.solidAt(tx, ty)) return false;
-      if (room.tile(tx, ty) === '=') one = true;
+      if (room.oneWayAt(tx, ty)) one = true;
     }
     return one;
   }
@@ -802,7 +817,7 @@ export class Player implements Body {
     const room = this.g.room;
     const l = Math.floor((this.x - this.hw) / TILE), r = Math.floor((this.x + this.hw - 0.01) / TILE);
     const t = Math.floor((this.y - this.hh) / TILE), b = Math.floor((this.y + this.hh - 0.01) / TILE);
-    for (let y = t; y <= b; y++) for (let x = l; x <= r; x++) if (room.solidAt(x, y)) return true;
+    for (let y = t; y <= b; y++) for (let x = l; x <= r; x++) if (room.blocks(x, y, this.y + this.hh)) return true;
     return false;
   }
 
@@ -891,6 +906,57 @@ export class Player implements Body {
   /** A Gloomcaster's hex slows her down for a while. */
   hex(frames: number) {
     this.slowT = Math.max(this.slowT, frames);
+  }
+  /**
+   * A Gravehand seizes her ankles. No damage: she just can't move until the grip runs out or
+   * she wiggles (left/right) or jumps free. Whipping and sub-weapons still work. Returns false
+   * if it didn't take (airborne, warded, just broke free, or in a state that can't be held).
+   */
+  grab(by: object, time = HOLD_TIME) {
+    const g = this.g;
+    if (this.holdT > 0 || this.freeT > 0 || !this.onGround) return false;
+    if (this.state !== 'normal' && this.state !== 'attack' && this.state !== 'throw' && this.state !== 'dash') return false;
+    if (this.wardT > 0) {
+      this.blockHit(this.x, this.bottom);
+      return false;
+    }
+    if (this.state === 'dash') this.set('normal');
+    this.holdT = Math.round(time);
+    this.holdBy = by;
+    this.vx = 0;
+    this.running = false;
+    this.jumpBuf = 0;
+    g.audio.play('hurt');
+    g.shake(1.5, 6);
+    return true;
+  }
+  /** Counts the grip down and applies the wiggles. */
+  updateHold() {
+    const g = this.g, inp = g.input;
+    this.holdT--;
+    this.jumpBuf = 0; // a held hero can't jump (but trying shakes the grip loose)
+    let hop = false;
+    if (inp.pressed('left') || inp.pressed('right')) {
+      this.holdT -= WIGGLE_CUT;
+      g.fx.burst(this.x, this.bottom - 2, 'dust', 1, 3);
+    }
+    if (inp.pressed('jump')) {
+      this.holdT -= JUMP_CUT;
+      g.fx.burst(this.x, this.bottom - 2, 'dust', 1, 3);
+      hop = true;
+    }
+    if (this.state === 'dead') this.holdT = 0;
+    if (this.holdT <= 0) {
+      this.holdT = 0;
+      this.holdBy = null;
+      this.freeT = FREE_GRACE;
+      if (hop && this.state !== 'dead') {
+        this.vy = JUMP_V * 0.7; // kicks free with a little hop
+        this.onGround = false;
+        g.audio.play('jump');
+      }
+      g.fx.burst(this.x, this.bottom - 2, 'dust', 4, 8, { speed: 1.6 });
+    }
   }
   /**
    * A Hookjaw's chain caught her: she's dragged to `targetX`. Returns false if it
@@ -1020,7 +1086,9 @@ export class Player implements Body {
         break;
       }
     }
-    s.place(this.x, this.bottom - 18, this.facing < 0);
+    // held: she strains against the grip
+    const strain = this.holdT > 0 ? (this.animT % 4 < 2 ? -1 : 1) : 0;
+    s.place(this.x + strain, this.bottom - 18, this.facing < 0);
     const blink = this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln / 3) % 2 === 0;
     s.opacity = blink ? 0.35 : 1;
     // hexed: a sickly violet cast, with motes rising off her

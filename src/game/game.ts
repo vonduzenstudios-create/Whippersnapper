@@ -3,14 +3,14 @@ import { View, buildSheet, Sheet, makeTexture, disposeTree, recolorSheet } from 
 import { Input } from '../core/input';
 import { AudioEngine } from '../audio/audio';
 import { Music } from '../audio/music';
-import { HERO, HERO_M, buildHeroSheet, buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildWyrmSheet } from '../gfx/art_chars';
-import { buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet, buildHookjawSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet } from '../gfx/art_beasts';
+import { HERO, HERO_M, buildHeroSheet, buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildWyrmSheet, buildLibrarianSheet } from '../gfx/art_chars';
+import { buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet, buildHookjawSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet } from '../gfx/art_beasts';
 import { buildHoundSheet, buildCinderHoundSheet, buildBellMotherSheet } from '../gfx/art_bosses';
 import { buildItemSheet, buildCandleSheet, buildFxSheet, buildFireSheet, buildRelicFxSheet } from '../gfx/art_items';
 import { paintTiles } from '../gfx/tiles';
 import { buildBackdrop, buildWaterFront, Backdrop, WaterFront } from '../gfx/backdrops';
 import { buildRooms, RoomDef, Zone, CHASE_FLAG, ZONE_INFO } from '../world/rooms';
-import { Room } from '../world/room';
+import { Room, FURNITURE } from '../world/room';
 import { Player } from './player';
 import { Ent, HitKind, Boss } from './ent';
 import { BOSSES } from './bosses';
@@ -20,6 +20,7 @@ import { Candle, Pickup, RingAnchor, Altar, EnemyShot, Lever, Sign } from './obj
 import { Avalanche, LEASH } from './avalanche';
 import { Cutscene } from './cutscene';
 import { spawnEnemy } from './spawn';
+import { ChairProp } from './enemies_library';
 import { ENEMY } from './data';
 import { HeroId, heroText } from './story';
 import { UI } from '../ui/ui';
@@ -48,6 +49,10 @@ export interface Sheets {
   caster: Sheet;
   ooze: Sheet;
   grub: Sheet;
+  hand: Sheet;
+  tome: Sheet;
+  chair: Sheet;
+  librarian: Sheet;
   hound: Sheet;
   houndCinder: Sheet;
   bellmother: Sheet;
@@ -147,6 +152,10 @@ export class Game {
       caster: buildSheet(buildCasterSheet()),
       ooze: buildSheet(buildOozeSheet()),
       grub: buildSheet(buildGrubSheet()),
+      hand: buildSheet(buildHandSheet()),
+      tome: buildSheet(buildTomeSheet()),
+      chair: buildSheet(buildChairSheet()),
+      librarian: buildSheet(buildLibrarianSheet()),
       hound: buildSheet(buildHoundSheet()),
       houndCinder: buildSheet(buildCinderHoundSheet()), // Gnarlfang's second form
       bellmother: buildSheet(buildBellMotherSheet()),
@@ -342,6 +351,9 @@ export class Game {
         case 'T':
           this.ents.push(new Sign(this, x, bottom, e.arg || ''));
           break;
+        case 'n':
+          this.ents.push(new ChairProp(this, x, bottom));
+          break;
         case 'W':
         case 'P':
           break;
@@ -393,23 +405,37 @@ export class Game {
     this.markVisited();
   }
 
+  /**
+   * Two layers of tiles: the walls and floors (renderOrder 6, over every sprite but the
+   * effects), and the furniture (bookcases and tables, renderOrder 4) which sits behind
+   * the hero and enemies, since they walk in front of it.
+   */
   paintRoomTiles() {
     const room = this.room;
-    const pc = paintTiles(room.tiles, room.def.theme);
-    this.tileCanvas = pc.toCanvas();
+    this.tileCanvas = paintTiles(room.tiles, room.def.theme, 'main').toCanvas();
     if (this.tileTex) this.tileTex.dispose();
     this.tileTex = makeTexture(this.tileCanvas);
-    const mat = new THREE.MeshBasicMaterial({ map: this.tileTex, transparent: true, alphaTest: 0.5, depthTest: false, depthWrite: false, fog: false });
-    const old = this.view.world.getObjectByName('tiles');
+    this.addTileMesh('tiles', this.tileTex, 6);
+    const hasFurniture = room.tiles.some((row) => row.some((c) => FURNITURE.includes(c)));
+    this.addTileMesh('furniture', hasFurniture ? makeTexture(paintTiles(room.tiles, room.def.theme, 'furniture').toCanvas()) : null, 4);
+  }
+  /** Replace the named tile-layer mesh (none if `tex` is null). */
+  addTileMesh(name: string, tex: THREE.Texture | null, order: number) {
+    const room = this.room;
+    const old = this.view.world.getObjectByName(name) as THREE.Mesh | undefined;
     if (old) {
       this.view.world.remove(old);
-      (old as THREE.Mesh).geometry.dispose();
-      ((old as THREE.Mesh).material as THREE.Material).dispose();
+      old.geometry.dispose();
+      const mat = old.material as THREE.MeshBasicMaterial;
+      if (mat.map && mat.map !== this.tileTex) mat.map.dispose();
+      mat.dispose();
     }
+    if (!tex) return;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthTest: false, depthWrite: false, fog: false });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.H), mat);
-    m.name = 'tiles';
+    m.name = name;
     m.position.set(room.W / 2, -room.H / 2, 0);
-    m.renderOrder = 6;
+    m.renderOrder = order;
     m.frustumCulled = false;
     this.view.world.add(m);
   }
@@ -666,7 +692,7 @@ export class Game {
   floorBelow(x: number, y: number) {
     const tx = Math.floor(x / TILE);
     for (let ty = Math.max(0, Math.floor(y / TILE)); ty < this.room.rows; ty++) {
-      if (this.room.solidAt(tx, ty) || this.room.tile(tx, ty) === '=') return ty * TILE;
+      if (this.room.floorAt(tx, ty)) return ty * TILE;
     }
     return this.room.H - 2 * TILE;
   }

@@ -1,6 +1,6 @@
 # Nocturne of Ash: agent guide
 
-A browser tech demo of a 2D gothic action-platformer, meant as a slice of a much larger game (no ending, no final boss). Character select (Vesna or her twin Anzel, cosmetic only), an avalanche-chase prelude through a mountain pass (5 rooms, with an opening cinematic), an interconnected castle (14 rooms) ending at the Ossuary Wyrm, then the expansion beyond it: the Undervault hub and three looping regions (Kennel Yards, the Belfry, Rimeworks Aqueduct; 26 rooms in `src/world/rooms_expansion.ts`) with two more bosses that drop the double jump and slide relics. Story text lives in `src/game/story.ts`. Vite + TypeScript + three.js. Pixel sprites at 384×224 in front of lit 3D backdrops.
+A browser tech demo of a 2D gothic action-platformer, meant as a slice of a much larger game (no ending, no final boss). Character select (Vesna or her twin Anzel, cosmetic only), an avalanche-chase prelude through a mountain pass (5 rooms, with an opening cinematic), an interconnected castle (14 rooms) ending at the Ossuary Wyrm, then the expansion beyond it: the Undervault hub and three looping regions (Kennel Yards, the Belfry, Rimeworks Aqueduct; 26 rooms in `src/world/rooms_expansion.ts`) with two more bosses that drop the double jump and slide relics. Off the Harpy Rookery is the Ashen Library (12 rooms in `src/world/rooms_library.ts`, with a giant staircase, walk-through furniture, and three enemies: the Rustling Tome, the Restless Chair and the Bone Librarian). Story text lives in `src/game/story.ts`. Vite + TypeScript + three.js. Pixel sprites at 384×224 in front of lit 3D backdrops.
 
 The user is building this as a learning project. Explain changes briefly and keep the code readable.
 
@@ -38,6 +38,8 @@ Use `npm.cmd` on Windows PowerShell if `npm` is blocked. Debug: `window.game`, `
 - Version numbers: every batch of changes gets a changelog entry in README.md and a bump of `package.json`'s version (MINOR per batch, PATCH for small fixes).
 - Bosses: `RoomDef.boss` is a boss id from `BOSSES` (`game/bosses.ts`). Fights wall up the room's edge openings until the boss dies; `i` items in a boss room are its reward and stay hidden until then. Defeats are `boss_<id>` flags (`Hunter.beaten(id)`).
 - `spawnEnemy` lives in `game/spawn.ts`, not enemies.ts, to avoid an import loop with `enemies_expansion.ts`.
+- Furniture tiles `K` (bookcase) and `D` (table) are walk-through with a standable top (`Room.oneWayAt`), painted on their own layer behind the sprites. Rustling Tomes (`t`) must be placed on `K` tiles: they sleep there and fly out (`enemies_library.ts`). Chairs `n` (prop) and `a` (Restless Chair) face a table within 3 tiles. Door/hole alignment and the climb checks for those rooms are in [docs/level-design.md](docs/level-design.md).
+- Ramps `/` and `\` rise one tile every two; along a row they pair up from the low end (low half, high half). Fill solid under them. `moveBody` stands a body on the slope by its center; `Room.blocks` lets a grounded body step up lips of 8 px or less where a ramp meets a landing.
 - Story text uses `{NAME}`/`{CHILD}`/`{THEY}`/`{THEIR}` tokens for the chosen twin; `Game.showDialog` fills them in (`heroText`).
 
 ## Where to read more

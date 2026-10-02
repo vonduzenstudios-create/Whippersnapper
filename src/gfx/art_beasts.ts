@@ -263,7 +263,7 @@ export function buildCrawlerSheet(): SheetBuilder {
 }
 
 // ================================================================ experimental enemies (0.4.0)
-// Hookjaw, Mire Eel, Gloomcaster, Rot Ooze, Grave Grub. AI in game/enemies_extra.ts.
+// Hookjaw, Mire Eel, Gloomcaster, Rot Ooze, Grave Grub, Gravehand. AI in game/enemies_extra.ts.
 
 // ---------------------------------------------------------------- hookjaw
 
@@ -504,3 +504,232 @@ export function buildGrubSheet(): SheetBuilder {
   return b;
 }
 
+// ---------------------------------------------------------------- gravehand
+
+/** A dead hand clawing out of the ground. AI in game/enemies_extra.ts. */
+export function buildHandSheet(): SheetBuilder {
+  const b = new SheetBuilder(32, 40, 16, 36);
+  const skin = hex('#a8b898'), skinD = hex('#586a52'), nail = hex('#d8d0a8');
+  const dirt = hex('#5a4030'), dirtL = hex('#7a5a40');
+  const earth = (p: PixelCanvas) => {
+    p.ellipse(16, 36, 11, 3, dirt);
+    p.ellipse(16, 35.5, 8, 1.5, dirtL);
+  };
+  /** The warning: bony fingertips poking through the soil. */
+  const tips = (i: number) => {
+    const p = b.canvas();
+    earth(p);
+    for (let k = 0; k < 4; k++) {
+      const x = 9 + k * 4.5, top = 32 - ((k + i) % 2) * 3;
+      p.line(x, 36, x + (k - 1.5) * 0.4, top, skinD);
+      p.set(x + (k - 1.5) * 0.4, top, nail);
+    }
+    return fin(p, hex('#1a1008'));
+  };
+  /** The whole hand reared up. `curl` 0 = fingers spread, 1 = clenched; `lean` tilts it. */
+  const hand = (reach: number, curl: number, lean: number) => {
+    const p = b.canvas();
+    const wristY = 36 - reach, palmY = wristY - 4;
+    for (let y = 36; y >= wristY; y--) {
+      const x = 16 + lean * ((36 - y) / 36);
+      p.circle(x, y, 3.2, skinD);
+      p.circle(x - 0.5, y, 2.2, skin);
+    }
+    const px = 16 + lean * (reach / 36);
+    p.ellipse(px, palmY, 6, 5, skinD);
+    p.ellipse(px - 0.5, palmY - 0.5, 5, 4, skin);
+    for (let k = 0; k < 5; k++) {
+      // spread open or bent inward over the palm; the outer two are the thumb and little finger
+      const open = -0.95 + k * 0.475;
+      const ang = open * (1 - 0.75 * curl);
+      const len = (k === 0 || k === 4 ? 7 : 9.5) * (1 - 0.35 * curl);
+      const bx = px + (k - 2) * 2.4, by = palmY - 3;
+      const tx = bx + Math.sin(ang) * len, ty = by - Math.cos(ang) * len;
+      p.line(bx, by, tx, ty, skinD);
+      p.line(bx + 0.8, by, tx + 0.8, ty, skin);
+      p.set(tx, ty, nail);
+    }
+    earth(p);
+    return fin(p, hex('#1a1008'));
+  };
+  b.add('tips', tips(0), tips(1));
+  b.add('reach', hand(18, 0, 0), hand(18, 0.15, 1));
+  b.add('grip', hand(15, 1, 0), hand(15, 1, 1.5));
+  b.add('low', hand(7, 0.5, 0));
+  return b;
+}
+
+
+// ================================================================ the Ashen Library (0.6.0)
+
+// ---------------------------------------------------------------- rustling tome
+
+/**
+ * A grimoire that learned to fly. 40x32 cells, anchored at the center.
+ *   shelf / peek  spine out, sleeping among the other books (peek has glowing eyes)
+ *   flap          covers open like wings, `flap` runs from 1 (wings up) to -1 (wings down)
+ *   dive          covers shut, toothy clasp forward, page scraps streaming behind
+ */
+export function buildTomeSheet(): SheetBuilder {
+  const b = new SheetBuilder(40, 32, 20, 16);
+  const cover = hex('#7a1e34'), coverD = hex('#4a1020'), coverL = hex('#b03a52');
+  const gold = hex('#e0b850'), goldD = hex('#a07828');
+  const page = hex('#efe4c4'), pageD = hex('#c8b890');
+  const ink = hex('#1a1020'), eye = hex('#ffd040'), ribbon = hex('#d03040');
+  const dark = hex('#120a12');
+
+  const spine = (p: PixelCanvas, x: number, y: number, w: number, h: number) => {
+    p.rect(x, y, w, h, cover);
+    p.rect(x, y, 1, h, coverL);
+    p.rect(x + w - 1, y, 1, h, coverD);
+    for (const by of [y + 2, y + Math.floor(h / 2), y + h - 3]) p.rect(x, by, w, 1, gold);
+  };
+  const ribbonTail = (p: PixelCanvas, x: number, y: number) => {
+    p.line(x, y, x + 1, y + 4, ribbon, 1.4);
+    p.set(x, y + 5, ribbon);
+    p.set(x + 2, y + 5, ribbon);
+  };
+
+  // asleep on a shelf: a tall spine with a ribbon
+  const shelf = (peek: boolean) => {
+    const p = b.canvas();
+    spine(p, 17, 8, 6, 16);
+    ribbonTail(p, 21, 24);
+    if (peek) {
+      p.rect(18, 12, 2, 2, ink);
+      p.rect(21, 12, 2, 2, ink);
+      p.set(19, 12, eye);
+      p.set(22, 12, eye);
+    }
+    return fin(p, dark);
+  };
+  b.add('shelf', shelf(false));
+  b.add('peek', shelf(true));
+
+  // flying with the covers open
+  const flap = (f: number) => {
+    const p = b.canvas();
+    const W = 15 - Math.abs(f) * 3, oy = -f * 7;
+    const wing = (dir: number) => {
+      const sx = 20 + dir * 1, ox = 20 + dir * W;
+      p.poly([[sx, 9], [ox, 8 + oy], [ox, 25 + oy], [sx, 25]], coverD);
+      p.poly([[sx + dir * 1.5, 11], [ox - dir * 2, 10 + oy + 1], [ox - dir * 2, 23 + oy], [sx + dir * 1.5, 23]], page);
+      for (let k = 1; k <= 3; k++) p.line(sx + dir * 2, 11 + k * 3, ox - dir * 3, 11 + oy + k * 3, pageD);
+      for (let k = 0; k < 3; k++) p.set(ox - dir * (4 + k * 2), 12 + oy + k * 3, ink); // scribbled lines
+      p.line(ox, 8 + oy, ox, 25 + oy, coverL);
+      p.set(ox, 8 + oy, gold);
+      p.set(ox, 25 + oy, gold);
+    };
+    wing(-1);
+    wing(1);
+    spine(p, 18, 8, 5, 18);
+    ribbonTail(p, 21, 26);
+    // two angry ink eyes either side of the spine
+    for (const dir of [-1, 1]) {
+      const ex = 20 + dir * 5;
+      p.ellipse(ex, 16 + oy * 0.2, 1.6, 1.3, ink);
+      p.set(ex, 16 + oy * 0.2, eye);
+      p.line(ex - 2, 13 + oy * 0.2 - dir * -1, ex + 2, 14 + oy * 0.2 + dir * -1, ink);
+    }
+    return fin(p, dark);
+  };
+  b.add('flap', flap(1), flap(0.35), flap(-0.8), flap(0));
+
+  // closed and charging: the cover, a gold frame, eyes, and a clasp full of teeth
+  const dive = () => {
+    const p = b.canvas();
+    for (let k = 0; k < 4; k++) p.poly([[3 + k * 2, 9 + k * 4], [9 + k * 2, 10 + k * 4], [8 + k * 2, 13 + k * 4], [2 + k * 2, 12 + k * 4]], k % 2 ? pageD : page); // trailing scraps
+    p.rect(11, 6, 17, 21, coverD);
+    p.rect(10, 5, 17, 21, cover);
+    p.rect(10, 5, 17, 1, coverL);
+    p.rect(27, 7, 3, 19, page); // the pages, along the right edge
+    for (let y = 8; y < 26; y += 3) p.set(28, y, pageD);
+    p.line(12, 7, 25, 7, gold);
+    p.line(12, 24, 25, 24, goldD);
+    p.line(12, 7, 12, 24, gold);
+    p.line(25, 7, 25, 24, goldD);
+    for (const x of [14, 21]) {
+      p.rect(x, 10, 3, 2, ink); // eyes
+      p.set(x + 1, 10, eye);
+      p.set(x + 2, 11, eye);
+    }
+    p.rect(13, 17, 12, 6, ink); // the clasp, open
+    for (let k = 0; k < 4; k++) {
+      p.poly([[13 + k * 3, 17], [16 + k * 3, 17], [14.5 + k * 3, 20]], hex('#f0e8d0'));
+      p.poly([[13 + k * 3, 23], [16 + k * 3, 23], [14.5 + k * 3, 20.5]], hex('#d8d0b8'));
+    }
+    return fin(p, dark);
+  };
+  b.add('dive', dive());
+  return b;
+}
+
+// ---------------------------------------------------------------- restless chair
+
+/**
+ * A high-backed reading chair, three-quarter view, 32x32, anchored at the cell center (the
+ * legs end on the bottom row, so `feet` is 16). The plain chair is also the library's prop
+ * chair, so the enemy looks exactly like the furniture until it wakes.
+ *   sit     an ordinary chair
+ *   wake    the same, with two eyes lit in the carved backrest
+ *   float   hovering, legs kicking (two frames)
+ *   charge  legs swept back, eyes narrowed
+ */
+export function buildChairSheet(): SheetBuilder {
+  const b = new SheetBuilder(32, 32, 16, 16);
+  const wood = hex('#5a3420'), woodL = hex('#94603a'), woodD = hex('#2a160c');
+  const velvet = hex('#7a1e2a'), velvetL = hex('#b0384a'), velvetD = hex('#4a0e18');
+  const hole = hex('#140a08'), eye = hex('#ffd040'), eyeHot = hex('#fff4b0');
+
+  /** `kick` swings the legs (-1 back .. 1 forward); `eyes`: 0 none, 1 open, 2 narrowed. */
+  const chair = (kick: number, eyes: number) => {
+    const p = b.canvas();
+    const leg = (x: number, len: number, c: RGBA, swing: number) => {
+      p.line(x, 21, x + swing * 4, 21 + len, c, 2);
+    };
+    // far legs first (darker), then the near ones
+    leg(11, 9, woodD, kick);
+    leg(21, 9, woodD, kick);
+    p.line(9 + kick * 2, 26, 22 + kick * 2, 26, woodD); // the stretcher between the legs
+    leg(8, 10, wood, kick);
+    leg(24, 10, wood, kick);
+    p.set(8, 21, woodL);
+    p.set(24, 21, woodL);
+    // seat frame and the velvet cushion on it
+    p.poly([[7, 18], [26, 18], [26, 21], [8, 22]], wood);
+    p.line(8, 21, 26, 21, woodD);
+    p.poly([[8, 15], [25, 15], [26, 18], [7, 18]], velvet);
+    p.line(9, 15, 24, 15, velvetL);
+    p.line(7, 18, 26, 18, velvetD);
+    p.set(16, 16, velvetD); // a button
+    // the tall back: a frame around a carved splat with a quatrefoil cut through it
+    p.rect(6, 3, 7, 15, wood);
+    p.rect(6, 3, 1, 15, woodL);
+    p.rect(12, 3, 1, 15, woodD);
+    p.rect(7, 1, 5, 2, wood); // crest rail
+    p.rect(7, 1, 5, 1, woodL);
+    p.set(6, 1, woodL); // finials
+    p.set(12, 1, woodD);
+    p.rect(8, 5, 3, 10, shade(wood, 0.8));
+    for (const [x, y] of [[9, 8], [8, 9], [10, 9], [9, 10], [9, 9]] as [number, number][]) p.set(x, y, hole);
+    p.set(9, 12, hole);
+    if (eyes) {
+      // two eyes in the carving, under a scowl when it charges
+      p.set(8, 9, eye);
+      p.set(10, 9, eye);
+      p.set(9, 9, hole);
+      if (eyes === 2) {
+        p.set(8, 8, woodD);
+        p.set(10, 8, woodD);
+        p.set(8, 9, eyeHot);
+        p.set(10, 9, eyeHot);
+      }
+    }
+    return fin(p, woodD);
+  };
+  b.add('sit', chair(0, 0));
+  b.add('wake', chair(0, 1));
+  b.add('float', chair(0.6, 1), chair(-0.5, 1));
+  b.add('charge', chair(-1, 2));
+  return b;
+}

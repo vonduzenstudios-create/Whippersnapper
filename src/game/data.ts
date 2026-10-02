@@ -34,6 +34,7 @@ export const ITEMS: Record<string, ItemDef> = {
   armor_raven: { id: 'armor_raven', name: 'Raven Mail', slot: 'armor', icon: 'armor', desc: 'Black scale that drinks the cold. DEF+15', def: 15 },
   acc_fang: { id: 'acc_fang', name: 'Hound Fang', slot: 'acc', icon: 'ring', desc: 'A trophy of the hunt. STR+3 LCK+3', str: 3, lck: 3 },
   acc_bell: { id: 'acc_bell', name: 'Bell Charm', slot: 'acc', icon: 'ring', desc: 'Its chime steadies the heart. CON+6', con: 6 },
+  acc_seal: { id: 'acc_seal', name: "Archivist's Seal", slot: 'acc', icon: 'ring', desc: 'Wax stamped by the keeper of the Ashen Library. STR+2 CON+2 LCK+2', str: 2, con: 2, lck: 2 },
   acc_moon: { id: 'acc_moon', name: 'Moon Charm', slot: 'acc', icon: 'ring', desc: 'Silver crescent. LCK+6', lck: 6 },
   acc_blood: { id: 'acc_blood', name: 'Blood Ring', slot: 'acc', icon: 'ring', desc: 'Warm to the touch. STR+4', str: 4 },
   acc_garnet: { id: 'acc_garnet', name: 'Garnet Brooch', slot: 'acc', icon: 'ring', desc: 'A ward against harm. CON+4', con: 4 },
@@ -142,13 +143,24 @@ export const ENEMY_TUNING: Record<string, TuneField[]> = {
     { key: 'split', label: 'Splits', kind: 'bool', help: 'Splits into two smaller oozes when killed' }],
   grub: [SPEED, SIGHT, COOL,
     { key: 'burrow', label: 'Burrows again', kind: 'bool', help: 'Digs back under after an attack. Off: stays on the surface' }],
+  hand: [SIGHT, COOL,
+    { key: 'grip', label: 'Grip time', kind: 'num', help: 'How long it holds you if you do not wiggle free (1 = normal, about 1.7 s)' }],
+  // the Ashen Library (0.6.0), see enemies_library.ts
+  tome: [SPEED, SIGHT, COOL,
+    { key: 'dive', label: 'Dives', kind: 'bool', help: 'Rears back, then dives at you with its covers shut' }],
+  chair: [SPEED, SIGHT, COOL,
+    { key: 'charge', label: 'Charges', kind: 'bool', help: 'Tips back, then spins straight at you' },
+    { key: 'stomp', label: 'Stomps', kind: 'bool', help: 'Rises over you and drops down legs first' }],
+  librarian: [SPEED, SIGHT, COOL,
+    { key: 'throw', label: 'Throws books', kind: 'bool', help: 'Half in an arc, half straight at you' },
+    { key: 'hop', label: 'Hops away', kind: 'bool', help: 'Jumps back when you get close' }],
 };
 /** Base enemies the editor can make variants of (not the boss). */
 export const BASE_ENEMIES = Object.keys(ENEMY_TUNING);
 /** The room-entity letter for each base enemy. */
 export const ENEMY_LETTER: Record<string, string> = {
   zombie: 'z', bat: 'b', knight: 'k', skeleton: 's', wisp: 'w', drowned: 'd', dog: 'g', harpy: 'y', wraith: 'r', crawler: 'c',
-  hookjaw: 'h', eel: 'e', caster: 'm', ooze: 'o', grub: 'u',
+  hookjaw: 'h', eel: 'e', caster: 'm', ooze: 'o', grub: 'u', hand: 'x', tome: 't', chair: 'a', librarian: 'l',
 };
 
 /** Every knob of a base enemy at its normal value. */
@@ -234,6 +246,26 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
     hp: 32, atk: 15, def: 2, xp: 15, name: 'Grave Grub', portrait: 'wriggle',
     desc: 'A blind burrower. Watch for the moving mound of earth, then jump when it trembles. It lies helpless for a moment after it strikes.',
     drops: [{ item: 'heartS', chance: 20 }, { item: 'meat', chance: 8 }, { item: 'heartB', chance: 6 }],
+  },
+  hand: {
+    hp: 20, atk: 0, def: 0, xp: 8, name: 'Gravehand', portrait: 'reach',
+    desc: 'A dead hand that waits under the floor. It never hurts you, it only holds on. Wiggle left and right or jump to break free, before something else finds you. Whip it while it is up.',
+    drops: [{ item: 'heartS', chance: 25 }, { item: 'heartB', chance: 5 }],
+  },
+  tome: {
+    hp: 24, atk: 14, def: 1, xp: 12, name: 'Rustling Tome', portrait: 'flap',
+    desc: 'A grimoire the Archivist chained to its shelf. It slept spine-out among the others until the ash woke it. A whole shelf tears loose together. Knock them out of the air, and watch for the dive.',
+    drops: [{ item: 'heartS', chance: 25 }, { item: 'heartB', chance: 8 }, { item: 'potion', chance: 3 }],
+  },
+  chair: {
+    hp: 30, atk: 14, def: 2, xp: 14, name: 'Restless Chair', portrait: 'float',
+    desc: 'A reading chair that got tired of waiting for its reader. It stands among the others, perfectly still, until you come close. Then it kicks off the floor and comes for you, spinning or stamping.',
+    drops: [{ item: 'heartS', chance: 25 }, { item: 'meat', chance: 8 }, { item: 'heartB', chance: 6 }],
+  },
+  librarian: {
+    hp: 30, atk: 13, def: 2, xp: 12, name: 'Bone Librarian', portrait: 'walk',
+    desc: 'Still shelving the Archivist\'s books, centuries after the last reader left. Disturb it and it throws them at you: some lobbed high, some straight at your head.',
+    drops: [{ item: 'heartS', chance: 22 }, { item: 'heartB', chance: 8 }, { item: 'potion', chance: 3 }],
   },
   wyrm: {
     hp: 900, atk: 22, def: 4, xp: 600, name: 'Ossuary Wyrm', portrait: 'skull',

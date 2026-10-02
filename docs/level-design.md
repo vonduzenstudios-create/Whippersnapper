@@ -69,6 +69,9 @@ Tiles:
 | `B` | breakable |
 | `H` | wood plank |
 | `=` | one-way ledge |
+| `/` `\` | ramp rising to the right / left, one tile every two (lay them in pairs, solid under them) |
+| `K` | bookcase: walk through it, stand on its top (tomes sleep in it) |
+| `D` | table: walk through it, stand on its top |
 | `^` | spikes |
 | `~` | water |
 | `G` | gate (solid until the room's `gateFlag` is set) |
@@ -89,6 +92,10 @@ Entities:
 | `W` | boss marker (the room's `boss` id picks the boss; Gnarlfang ignores the marker and starts across from you) |
 | `z b k s w d` | enemies: zombie, bat, knight, skeleton, wisp, drowned (optional arg = an enemy-editor variant id of that enemy) |
 | `g y r c` | expansion enemies: wild dog, harpy, bell wraith, frost crawler (a crawler placed right under a ceiling clings to it) |
+| `t` | Rustling Tome (Library). Place it on a `K` (bookcase) tile: the tome sleeps inside it until you pass |
+| `a` | Restless Chair (Library): looks like a prop chair until you come close |
+| `l` | Bone Librarian (Library): put it on the floor in front of a bookcase; it shelves books with its back turned until you come close |
+| `n` | chair (scenery). Faces a table within 3 tiles on its row |
 
 In a boss room, items (`i`) are the reward: they stay hidden until the boss dies, then float down into place.
 
@@ -146,10 +153,20 @@ Rimeworks Aqueduct (zone 'aqueduct'):
   Old Well bottom → Frost Sluice (15-18,7) [slide crawlspace] → Ice Conduit (12-14,7) [tidal; high shelf] → Forgotten Drain (8-11,7)
   Forgotten Drain hole up ↔ Shrine of the Chain's cracked floor (old catacombs)
 
+The Ashen Library (zone 'library', theme 'library'; 12 rooms in `src/world/rooms_library.ts`, entered by the Harpy Rookery's new west door):
+  Harpy Rookery (10-11,-2) west door → Lending Hall (8-9,-2) → Card Catalogue (7,-2)
+  Card Catalogue left door → The Grand Staircase (3-6, -4..-2): a flight climbing right to left, two steps wide and one high, a landing every 9 steps
+  Card Catalogue grate (Down + Jump) ↔ Undercroft (2-7,-1) hole up: the shortcut back
+  Card Catalogue hole up → Reader's Nook (7,-3) [save]
+  Grand Staircase top landing → Upper Gallery (0-2,-4) → Scriptorium (-2..-1,-4) → Inkwell Shaft (-3, -4..-1) → Archivist's Study (-5..-4,-4) [save, Archivist's Seal]
+  Inkwell Shaft bottom door → Lower Stacks (-2..1,-1) → Undercroft (2-7,-1) [vault behind one cracked column: Ward Seed]
+  Upper Gallery hole up (through a grate) → Clerk's Mezzanine (0-2,-5) [Might Seed on a ledge only a double jump reaches] → Great Reading Room (3-6,-6..-5) [Life Max Up, Elixir]
+  Grand Staircase top hole up ↔ Great Reading Room grate (the way back down)
+
 Old castle secret: Rampart Walk (3-4, 0-1) [sky], above the Ruined Courtyard. Double jump to the courtyard's high ledge, then jump up onto the walkway.
 ```
 
-45 code rooms plus the editor-made `flooded_cave`, 151 map cells (14 of them sky cells). The Chain Grapple gates the Wyrm. After it, either boss can be fought first: the Kennels need nothing, the Belfry needs the grapple. Each boss drops one movement relic, and the Aqueduct, the Rookery, the Rampart and several pockets need one or both.
+57 code rooms plus the editor-made `flooded_cave`, 199 map cells (14 of them sky cells), counting the 12-room Library (48 cells). The Chain Grapple gates the Wyrm. After it, either boss can be fought first: the Kennels need nothing, the Belfry needs the grapple. Each boss drops one movement relic, and the Aqueduct, the Rookery, the Rampart and several pockets need one or both.
 
 Gates and rewards to come back for:
 
@@ -168,6 +185,15 @@ Gates and rewards to come back for:
 | Armory wall / Shrine floor | whip the cracked stones | hidden ways in |
 | Sky cells (Pilgrim's Road, Cliffs, Drawbridge) | double jump | Might Seed, Ward Seed, Heart Max Up |
 | Ice Conduit shelf / Cistern tank | high tide (swim + leap) or double jump | Might Seed + potion, Ward Seed |
+
+## The Ashen Library
+
+- Theme `library`: tan-gold sandstone walls, a green carpet runner on the floors, oak shelf boards for the one-way ledges, and a backdrop of towering bookshelves between sandstone piers, chandeliers and green desk lamps.
+- Furniture: bookcases (`K`, painted by `paintBookcase`) and tables (`D`, `paintTable`) are walk-through. Only the top row is solid, from above, like a one-way ledge (Down + Jump drops through it too). They're painted on a separate layer (renderOrder 4) behind the hero and enemies. Tables are one tile high and carry random clutter (books, an open folio, an inkwell). Put candles on a table by placing them on the row above it.
+- Chairs: `n` is a prop, `a` a Restless Chair. Both face a table within 3 tiles on their row (`chairFacing`), and both draw at renderOrder 5 until the enemy wakes. `tables()` in rooms_library.ts places a table with a chair at each end.
+- Bookcases are the shelves the Rustling Tomes sleep in. Put each `t` entity on a tile inside a `K` block. Cases standing on the floor, on the Grand Staircase's landings, and hanging from the ceiling all work.
+- Climbing through a ceiling hole needs a stepping ledge when the floor is more than 4 rows under the lower ledge (Card Catalogue: the cabinet; Upper Gallery, Grand Staircase and Undercroft: a row-8 ledge). Floors over a hole (Catalogue, Mezzanine, Reading Room) have a one-way grate (`=`), so the hole is not in your way. Down + Jump drops through it, and you jump up through it from below.
+- The Grand Staircase is a ramp of `\` tiles (drawn as small steps, 8 px deep and 4 high) built from per-column surface rows (see the room's code): 28 steps of 2 columns each, with landings of 10 columns after steps 9 and 18, and a 7-wide top landing. If you change the numbers, the door rows (R door rows 36-39 over the floor, L door rows 8-11 over the top landing, hole at x 10-13) must still match.
 
 ## Prelude: tutorial signs and the avalanche
 
@@ -199,4 +225,5 @@ These were tuned by playtesting and scripted runs. Re-check them after changing 
 - The Ringing Climb: each ring sits 2-4 rows below the landing it serves, close enough to reach from the landing below with the starting whip (tested with the leather whip).
 - Rampart Walk: keep its merlons clear of x 8-15, above the Courtyard ledge you jump up from.
 - Sky-cell ledge chains: the first step of the Pilgrim's Road and Cliffs chains is a double jump that only just lands (peak 13.9 rows for a row-14 ledge). Don't raise them. The Drawbridge facade pocket needs its 4-row mouth (rows 9-12) to be enterable from the ledge.
+- Library: the Clerk's Mezzanine ledge (row 4, 6 rows over the case top at row 10) is a double-jump gate: keep every other platform in that room at least 4 tiles away from it. The Undercroft vault is shut by one `B` column and must stay at the dead end past the hole (a vault block spanning floor to row 5 in the middle of the corridor walled the room in during the first draft). The Grand Staircase's hanging bookcases (rows 1-6) must stay clear of the jump from the row-8 stepping ledge to the row-4 ledge.
 - Tidal rooms: the Conduit shelf must stay more than 79 px above any standing spot within reach (the ice block top is 80 px below it, but 14 tiles away), and the Cistern tank floor 8 rows over the bottom.

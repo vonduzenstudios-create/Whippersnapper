@@ -43,7 +43,10 @@ const CATS: [Cat, string][] = [
 const ITEM_IDS = Object.keys(ITEMS).filter((id) => ITEMS[id].slot !== 'relic');
 const ENEMY_HINT: Record<string, string> = {
   bat: ' (HANGS FROM THE CEILING)', drowned: ' (PUT IT IN WATER)', harpy: ' (FLIES)', wraith: ' (FLOATS)',
-  crawler: ' (RIGHT UNDER A CEILING: CLINGS TO IT)', eel: ' (PUT IT IN WATER)', grub: ' (PUT IT ON A FLOOR)',
+  crawler: ' (RIGHT UNDER A CEILING: CLINGS TO IT)', eel: ' (PUT IT IN WATER)', grub: ' (PUT IT ON A FLOOR)', hand: ' (PUT IT ON A FLOOR)',
+  tome: ' (PUT IT INSIDE A BOOKCASE: SLEEPS UNTIL YOU PASS)',
+  chair: ' (LOOKS LIKE A PROP CHAIR UNTIL YOU COME CLOSE)',
+  librarian: ' (ON THE FLOOR IN FRONT OF A BOOKCASE: SHELVES BOOKS UNTIL YOU COME CLOSE)',
 };
 
 /** The tool palette, one list per tab. Enemy variants from the enemy editor sit after their base enemy. */
@@ -62,6 +65,10 @@ function buildTools(): Record<Cat, Tool[]> {
       { id: 'B', kind: 'tile', label: 'BREAKABLE WALL' },
       { id: 'H', kind: 'tile', label: 'WOOD PLANK' },
       { id: '=', kind: 'tile', label: 'ONE-WAY LEDGE' },
+      { id: '/', kind: 'tile', label: 'RAMP UP TO THE RIGHT (1 TILE UP EVERY 2: LAY THEM IN PAIRS)' },
+      { id: '\\', kind: 'tile', label: 'RAMP UP TO THE LEFT (1 TILE UP EVERY 2: LAY THEM IN PAIRS)' },
+      { id: 'K', kind: 'tile', label: 'BOOKCASE (WALK THROUGH, STAND ON TOP)' },
+      { id: 'D', kind: 'tile', label: 'TABLE (WALK THROUGH, STAND ON TOP)' },
       { id: '^', kind: 'tile', label: 'SPIKES' },
       { id: '~', kind: 'tile', label: 'WATER' },
     ],
@@ -77,6 +84,7 @@ function buildTools(): Record<Cat, Tool[]> {
       { id: 'S', kind: 'ent', label: 'SAVE ALTAR' },
       { id: 'T', kind: 'ent', label: 'SIGN / LORE STONE (DOUBLE-CLICK: TEXT)' },
       { id: 'L', kind: 'ent', label: 'LEVER (DOUBLE-CLICK: SET ITS FLAG)' },
+      { id: 'n', kind: 'ent', label: 'CHAIR (FACES A TABLE NEXT TO IT)' },
     ],
     items: ITEM_IDS.map((id) => ({ id: 'i', kind: 'ent' as const, arg: id, label: `ITEM: ${ITEMS[id].name.toUpperCase()}` })),
   };
@@ -85,7 +93,7 @@ function buildTools(): Record<Cat, Tool[]> {
 /** Entities the level depends on (start, relic, boss): they can be moved but not deleted. */
 const LOCKED = 'PRW';
 /** Entities drawn two tiles tall, so you can grab them by their upper half too. */
-const TALL = 'zksdPS';
+const TALL = 'zksdlPS';
 /** Tools whose arg is set per placed entity (double-click), not part of the tool itself. */
 const ARGLESS = 'TL';
 const sameTool = (a: Tool, b: Tool) => a.id === b.id && a.kind === b.kind && (ARGLESS.includes(a.id) || (a.arg || '') === (b.arg || ''));
@@ -109,6 +117,11 @@ const MARKERS: Record<string, { sheet: keyof Sheets; anim: string; dy: number }>
   m: { sheet: 'caster', anim: 'idle', dy: 18 },
   o: { sheet: 'ooze', anim: 'big', dy: 0 },
   u: { sheet: 'grub', anim: 'mound', dy: 0 },
+  x: { sheet: 'hand', anim: 'reach', dy: 0 },
+  t: { sheet: 'tome', anim: 'shelf', dy: 8 },
+  a: { sheet: 'chair', anim: 'sit', dy: 8 },
+  n: { sheet: 'chair', anim: 'sit', dy: 8 },
+  l: { sheet: 'librarian', anim: 'tend', dy: 18 },
   C: { sheet: 'candle', anim: 'candle', dy: 16 },
   S: { sheet: 'candle', anim: 'altar', dy: 16 },
   L: { sheet: 'candle', anim: 'lever', dy: 16 },
@@ -1392,7 +1405,7 @@ export class Editor {
     const x = e.x * TILE + 8, bottom = (e.y + 1) * TILE;
     if (m) {
       // enemy variants show in their own colors
-      const sheet = e.arg && ENEMY[e.arg] && 'zbkswd'.includes(e.t) ? this.g.enemySheet(e.arg) : this.g.sheets[m.sheet];
+      const sheet = e.arg && ENEMY[e.arg] && 'zbkswdl'.includes(e.t) ? this.g.enemySheet(e.arg) : this.g.sheets[m.sheet];
       const anim = e.t === 'i' ? ITEMS[e.arg || '']?.icon || 'potion' : m.anim;
       const idx = sheet.anims[anim]?.[0] ?? 0;
       const img = sheet.tex.image as HTMLCanvasElement;
@@ -1402,9 +1415,9 @@ export class Editor {
       c.globalAlpha = 1;
     }
     // the grab tile, colored by role: hostile red, locked cyan, everything else gold
-    const col = ghost ? '#ffffff' : LOCKED.includes(e.t) || e.t === 'L' ? '#60e0ff' : 'zbkswd'.includes(e.t) ? '#ff5060' : GOLD;
+    const col = ghost ? '#ffffff' : LOCKED.includes(e.t) || e.t === 'L' ? '#60e0ff' : 'zbkswdl'.includes(e.t) ? '#ff5060' : GOLD;
     this.outline(c, e.x * TILE - cx + 1, e.y * TILE - cy + 1, 14, 14, col, 0.7);
-    drawText(c, ghost ? 'START' : e.t + (e.arg && 'zbkswd'.includes(e.t) ? '*' : ''), e.x * TILE - cx + (ghost ? -6 : 2), e.y * TILE - cy + 2, col, '#000');
+    drawText(c, ghost ? 'START' : e.t + (e.arg && 'zbkswdl'.includes(e.t) ? '*' : ''), e.x * TILE - cx + (ghost ? -6 : 2), e.y * TILE - cy + 2, col, '#000');
   }
 
   outline(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, col: string, a = 1) {
@@ -1540,7 +1553,7 @@ export class Editor {
     cv.width = d.w * SC;
     cv.height = d.h * SR;
     const ctx = cv.getContext('2d')!;
-    const col: Record<string, string> = { '#': '#c8bca8', B: '#a08a70', H: '#8a6a40', '=': '#706050', '^': '#e04040', '~': '#3c78b0', G: '#e09030', N: '#d0e8f0' };
+    const col: Record<string, string> = { '#': '#c8bca8', B: '#a08a70', H: '#8a6a40', K: '#6a4a30', D: '#5a3420', '/': '#a89c88', '\\': '#a89c88', '=': '#706050', '^': '#e04040', '~': '#3c78b0', G: '#e09030', N: '#d0e8f0' };
     d.tiles.forEach((row, y) => [...row].forEach((ch, x) => {
       if (!col[ch]) return;
       ctx.fillStyle = col[ch];

@@ -376,6 +376,22 @@ const SFX: Record<string, Sfx> = {
     a.tone({ type: 'sawtooth', f0: 1900, f1: 900, dur: 0.25, vol: 0.06, lp: 3500 });
     a.noise({ dur: 0.2, vol: 0.12, type: 'highpass', f0: 3000, f1: 1500 });
   },
+  // a tome tearing loose from its shelf: a quick riffle of paper and a dry thump
+  // a wooden chair coming to life: a slow, wavering creak
+  creak: (a) => {
+    a.tone({ type: 'sawtooth', f0: 150, f1: 210, dur: 0.18, vol: 0.06, lp: 700 });
+    a.tone({ type: 'sawtooth', f0: 210, f1: 120, dur: 0.22, vol: 0.06, lp: 700, t: 0.16 });
+    a.noise({ dur: 0.3, vol: 0.06, type: 'bandpass', f0: 900, f1: 500, q: 4 });
+  },
+  // chair legs knocking down on the floor
+  knock: (a) => {
+    a.noise({ dur: 0.08, vol: 0.3, type: 'lowpass', f0: 900, f1: 200 });
+    a.tone({ type: 'triangle', f0: 180, f1: 90, dur: 0.1, vol: 0.12 });
+  },
+  pages: (a) => {
+    for (let i = 0; i < 7; i++) a.noise({ dur: 0.04, vol: 0.2, type: 'bandpass', f0: 2600 + Math.random() * 1800, q: 1.5, t: i * 0.035 });
+    a.tone({ type: 'triangle', f0: 240, f1: 130, dur: 0.12, vol: 0.06, lp: 900 });
+  },
   // Gnarlfang calling its pack: two rising and falling voices
   howl: (a) => {
     a.tone({ type: 'sawtooth', f0: 220, f1: 420, dur: 0.6, vol: 0.1, lp: 1200, attack: 0.1 });

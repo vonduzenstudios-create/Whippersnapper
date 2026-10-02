@@ -298,7 +298,7 @@ export class HolyFlask extends Ent {
       let fy = -1;
       for (let y = this.y; y < this.y + 64; y += 4) {
         const tx = Math.floor(this.x / TILE), ty = Math.floor(y / TILE);
-        if (g.room.solidAt(tx, ty) || g.room.tile(tx, ty) === '=') {
+        if (g.room.floorAt(tx, ty)) {
           fy = ty * TILE;
           break;
         }
@@ -388,7 +388,7 @@ export class EnemyShot extends Ent {
   grav: number;
   t = 0;
   frames: number[];
-  constructor(g: Game, x: number, y: number, vx: number, vy: number, kind: 'bone' | 'fireball' | 'bigfire' | 'feather' | 'rock', dmg: number, grav = 0) {
+  constructor(g: Game, x: number, y: number, vx: number, vy: number, kind: 'bone' | 'fireball' | 'bigfire' | 'feather' | 'rock' | 'book', dmg: number, grav = 0) {
     super();
     this.x = x;
     this.y = y;
@@ -418,12 +418,15 @@ export class EnemyShot extends Ent {
       this.sprite!.place(this.x, this.y);
       this.sprite!.mesh.rotation.z = -Math.atan2(this.vy, this.vx);
     } else this.sprite!.place(this.x, this.y, this.vx < 0);
-    if (this.kind === 'bone' || this.kind === 'rock') this.sprite!.mesh.rotation.z += 0.3 * (Math.sign(this.vx) || 1);
+    // tumbling shots spin; a book thrown in an arc tumbles, one thrown straight just flaps
+    const spins = this.kind === 'bone' || this.kind === 'rock' || (this.kind === 'book' && this.grav > 0);
+    if (spins) this.sprite!.mesh.rotation.z += (this.kind === 'book' ? 0.2 : 0.3) * (Math.sign(this.vx) || 1);
     if (fiery && this.t % 4 === 0) g.fx.burst(this.x, this.y, 'ember', 1, 2, { life: 16, vy: -0.3 });
     if (this.t > 360 || this.y > g.room.H + 32 || this.x < -32 || this.x > g.room.W + 32) this.dead = true;
-    if ((this.kind === 'fireball' || this.kind === 'feather' || this.kind === 'rock') && g.room.solidPx(this.x, this.y)) {
+    if ((this.kind === 'fireball' || this.kind === 'feather' || this.kind === 'rock' || this.kind === 'book') && g.room.solidPx(this.x, this.y)) {
       this.dead = true;
-      g.fx.burst(this.x, this.y, fiery ? 'burst' : 'dust', 1);
+      if (this.kind === 'book') g.fx.burst(this.x, this.y, 'page', 4, 4, { speed: 1.2, grav: 0.03, life: 40, rot: 0.2, fade: true });
+      else g.fx.burst(this.x, this.y, fiery ? 'burst' : 'dust', 1);
     }
   }
 }

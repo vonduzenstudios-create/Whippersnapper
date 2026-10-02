@@ -309,11 +309,7 @@ export class Skeleton extends Enemy {
           break;
         case 'throw':
           this.sprite!.setFrame(A.throw[this.st < 12 ? 0 : 1]);
-          if (this.st === 12) {
-            const d = clamp(adx / 55, 1, 3.4);
-            g.spawn(new EnemyShot(g, this.x + this.facing * 6, this.y - 14, this.facing * d, -4.4, 'bone', this.atk, 0.16));
-            g.audio.play('bone');
-          }
+          if (this.st === 12) this.throwShot(g, adx);
           if (this.st > 26) {
             this.state = 'walk';
             this.cool = (100 + Math.random() * 60) * this.num('cooldown');
@@ -329,6 +325,12 @@ export class Skeleton extends Enemy {
       }
     this.physics(g);
     this.place();
+  }
+  /** Let go of the throw: a bone lobbed in an arc that lands near the hunter (`adx` px away). */
+  throwShot(g: Game, adx: number) {
+    const d = clamp(adx / 55, 1, 3.4);
+    g.spawn(new EnemyShot(g, this.x + this.facing * 6, this.y - 14, this.facing * d, -4.4, 'bone', this.atk, 0.16));
+    g.audio.play('bone');
   }
 }
 

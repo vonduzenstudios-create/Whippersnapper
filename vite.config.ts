@@ -91,6 +91,9 @@ function editorSave(): Plugin {
 
 export default defineConfig({
   base: './',
+  // Own port (not Vite's default 5173) so another copy of the project can't shadow this one;
+  // strictPort makes a clash a loud error instead of silently hopping to another port.
+  server: { port: 5273, strictPort: true },
   plugins: [editorSave()],
   build: {
     target: 'es2020',

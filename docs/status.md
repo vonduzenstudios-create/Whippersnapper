@@ -81,6 +81,24 @@ Update this file when you verify something or finish a listed item.
   - Eel: chase and lunge in the pool. Leaped out at her on the bank and hit, then flopped back into the water.
   - The enemy editor opens all the new enemies, and now the expansion ones too (their sheets were missing there).
 
+- Gravehand (0.5.0, 2026-10-02), checked with typecheck and scripted play in `#lab`: warn, burst, grab at the right moment, held 100 frames with no input and freed early by wiggles and by a jump (with a small hop). Not yet playtested by feel (grip length, wiggle cost, warning time), not placed in any room, and its sprite hasn't been looked at closely.
+
+- The Bone Librarian (0.8.0, 2026-10-02), checked with typecheck and scripted runs plus screenshots in the browser pane (Lending Hall): it tends its shelf from behind, wakes when the hero comes within range, turns, and throws; over 20 s it threw 6 arcing and 2 straight books (random 50/50), both kinds hit the hero. Its frames were looked at enlarged. Not yet checked: feel by a human (wake range, straight-book speed), its other four placements in play, and waking it by a hit.
+
+- The Library rework (0.7.0, 2026-10-02), checked with typecheck, `npm run build`, frame-stepped scripted runs and screenshots in the browser pane:
+  - Grand Staircase ramp: walking from the bottom door to the top landing and back, at walking and running speed, never leaves the ground, never stalls, and the height changes at most 0.83 px a frame (1.24 running). The first try stalled where the ramp meets a landing (a 3 px lip); `Room.blocks` now lets a grounded body step up lips of 8 px or less. Jumping on the slope lands exactly on its surface; crouch and stand up work on it.
+  - Bookcases and tables: the hero stands in front of them and walks through them, and they're drawn behind her. Not re-checked: the 0.6.0 reachability search (furniture tops are one-way now, which only adds ways up).
+  - Restless Chair: still → wake → float → rise → drop → rest, and wind → charge → float loops, seen in scripted runs; the drop hit the hero; it dies and lands in the bestiary. Chairs face their table. All 12 library rooms load without errors.
+  - Not yet checked: feel by a human (chair speeds, wake range, how often it stomps), the new `creak`/`knock` sounds by ear, the editor's new tile swatches, and the re-colored castle areas beyond the Stairwell.
+
+- The Ashen Library and the Rustling Tome (0.6.0, 2026-10-02), checked with typecheck, `npm run build`, scripted runs and screenshots in the browser pane:
+  - Every library door and hole lines up with its neighbor (all edge tiles checked through `Game.tileOutside`); the Rookery's new west door leads into the Lending Hall, with the zone banner and the library song.
+  - A physics reachability search (the real `moveBody`, gravity, jump speed, one-way ledges) from each room's doors reaches every other door, hole ledge and item: the staircase top, both Gallery/Catalogue/Undercroft holes (up through the grates), the Inkwell Shaft both ways, the Reading Room's shelf stair (Life Max Up, Elixir), the Study desk (Archivist's Seal) and the Undercroft's vault door. The Mezzanine's Might Seed ledge is NOT reachable without the double jump, as designed. The search caught one bad layout (a vault block walling off the Undercroft) before it shipped.
+  - A bot holding Left and tapping Jump climbs the whole Grand Staircase in about 1050 frames and walks out the top door, without a double jump.
+  - Tomes: wake, rattle, burst out of the case, flap, wind up and dive, all seen on screen. A stress run forced every tome awake in every library room with the hero at three spots: none got stuck in a wall or case (the first version launched ceiling-hung tomes up into the ceiling and trapped them; `tearLoose` fixed that).
+  - A crash sweep ran 4 s of input in each of the 12 rooms with no errors. The map editor (F2) opens in the library, shows the bookcase tile swatch, and the enemy editor lists the Tome.
+  - Not yet checked: balance and feel by a human (13 tomes on the staircase may be a lot; their wake range, dive speed and cooldowns are guesses), a full run from the Rookery through every room in order, the whip against a flapping tome in real play (damage and hitstop were not looked at), and the new song by ear.
+
 - Controls tweak (0.4.1, 2026-10-02), checked with typecheck and frame-stepped scripted input in `#lab`:
   - Up + Sub-weapon raises the Ward (3 hearts, 180 frames) and throws nothing. The SHIELD button is gone.
   - Down + Sub-weapon throws the cross while staying crouched (hitbox stays 24 px tall), and she's still crouched after. Standing throws are unchanged. Both release at the same height (the throw frame's hand is already low).
@@ -93,9 +111,10 @@ Update this file when you verify something or finish a listed item.
 - 0.2.0: nobody has played it by hand. Not yet judged by a human: how the tide timing (15 s cycle) and swimming feel, whether Hard/Brutal are the right numbers, and how the afterimages look in motion. The right-stick map zoom is untested on a real gamepad. The `chime`, `tide`, `swim` and `mark` sounds haven't been heard. The Slope sky secret sits in the avalanche chase and may be too risky to bother with.
 
 - The expansion has had no human play. Untested by script: the Bellfoot climb up to the Ringing Climb hole, the Rookery nest and Spire gable jumps, the Raven's Drop climb back up, the Briar Maze item climb, the Cistern bridge, the Bell-Mother's swoop hitting you, and how hard either boss is with real input. Enemy counts and damage are untuned.
-- Nobody has heard the new songs (`undervault`, `kennels`, `belfry`, `aqueduct`) or sounds (`growl`, `bark`, `handbell`, `harpy`, `howl`).
+- Nobody has heard the new songs (`undervault`, `kennels`, `belfry`, `aqueduct`, `library`) or sounds (`growl`, `bark`, `handbell`, `harpy`, `howl`, `pages`).
+- The Ashen Library (0.6.0) has had no human play, and its enemy counts are untuned (see its entry under Verified). The Rustling Tome's sprite, flap rhythm and dive tell have only been looked at in a few screenshots.
 - The world map spans 38 × 14 cells. Zoom and a scrolling cursor were added in 0.2.0.
-- The editor's room picker with 46 rooms hasn't been checked.
+- The editor's room picker with 58 rooms hasn't been checked.
 
 - The new editor features have only had scripted use: real mouse dragging of room edges on the world map, and the enemy editor's color pickers by hand.
 

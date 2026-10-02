@@ -405,6 +405,28 @@ export function buildFxSheet(): SheetBuilder {
     p.circle(8, 9, 2.5 - i * 0.8, hex('#6a9a30'));
     p.set(7, 8, hex('#c0e070'));
   });
+  // a scrap of paper tumbling (tomes tearing loose or dying)
+  add('page', 3, (p, i) => {
+    const w = [5, 3, 2][i], h = [3, 5, 5][i];
+    p.rect(8 - Math.floor(w / 2), 8 - Math.floor(h / 2), w, h, hex('#efe4c4'));
+    p.set(8, 8, hex('#a89870'));
+    if (w > 2) p.set(7, 9 - i, hex('#3a2a30'));
+  }, hex('#2a2018'));
+  // a book thrown by the Bone Librarian: shut, then flapping open
+  add('book', 2, (p, i) => {
+    const cover = hex('#7a2a30'), paper = hex('#efe4c4');
+    if (i === 0) {
+      p.rect(4, 5, 8, 6, cover);
+      p.line(5, 10, 11, 10, paper); // page edges
+      p.line(4, 5, 4, 10, hex('#4a1820')); // spine
+      p.set(8, 7, hex('#d8a030'));
+    } else {
+      p.poly([[8, 9], [2, 5], [2, 9], [8, 12]], cover);
+      p.poly([[8, 9], [14, 5], [14, 9], [8, 12]], cover);
+      p.poly([[8, 9], [3, 5], [3, 7], [8, 10]], paper);
+      p.poly([[8, 9], [13, 5], [13, 7], [8, 10]], paper);
+    }
+  }, hex('#1a1010'));
   // a rising air bubble (eels, swimming with the Undertow Pearl)
   add('bubble', 1, (p) => {
     p.circle(8, 8, 2, hex('#c8f0ff'));

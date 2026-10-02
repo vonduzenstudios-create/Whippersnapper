@@ -7,12 +7,13 @@
 import { SCREEN_COLS as SC, SCREEN_ROWS as SR } from '../config';
 import ROOM_EDITS from './room_edits.json';
 import { buildExpansionRooms } from './rooms_expansion';
+import { buildLibraryRooms } from './rooms_library';
 
 export const THEMES = [
   'outdoor', 'courtyard', 'hall', 'stair', 'catacomb', 'flooded', 'shrine', 'chasm', 'lair', 'snow', 'ice',
-  'garden', 'rooftop', 'belfry', 'aqueduct',
+  'garden', 'rooftop', 'belfry', 'aqueduct', 'library',
 ] as const;
-export const ZONES = ['pass', 'castle', 'catacombs', 'lair', 'undervault', 'kennels', 'belfry', 'aqueduct', 'lab'] as const;
+export const ZONES = ['pass', 'castle', 'catacombs', 'lair', 'undervault', 'kennels', 'belfry', 'aqueduct', 'library', 'lab'] as const;
 /** Theme: the backdrop and tile art. */
 export type Theme = (typeof THEMES)[number];
 /** Zone: the music, map color and area banner. */
@@ -28,6 +29,7 @@ export const ZONE_INFO: Record<Zone, { name: string; color: string; music: strin
   kennels: { name: 'Kennel Yards', color: '#3a5a2a', music: 'kennels' },
   belfry: { name: 'The Belfry', color: '#6a4a2a', music: 'belfry' },
   aqueduct: { name: 'Rimeworks Aqueduct', color: '#2a5a6a', music: 'aqueduct' },
+  library: { name: 'The Ashen Library', color: '#6a3a5a', music: 'library' },
   lab: { name: 'Test Chamber', color: '#5a5a5a', music: 'undervault' }, // the #lab debug room only
 };
 
@@ -526,5 +528,6 @@ export function buildBaseRooms(): RoomDef[] {
 
   // ══ After the Wyrm: the Undervault and the regions beyond it (rooms_expansion.ts) ══
   R.push(...buildExpansionRooms());
+  R.push(...buildLibraryRooms());
   return R;
 }

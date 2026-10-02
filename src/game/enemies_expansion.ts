@@ -47,7 +47,7 @@ export class Shockwave extends Ent {
 export function floorBelow(g: Game, x: number, y: number, maxTiles = 20) {
   const tx = Math.floor(x / TILE);
   for (let ty = Math.floor(y / TILE); ty < Math.floor(y / TILE) + maxTiles; ty++) {
-    if (g.room.solidAt(tx, ty) || g.room.tile(tx, ty) === '=') return ty * TILE;
+    if (g.room.floorAt(tx, ty)) return ty * TILE;
   }
   return -1;
 }

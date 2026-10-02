@@ -10,7 +10,7 @@ src/
   core/util.ts      math, seeded rng, hash2, Box overlap
   gfx/pixel.ts      PixelCanvas software painter + SheetBuilder (all sprites drawn here)
   gfx/art_chars.ts  2D bone rig (Pose → pixels) for the heroes (HERO = Vesna, HERO_M = Anzel), zombie, skeleton, knight, drowned; bat, wisp, wyrm
-  gfx/art_beasts.ts expansion creatures: wild dog, harpy, bell wraith, frost crawler; experimental: hookjaw, mire eel, gloomcaster, rot ooze, grave grub
+  gfx/art_beasts.ts expansion creatures: wild dog, harpy, bell wraith, frost crawler; experimental: hookjaw, mire eel, gloomcaster, rot ooze, grave grub, gravehand; Library: rustling tome, restless chair (also the prop chair); the bone librarian is in art_chars.ts (a skeleton sheet with a cap)
   gfx/art_bosses.ts expansion bosses: Gnarlfang (flayed and cinder forms), the Bell-Mother. Preview on /bosses.html
   gfx/art_items.ts  item icons, candles/torch/save altar, fx sheet (incl. feather, rock, shockwave, hook, hex), fire sheet, relicfx sheet (glide wings, shield bubble)
   gfx/tiles.ts      paints a whole room's tile layer into one canvas (bricks, edges, moss, spikes, ledges)
@@ -21,6 +21,7 @@ src/
   audio/music.ts    step sequencer, instruments (harpsi/organ/bass/guitar/choir/bell/drums), songs
   world/rooms.ts    prelude and castle rooms, built in code with the RB builder; THEMES, ZONES, ZONE_INFO (banner/map color/song)
   world/rooms_expansion.ts  the 26 rooms beyond the Wyrm (Undervault, Kennels, Belfry, Aqueduct, Rampart Walk)
+  world/rooms_library.ts  the 12 rooms of the Ashen Library (through the Rookery's west door)
   world/room.ts     Room (tile queries, water rect) + moveBody (AABB tile collision, one-way ledges)
   game/game.ts      Game: fixed 60Hz loop, state machine, room loading, transitions, combat helpers, camera
   game/player.ts    Player: movement, double jump, slide, glide, free swim, shield bubble, whip chain, dangle, grapple pendulum, damage
@@ -29,7 +30,8 @@ src/
   game/avalanche.ts the avalanche that chases the hero through the prelude (shader-drawn snow wall)
   game/enemies.ts   Enemy base + Zombie, Bat, Knight, Skeleton, Wisp, Drowned
   game/enemies_expansion.ts  Dog, Harpy, Wraith, Crawler, and the floor Shockwave
-  game/enemies_extra.ts  experimental (not placed yet): Hookjaw + HookChain, Eel, Caster + HexBolt, Ooze, Grub
+  game/enemies_library.ts  the Rustling Tome (sleeps in a bookcase, tears loose, flaps and dives), the Restless Chair and the prop chair, the Bone Librarian (a Skeleton subclass that throws books)
+  game/enemies_extra.ts  experimental (not placed yet): Hookjaw + HookChain, Eel, Caster + HexBolt, Ooze, Grub, Gravehand
   game/lab.ts       the #lab test room for experimental relics and enemies (number-key spawner)
   game/spawn.ts     spawnEnemy(): room letter → enemy (its own file to avoid an import loop)
   game/bosses.ts    BOSSES table: name/banner, flag, victory screen, constructor per boss id
@@ -89,7 +91,8 @@ Sprites use a custom `ShaderMaterial`: frame selection by UV rect, flipX, white 
 | backdrop | opaque |
 | backdrop torch sprites | 1 |
 | motes | 2 |
-| **wyrm** (below the tiles, so walls hide it while it burrows) | **5** |
+| furniture tiles (bookcases, tables: you walk in front of them) | 4 |
+| **wyrm** (below the tiles, so walls hide it while it burrows); chairs, and a Restless Chair until it wakes | **5** |
 | tiles | 6 |
 | candles and altar, boss-reward light beams | 8 |
 | pickups | 9 |

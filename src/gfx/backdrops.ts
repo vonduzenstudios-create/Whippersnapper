@@ -99,6 +99,34 @@ function windowTex(glass: RGBA[], frame: RGBA) {
   return makeTexture(p);
 }
 
+/** A wall of bookshelves: oak boards every 16 px under rows of leaning spines. Tiles every 64 px. */
+function shelfTex(seed: number) {
+  const p = new PixelCanvas(64, 64);
+  const cols = ['#6a2030', '#2a4a3a', '#34346a', '#7a5028', '#52285a', '#62623a', '#285a68', '#7a3226', '#8a7a58'].map((c) => hex(c));
+  const oak = hex('#3a2414'), oakL = hex('#6a4426');
+  for (let row = 0; row < 4; row++) {
+    const y0 = row * 16;
+    p.rect(0, y0, 64, 16, hex('#140b0a')); // the dark back of the case
+    let x = 0, k = 0;
+    while (x < 64) {
+      const w = 3 + Math.floor(hash2(row, k, seed) * 3);
+      const h = 7 + Math.floor(hash2(row, k, seed + 1) * 5);
+      const col = cols[Math.floor(hash2(row, k, seed + 2) * cols.length)];
+      if (hash2(row, k, seed + 3) > 0.08)
+        for (let i = 0; i < w && x + i < 64; i++) {
+          const c = i === 0 ? shade(col, 1.3) : i === w - 1 ? shade(col, 0.65) : col;
+          for (let y = 0; y < h; y++) p.set(x + i, y0 + 12 - y, c);
+          if (h > 9 && i === 1) p.set(x + i, y0 + 9, hex('#c8a040')); // a gilt band
+        }
+      x += w;
+      k++;
+    }
+    p.rect(0, y0 + 13, 64, 1, oakL);
+    p.rect(0, y0 + 14, 64, 2, oak);
+  }
+  return makeTexture(p, true);
+}
+
 function bannerTex() {
   const p = new PixelCanvas(16, 48);
   p.rect(0, 0, 16, 40, hex('#6a1020'));
@@ -563,7 +591,7 @@ export function buildBackdrop(room: Room, candleSheet: Sheet): Backdrop {
         g.add(motes(room, 40, '#8a7ab0', [20, 200]));
       } else {
         // courtyard: inner walls with crenellations and windows
-        const wallTex = stoneTex(hex('#3e4258'), hex('#1c1e30'), false, 8);
+        const wallTex = stoneTex(hex('#4a4454'), hex('#1e1a28'), false, 8);
         const w = wallPlane(room, 140, lambert({ map: wallTex }), 64);
         // crop: inner wall only up to y=48
         const e = extent(room, 140);
@@ -614,7 +642,9 @@ export function buildBackdrop(room: Room, candleSheet: Sheet): Backdrop {
     case 'shrine': {
       bg = new THREE.Color('#06050c');
       fog = new THREE.Fog('#0a0814', CAM_DIST + (120), CAM_DIST + (420));
-      const wallTex = stoneTex(hex('#363a52'), hex('#181a2a'), false, 12);
+      // the back wall matches each setting's own stone (see paletteFor in tiles.ts)
+      const wallCol = theme === 'stair' ? '#3e3650' : theme === 'shrine' ? '#30424a' : '#363a52';
+      const wallTex = stoneTex(hex(wallCol), hex('#181a2a'), false, 12);
       g.add(wallPlane(room, 110, lambert({ map: wallTex }), 64));
       const stoneM = lambert({ map: stoneTex(hex('#4a4e68'), hex('#22243a'), false, 13) });
       if (theme !== 'stair') floorPlane(checkerTex(hex('#4a3a48'), hex('#24202e')), 110);
@@ -1030,6 +1060,79 @@ export function buildBackdrop(room: Room, candleSheet: Sheet): Backdrop {
         }
       g.add(snowfall(room, 50, [10, 90], 1, 0.15, 0.35));
       g.add(motes(room, 30, '#a8e0ff', [10, 90]));
+      break;
+    }
+    case 'library': {
+      // the Ashen Library: walls of shelves between sandstone piers, warm lamplight, drifting pages
+      bg = new THREE.Color('#080604');
+      fog = new THREE.Fog('#1a120a', CAM_DIST + 100, CAM_DIST + 460);
+      g.add(wallPlane(room, 100, lambert({ map: shelfTex(95) }), 64));
+      const oakM = lambert({ color: '#3a2212' });
+      const stoneM = lambert({ map: stoneTex(hex('#6a5a3c'), hex('#241a0e'), false, 96) });
+      ceilingPlane(stoneTex(hex('#3a3020'), hex('#16100a'), false, 97), 110);
+      floorPlane(checkerTex(hex('#3a2418'), hex('#1e120c')), 110);
+      g.add(new THREE.AmbientLight('#4a3a2a', 1.0));
+      // sandstone piers and arches every 192 px, the shelves running behind them
+      for (let px = 0; px < room.W + 96; px += 192) {
+        pillar(px, 56, 0, room.H, stoneM, 24);
+        arch(px + 96, 60, 192, 24, stoneM, 12);
+      }
+      // oak gallery rails and rolling ladders against the shelves
+      for (let y = 150; y < room.H - 30; y += 224) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(room.W + 300, 6, 10), oakM);
+        rail.position.set(room.W / 2, -y, -64);
+        g.add(rail);
+        for (let x = 12; x < room.W + 150; x += 36) {
+          const post = new THREE.Mesh(new THREE.BoxGeometry(3, 22, 3), oakM);
+          post.position.set(x, -(y - 12), -64);
+          g.add(post);
+        }
+      }
+      for (let i = 0; i < room.W / 200; i++) {
+        const lx = 70 + i * 200 + hash2(i, 41) * 80, top = 40 + hash2(i, 42) * 60, len = 130;
+        for (const dx of [-7, 7]) {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(2.5, len, 2.5), oakM);
+          rail.position.set(lx + dx, -(top + len / 2), -92);
+          rail.rotation.z = 0.08;
+          g.add(rail);
+        }
+        for (let r = 0; r < len; r += 12) {
+          const rung = new THREE.Mesh(new THREE.BoxGeometry(14, 2, 2.5), oakM);
+          rung.position.set(lx, -(top + r + 6), -92);
+          g.add(rung);
+        }
+      }
+      // lamps and chandeliers: warm candlelight, green desk lamps
+      const brass = lambert({ color: '#8a6a30', emissive: '#2a1a08' });
+      for (let x = 192; x < room.W + 192; x += 384)
+        for (let row = 0; row * 224 < room.H; row++) {
+          const y = row * 224 + 112;
+          const green = (Math.floor(x / 384) + row) % 2 === 1;
+          addTorch(x, y, 50, green ? '#7ad8a0' : '#ffb050', green ? 1.6 : 2.0, 230, false);
+          const glow = plane(70, 70, glowMaterial(green ? '#40c080' : '#ffa040', 0.4));
+          glow.position.set(x, -y, -52);
+          g.add(glow);
+          anim.push((t) => ((glow.material as THREE.ShaderMaterial).uniforms.t.value = t * 0.5 + x));
+          if (!green) {
+            // a ring chandelier on a chain
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(20, 1.6, 4, 12), brass);
+            ring.rotation.x = Math.PI / 2.6;
+            ring.position.set(x, -(y - 24), -50);
+            g.add(ring);
+            chain(x, 50, y - 24 - Math.min(y, 120), y - 24);
+            for (let c = 0; c < 6; c++) {
+              const a = (c / 6) * Math.PI * 2;
+              const cd = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 6, 4), lambert({ color: '#e8dcc0', emissive: '#a08040' }));
+              cd.position.set(x + Math.cos(a) * 20, -(y - 24 + Math.sin(a) * 7 - 5), -50 + Math.sin(a) * 15);
+              g.add(cd);
+            }
+          } else {
+            const shade_ = new THREE.Mesh(new THREE.ConeGeometry(7, 7, 6), lambert({ color: '#2a6a4a', emissive: '#103a24' }));
+            shade_.position.set(x, -(y - 6), -52);
+            g.add(shade_);
+          }
+        }
+      g.add(motes(room, 46, '#e4d4aa', [10, 90], 3)); // dust and drifting scraps of paper
       break;
     }
     case 'lair': {

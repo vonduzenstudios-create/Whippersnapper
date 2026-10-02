@@ -4,8 +4,8 @@
     {
       "name": "dev",
       "runtimeExecutable": "npm.cmd",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5173", "--strictPort"],
-      "port": 5173
+      "runtimeArgs": ["run", "dev"],
+      "port": 5273
     }
   ]
 }

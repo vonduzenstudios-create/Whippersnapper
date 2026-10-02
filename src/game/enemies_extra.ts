@@ -4,6 +4,7 @@
 //   Gloomcaster (m)  teleports around and casts a slow, homing hex that slows you and pops wards
 //   Rot Ooze (o)     hops after you and splits into smaller oozes when killed
 //   Grave Grub (u)   travels under the floor as a mound, bursts up beneath you, then lies stranded
+//   Gravehand (x)    a dead hand under the floor: grabs your ankles and holds you until you wiggle free
 // Like the other enemies they read speed/ranges/abilities through num()/can(), so
 // enemy-editor variants work.
 import { Sprite } from '../gfx/view';
@@ -666,5 +667,104 @@ export class Grub extends Enemy {
     }
     this.physics(g);
     this.sprite!.place(this.x + shakeX, this.bottom, this.facing < 0);
+  }
+}
+
+// ---------------------------------------------------------------- gravehand
+
+const HAND_GRIP = 100; // frames it holds the hero if she doesn't wiggle free (Player has the wiggle rules)
+
+/**
+ * A dead hand under the floor. It never deals damage: it grabs the hero's ankles and holds
+ * her still until the grip runs out or she wiggles/jumps free, so everything else in the
+ * room gets free hits. It's only hittable while it's up.
+ */
+export class Gravehand extends Enemy {
+  state: 'under' | 'warn' | 'reach' | 'hold' | 'sink' = 'under';
+  st = 0;
+  cool = 30;
+  constructor(g: Game, kind: string, x: number, bottom: number) {
+    super(g, kind, x, bottom, 7, 14);
+    this.feet = 0;
+    this.hostile = false; // contact never hurts, the grab is its only attack
+    this.touchDmg = 0;
+    this.atk = 0;
+    this.whipTarget = false;
+    this.sprite!.visible = false;
+  }
+  set(st: Gravehand['state']) {
+    this.state = st;
+    this.st = 0;
+  }
+  /** Only a hand that's out of the ground can be hit. */
+  up(on: boolean) {
+    this.whipTarget = on;
+  }
+  update(g: Game) {
+    this.baseUpdate(g);
+    const p = g.player, s = this.sprite!, A = this.anims;
+    this.st++;
+    if (this.cool > 0) this.cool--;
+    const dx = Math.abs(p.x - this.x);
+    // she's standing on this floor, close enough to be seized
+    const near = (range: number) => p.alive && p.onGround && dx < range && Math.abs(p.bottom - this.bottom) < 6;
+    let shakeX = 0;
+    switch (this.state) {
+      case 'under':
+        s.visible = false;
+        if (this.cool <= 0 && near(30 * this.num('sight'))) {
+          this.set('warn');
+          g.audio.play('burrow');
+        }
+        break;
+      case 'warn':
+        // the warning: fingertips twitch in the dirt. Step away!
+        s.visible = true;
+        s.anim('tips', this.t / 60, 10);
+        if (this.st % 6 === 0) g.fx.burst(this.x + rand(-6, 6), this.bottom - 3, 'dust', 1, 2, { vy: -1 });
+        if (this.st >= 34) {
+          this.set('reach');
+          this.up(true);
+          g.audio.play('crumble');
+          g.fx.burst(this.x, this.bottom - 4, 'dust', 5, 8, { speed: 1.8, grav: 0.2, life: 26 });
+        }
+        break;
+      case 'reach':
+        // up and grabbing at whatever stands on it. It stays up a moment if it misses.
+        s.anim('reach', this.t / 60, 7);
+        if (near(12) && p.grab(this, HAND_GRIP * this.num('grip'))) {
+          this.set('hold');
+          g.audio.play('growl');
+        } else if (this.st > 44) this.set('sink');
+        break;
+      case 'hold':
+        // clenched around her ankles; it lets go the moment she's free
+        s.anim('grip', this.t / 60, 12);
+        shakeX = this.st % 4 < 2 ? -1 : 1;
+        if (p.holdBy !== this || p.holdT <= 0) this.set('sink');
+        break;
+      case 'sink':
+        s.setFrame(A.low[0]);
+        if (this.st === 1) this.up(false);
+        if (this.st % 4 === 0) g.fx.burst(this.x + rand(-5, 5), this.bottom - 3, 'dust', 1, 2, { vy: -0.8 });
+        if (this.st >= 16) {
+          this.cool = 150 * this.num('cooldown');
+          this.set('under');
+        }
+        break;
+    }
+    this.vx = 0;
+    this.physics(g);
+    s.place(this.x + shakeX, this.bottom, this.facing < 0);
+  }
+  die(g: Game) {
+    // killing it frees her, with the usual grace so a neighbor can't grab right back
+    const p = g.player;
+    if (p.holdBy === this) {
+      p.holdT = 0;
+      p.holdBy = null;
+      p.freeT = 60;
+    }
+    super.die(g);
   }
 }

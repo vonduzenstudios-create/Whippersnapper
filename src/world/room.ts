@@ -1,6 +1,12 @@
 import { TILE, SCREEN_COLS, SCREEN_ROWS, CELL_W, CELL_H } from '../config';
 import type { RoomDef } from './rooms';
 
+/** Furniture tiles: walk-through, with a standable top (see Room.oneWayAt). */
+export const FURNITURE = 'KD';
+/** Ramp tiles ('/' rises to the right, '\' to the left). */
+export const isRamp = (c: string) => c === '/' || c === '\\';
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
 export class Room {
   tiles: string[][];
   cols: number;
@@ -59,6 +65,62 @@ export class Room {
     const c = this.tile(tx, ty);
     return c === '#' || c === 'B' || c === 'H' || c === 'G' || c === 'N';
   }
+  /**
+   * Tiles you can stand on but pass through from below and from the sides: one-way ledges,
+   * and the top row of furniture (bookcases 'K', tables 'D'). Walking in front of furniture
+   * doesn't touch it; only its top surface holds you up.
+   */
+  oneWayAt(tx: number, ty: number) {
+    const c = this.tile(tx, ty);
+    if (c === '=') return true;
+    if (FURNITURE.includes(c)) return this.tile(tx, ty - 1) !== c;
+    return false;
+  }
+  /** Anything that holds you up: solid, one-way, or a ramp. */
+  floorAt(tx: number, ty: number) {
+    return this.solidAt(tx, ty) || this.oneWayAt(tx, ty) || isRamp(this.tile(tx, ty));
+  }
+  /**
+   * The ramp surface in tile (tx, ty), as px below the tile's top at its left and right edge,
+   * or null if it is not a ramp. Ramps rise one tile every two: '/' climbs to the right and
+   * '\' to the left. Along a row of ramp tiles they pair up, counting from the low end: the
+   * first of each pair is the low half, the second the high half.
+   */
+  rampAt(tx: number, ty: number): [number, number] | null {
+    const c = this.tile(tx, ty);
+    if (!isRamp(c)) return null;
+    const dir = c === '/' ? -1 : 1; // which way is downhill
+    let k = 0; // tiles between this one and the low end of the run
+    while (k < 64 && this.tile(tx + dir * (k + 1), ty) === c) k++;
+    const high = k % 2 === 1;
+    if (c === '/') return high ? [8, 0] : [16, 8];
+    return high ? [0, 8] : [8, 16];
+  }
+  /** The y of the ramp surface at pixel column px in tile (tx, ty), or null. */
+  rampY(tx: number, ty: number, px: number) {
+    const r = this.rampAt(tx, ty);
+    if (!r) return null;
+    const f = clamp01((px - tx * TILE) / TILE);
+    return ty * TILE + r[0] + (r[1] - r[0]) * f;
+  }
+  /** The solid fill right under a ramp. A body on the ramp may overlap its corner. */
+  rampFill(tx: number, ty: number) {
+    return isRamp(this.tile(tx, ty - 1)) && this.solidAt(tx, ty);
+  }
+  /**
+   * Does tile (tx, ty) stop a body whose feet are at `feet` from moving sideways into it?
+   * Solid tiles do, except ramp fill level with the feet (the slope you're walking up), and,
+   * for a body on the ground, a lip at most 8 px high with open space over it (where a ramp
+   * meets a landing): it steps up onto that. On flat floors the feet sit exactly on a tile
+   * top, so a wall's lowest tile is always a full 16 px up and still blocks.
+   */
+  blocks(tx: number, ty: number, feet: number, grounded = false) {
+    if (!this.solidAt(tx, ty)) return false;
+    const top = ty * TILE;
+    if (this.rampFill(tx, ty) && top >= feet - 12) return false;
+    if (grounded && top < feet && top >= feet - 8 && !this.solidAt(tx, ty - 1)) return false;
+    return true;
+  }
   /** Fill the snow-seal tiles (after the room's sealFlag is set). */
   seal() {
     for (const [x, y] of this.sealTiles) this.tiles[y][x] = 'N';
@@ -111,17 +173,23 @@ export interface MoveResult {
 
 const EPS = 0.001;
 
-/** Axis-separated tile collision. One-way '=' tiles only block downward motion. */
+/**
+ * Axis-separated tile collision. One-way tiles ('=' and furniture tops) only block downward
+ * motion. Ramps: a body whose center is over a ramp tile stands on its sloped surface (and
+ * may overlap the solid fill under the next ramp tile); walking downhill keeps it glued on.
+ */
 export function moveBody(room: Room, b: Body, oneWay = true, dropThrough = false): MoveResult {
   const r: MoveResult = { hitX: false, hitY: false, landed: false, ceiling: false };
+  const wasGround = b.onGround;
   // X
   if (b.vx !== 0) {
     const nx = b.x + b.vx;
-    const top = Math.floor((b.y - b.hh) / TILE), bot = Math.floor((b.y + b.hh - EPS) / TILE);
+    const feet = b.y + b.hh;
+    const top = Math.floor((b.y - b.hh) / TILE), bot = Math.floor((feet - EPS) / TILE);
     if (b.vx > 0) {
       const tx = Math.floor((nx + b.hw - EPS) / TILE);
       let hit = false;
-      for (let ty = top; ty <= bot; ty++) if (room.solidAt(tx, ty)) hit = true;
+      for (let ty = top; ty <= bot; ty++) if (room.blocks(tx, ty, feet, b.onGround)) hit = true;
       if (hit) {
         b.x = tx * TILE - b.hw;
         b.vx = 0;
@@ -130,7 +198,7 @@ export function moveBody(room: Room, b: Body, oneWay = true, dropThrough = false
     } else {
       const tx = Math.floor((nx - b.hw) / TILE);
       let hit = false;
-      for (let ty = top; ty <= bot; ty++) if (room.solidAt(tx, ty)) hit = true;
+      for (let ty = top; ty <= bot; ty++) if (room.blocks(tx, ty, feet, b.onGround)) hit = true;
       if (hit) {
         b.x = (tx + 1) * TILE + b.hw;
         b.vx = 0;
@@ -145,10 +213,14 @@ export function moveBody(room: Room, b: Body, oneWay = true, dropThrough = false
   if (b.vy >= 0) {
     const prevBottom = b.y + b.hh;
     const ty = Math.floor((ny + b.hh) / TILE);
+    // over a ramp its surface decides (below), not the corners of the fill beside it
+    const cx = Math.floor(b.x / TILE);
+    const overRamp = isRamp(room.tile(cx, ty)) || isRamp(room.tile(cx, ty - 1));
     let hit = false;
     for (let tx = left; tx <= right; tx++) {
-      if (room.solidAt(tx, ty)) hit = true;
-      else if (oneWay && !dropThrough && room.tile(tx, ty) === '=' && prevBottom <= ty * TILE + EPS * 10) hit = true;
+      if (room.solidAt(tx, ty)) {
+        if (!(overRamp && room.rampFill(tx, ty))) hit = true;
+      } else if (oneWay && !dropThrough && room.oneWayAt(tx, ty) && prevBottom <= ty * TILE + EPS * 10) hit = true;
     }
     if (hit) {
       b.y = ty * TILE - b.hh;
@@ -157,6 +229,22 @@ export function moveBody(room: Room, b: Body, oneWay = true, dropThrough = false
       b.onGround = true;
       r.hitY = true;
     } else b.y = ny;
+    // ramps
+    const foot = b.y + b.hh, fty = Math.floor(foot / TILE);
+    for (let ry = fty - 1; ry <= fty + 1; ry++) {
+      const s = room.rampY(cx, ry, b.x);
+      if (s === null) continue;
+      const sink = foot - s;
+      // sunk into the slope (walking uphill, or landing on it), or just above it while walking down
+      if ((sink >= -EPS && sink <= TILE) || (wasGround && sink < 0 && sink > -10)) {
+        b.y = s - b.hh;
+        r.landed = r.landed || b.vy > 0.5;
+        b.vy = 0;
+        b.onGround = true;
+        r.hitY = true;
+        break;
+      }
+    }
   } else {
     const ty = Math.floor((ny - b.hh) / TILE);
     let hit = false;
@@ -174,5 +262,5 @@ export function moveBody(room: Room, b: Body, oneWay = true, dropThrough = false
 /** True if there is ground directly under the body (used for edge detection by enemies). */
 export function groundAt(room: Room, x: number, footY: number) {
   const tx = Math.floor(x / TILE), ty = Math.floor((footY + 1) / TILE);
-  return room.solidAt(tx, ty) || room.tile(tx, ty) === '=';
+  return room.floorAt(tx, ty);
 }
