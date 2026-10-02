@@ -226,10 +226,10 @@ export class Altar extends Ent {
         const h = g.hunter;
         h.hp = h.maxHp;
         h.hearts = Math.max(h.hearts, Math.min(h.maxHearts, h.hearts + 10));
-        const ok = h.save(g.room.def.id);
+        const ok = !g.testRun && h.save(g.room.def.id); // test rooms never touch the real save
         g.audio.play('save');
         g.fx.burst(this.x, this.y - 8, 'mote', 16, 10, { vy: -0.8, life: 60, fade: true, glow: 1 });
-        g.message(ok ? 'HP RESTORED - GAME SAVED' : 'HP RESTORED (SAVE UNAVAILABLE)', 150);
+        g.message(ok ? 'HP RESTORED - GAME SAVED' : g.testRun ? 'HP RESTORED (TEST ROOM - NOT SAVED)' : 'HP RESTORED (SAVE UNAVAILABLE)', 150);
       }
     }
   }

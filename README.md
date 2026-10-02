@@ -96,6 +96,12 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 
 The same number is in `package.json`. Newest version first.
 
+### 0.9.0 (2026-10-02)
+
+**Test Room.**
+
+- New title menu option, TEST ROOM (under NEW GAME): a scrolling list of every room (up/down to pick, left/right to jump a page). Confirm drops you into that room with every relic (grapple, double jump, slide and the three experimental ones), both sub-weapons, 9999 HP and 99 hearts. The world itself starts fresh: no levers pulled, no bosses beaten. Save points in a test run heal you but don't write over your real save, and dying offers to restart in the same test room.
+
 ### 0.8.0 (2026-10-02)
 
 **The Bone Librarian.**

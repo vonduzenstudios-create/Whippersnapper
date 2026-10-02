@@ -70,6 +70,7 @@ Update this file when you verify something or finish a listed item.
   - The new-game flow goes title → twin → difficulty → intro → play, and `Hunter.difficulty` is stored. Average damage from a 13-ATK hit at DEF 6 is Normal 9.7, Hard 16.1 and Brutal 22.8. While running at Normal it's 13.0 (armor ignored).
   - Running: 2.47 px/frame (1.5× walk), five afterimages trailing.
 
+- TEST ROOM title option (0.9.0, 2026-10-02), checked with typecheck and in the browser pane: the list opens, pages and scrolls (58 rooms), picking the Antechamber starts there with every relic, and a sweep through `testRoom` for all 58 rooms put the hero on open ground in each. Not yet checked: a save point during a test run, and the game-over restart, in real play.
 - Experimental relics and enemies (0.4.0, 2026-10-02), checked with typecheck and frame-stepped scripted runs in the `#lab` room in the browser pane, no console errors:
   - Glide: off the pillar it crossed the spike trench and landed ~450 px away with no damage. Without the Shroud the same jump lands at the trench's edge.
   - Pearl: horizontal swim speed 99 px/s (59 without), Up rose 74 px in 40 frames, Down sank 36 px in 30 frames (0 and 0 without).

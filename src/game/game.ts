@@ -123,6 +123,8 @@ export class Game {
   /** Where the hero entered the current room; the avalanche restarts her here. */
   entry = { x: 0, bottom: 0 };
   touring = false;
+  /** Id of the room picked from TEST ROOM on the title ('' = a normal game). Blocks saving. */
+  testRun = '';
   bossName = 0;
   deathT = 0;
   victoryT = 0;
@@ -212,6 +214,7 @@ export class Game {
   }
 
   newGame() {
+    this.testRun = '';
     this.hunter = new Hunter();
     this.hunter.hero = this.heroChoice;
     this.hunter.difficulty = this.difficultyChoice;
@@ -228,7 +231,36 @@ export class Game {
     this.cutscene.begin();
   }
 
+  /**
+   * TEST ROOM (title menu): drop a fresh hero into any room with every relic and
+   * sub-weapon, for trying rooms out. The world is untouched (no levers or bosses done),
+   * and save points don't write over the real save while testRun is on.
+   */
+  testRoom(def: RoomDef) {
+    const h = new Hunter();
+    h.hero = this.heroChoice;
+    h.hp = h.maxHp = 9999;
+    h.hearts = h.maxHearts = 99;
+    h.grapple = h.doubleJump = h.slide = true;
+    h.glide = h.swim = h.ward = true;
+    h.subs = ['sub_holy', 'sub_cross'];
+    h.sub = 'sub_holy';
+    this.hunter = h;
+    this.testRun = def.id;
+    this.applyHero();
+    this.visited = new Set();
+    this.cutscene = null;
+    this.input.script = null;
+    this.boss = null;
+    this.trans = null;
+    this.fade = 0;
+    const s = this.editor.findStart(def);
+    this.loadRoom(def, s.x, s.bottom);
+    this.state = 'play';
+  }
+
   continueGame() {
+    this.testRun = '';
     this.cutscene = null;
     this.input.script = null;
     this.trans = null;
