@@ -390,6 +390,35 @@ const SFX: Record<string, Sfx> = {
     for (const [f, v] of [[1180, 0.12], [1770, 0.06], [2650, 0.04]]) a.tone({ type: 'sine', f0: f, dur: 1.1, vol: v, out: a.reverbSend });
     a.tone({ type: 'triangle', f0: 1180, dur: 0.6, vol: 0.08 });
   },
+  // the bell wraith's toll, right up close: a heavy clapper strike and a big, low DONG
+  // whose beating partials hang in the air
+  dong: (a) => {
+    const ctx = a.ctx!, t = ctx.currentTime, dur = 2.6;
+    for (const [f, v] of [[147, 0.3], [149.5, 0.18], [294, 0.12], [352, 0.08], [441, 0.07], [740, 0.04]]) {
+      const car = ctx.createOscillator();
+      car.frequency.value = f;
+      const mod = ctx.createOscillator();
+      mod.frequency.value = f * 1.41;
+      const mg = ctx.createGain();
+      mg.gain.setValueAtTime(f * 1.6, t);
+      mg.gain.exponentialRampToValueAtTime(f * 0.04, t + 0.9);
+      mod.connect(mg).connect(car.frequency);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(v, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur * (f < 200 ? 1 : 0.6));
+      car.connect(g);
+      g.connect(a.sfxBus);
+      g.connect(a.reverbSend);
+      car.start(t);
+      mod.start(t);
+      car.stop(t + dur + 0.05);
+      mod.stop(t + dur + 0.05);
+    }
+    // the clapper strike and the thump of air
+    a.noise({ dur: 0.08, vol: 0.4, type: 'bandpass', f0: 2400, q: 1.2 });
+    a.tone({ type: 'sine', f0: 90, f1: 40, dur: 0.35, vol: 0.4 });
+  },
   // harpy cry: a short falling screech
   harpy: (a) => {
     a.tone({ type: 'sawtooth', f0: 1900, f1: 900, dur: 0.25, vol: 0.06, lp: 3500 });
@@ -500,6 +529,18 @@ const SFX: Record<string, Sfx> = {
     a.tone({ type: 'sine', f0: 180, f1: 90, dur: 0.1, vol: 0.12 });
   },
   // Grave Grub digging: gritty, scraping earth
+  // dialogue typing out: a soft, slightly random blip every few letters
+  talk: (a) => a.tone({ type: 'triangle', f0: 520 + Math.random() * 80, dur: 0.035, vol: 0.05 }),
+  // picking up coins: a bright two-note clink
+  coin: (a) => {
+    a.tone({ type: 'square', f0: 1320, dur: 0.06, vol: 0.06, lp: 4000 });
+    a.tone({ type: 'square', f0: 1980, dur: 0.12, vol: 0.06, lp: 4000, t: 0.05 });
+  },
+  // a Gravehand dragging itself under the floor: a dull scrape, louder (`p` up to 1) as it speeds up
+  scrape: (a, p) => {
+    a.noise({ dur: 0.14, vol: 0.06 + 0.14 * p, type: 'lowpass', f0: 420, f1: 150, attack: 0.02 });
+    a.noise({ dur: 0.03, vol: 0.04 + 0.06 * p, type: 'bandpass', f0: 1500, q: 4, t: 0.05 });
+  },
   burrow: (a) => {
     a.noise({ dur: 0.45, vol: 0.25, type: 'bandpass', f0: 500, f1: 250, q: 1.5, attack: 0.05 });
     for (let i = 0; i < 5; i++) a.noise({ dur: 0.03, vol: 0.12, type: 'bandpass', f0: 1200 + Math.random() * 800, q: 5, t: i * 0.07 });

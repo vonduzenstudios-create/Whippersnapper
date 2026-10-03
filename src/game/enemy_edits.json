@@ -22,7 +22,8 @@
       "#102030": "#2a232d"
     },
     "tune": {
-      "speed": 0.1
+      "speed": 0.1,
+      "drip": false
     }
   },
   "drowned_variant": {

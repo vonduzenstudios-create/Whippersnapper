@@ -1,15 +1,17 @@
 // Enemies of the castle expansion: Wild Dog, Harpy, Bell Wraith and Frost Crawler,
-// plus the floor shockwave that bell tolls and heavy landings send out.
+// plus the floor shockwave that bell tolls and heavy landings send out, and the ring of
+// sound right around a tolling bell.
 // Like the older enemies, they read speed/ranges/abilities through num()/can() so
 // enemy-editor variants work.
 import { Sprite } from '../gfx/view';
 import { Ent, DmgType } from './ent';
 import type { Game } from './game';
 import { Enemy } from './enemies';
-import { groundAt } from '../world/room';
+import { groundAt, moveBody } from '../world/room';
 import { EnemyShot } from './objects';
 import { clamp, rand } from '../core/util';
 import { TILE } from '../config';
+import { RING_RADII } from '../gfx/art_items';
 
 // ---------------------------------------------------------------- shockwave
 
@@ -54,6 +56,41 @@ export function floorBelow(g: Game, x: number, y: number, maxTiles = 20) {
     if (g.room.floorAt(tx, ty)) return ty * TILE;
   }
   return -1;
+}
+
+const RING_LIFE = 18; // frames a toll's ring of sound takes to spread to its full size
+
+/**
+ * The ring of sound around a tolling bell: it spreads out to RING_RADII's last radius in
+ * RING_LIFE frames and hurts the hero once if it reaches her. Stand back from the bell.
+ */
+export class TollRing extends Ent {
+  t = 0;
+  hit = false;
+  constructor(g: Game, x: number, y: number, private dmg: number) {
+    super();
+    this.x = x;
+    this.y = y;
+    this.sprite = new Sprite(g.sheets.ring, g.view.sprites, 14);
+  }
+  get radius() {
+    return RING_RADII[RING_RADII.length - 1] * Math.min(1, this.t / RING_LIFE);
+  }
+  update(g: Game) {
+    this.t++;
+    const s = this.sprite!, p = g.player;
+    s.setFrame(s.sheet.anims.ring[Math.min(RING_RADII.length - 1, Math.floor((this.t / RING_LIFE) * RING_RADII.length))]);
+    s.place(this.x, this.y);
+    s.glow = 0.5;
+    s.opacity = this.t > RING_LIFE ? Math.max(0, 1 - (this.t - RING_LIFE) / 8) : 1;
+    // the nearest point of her body to the bell is inside the ring: it hits her
+    const nx = clamp(this.x, p.x - p.hw, p.x + p.hw), ny = clamp(this.y, p.y - p.hh, p.y + p.hh);
+    if (!this.hit && p.alive && this.t <= RING_LIFE && Math.hypot(nx - this.x, ny - this.y) < this.radius) {
+      this.hit = true;
+      p.takeDamage(this.dmg, this.x, false, true, 'magic', this.y);
+    }
+    if (this.t > RING_LIFE + 8) this.dead = true;
+  }
 }
 
 /** Send a pair of shockwaves left and right from (x, floorY). */
@@ -305,9 +342,13 @@ export class Wraith extends Enemy {
       this.vy *= 0.9;
       s.setFrame(A.ring[Math.floor(this.st / 6) % 2]);
       s.glow = 0.2 + (this.st / 40) * 0.5;
+      // a quiet tinkle as it lifts the bell: the warning
+      if (this.st === 1) g.audio.play('handbell');
       if (this.st === 30) {
-        g.audio.play('handbell');
-        g.shake(1.5, 10);
+        // DONG: the sound itself hurts up close, and the floor carries it on as shockwaves
+        g.audio.play('dong');
+        g.shake(3, 14);
+        g.spawn(new TollRing(g, this.x + this.facing * 6, this.y, this.atk));
         const fy = floorBelow(g, this.x, this.y + this.hh);
         if (fy > 0) shockPair(g, this.x, fy, 2.0, this.atk);
         g.fx.burst(this.x + this.facing * 10, this.y - 2, 'spark', 1, 2);
@@ -328,8 +369,106 @@ export class Wraith extends Enemy {
 
 // ---------------------------------------------------------------- frost crawler
 
+const ICE_LIFE = 360; // frames a patch of ice trail lasts (6 s); it fades over the last 2
+const ICE_STEP = 8; // px a crawler walks between patches
+const ICICLE_EVERY = [90, 150]; // frames between icicles growing from a crawler's ceiling trail
+const ICICLE_GROW = 50; // frames an icicle grows (and wobbles at the end) before it falls
+
+/**
+ * A patch of a Frost Crawler's ice trail, on a floor or (`ceil`) a ceiling. Standing on
+ * floor ice chills the hero (see Player.chill): she slows down, then freezes solid. Ceiling
+ * ice grows icicles that fall and leave more floor ice (see Crawler.dripIcicle). It thaws
+ * away after a while. `surfY` is the floor's or ceiling's y.
+ */
+export class IcePatch extends Ent {
+  t = 0;
+  icicle = false; // an icicle is growing from it (ceiling ice only)
+  constructor(g: Game, x: number, public surfY: number, public ceil = false, public owner: Crawler | null = null) {
+    super();
+    this.x = x;
+    this.y = ceil ? surfY + 2 : surfY - 2;
+    this.hw = 5;
+    this.hh = 2;
+    const s = (this.sprite = new Sprite(g.sheets.fx, g.view.sprites, 7)); // over the tiles, under everyone
+    s.setFrame(g.sheets.fx.anims.iceSlick[Math.random() < 0.5 ? 0 : 1]);
+    // the glaze is drawn on the cell's bottom rows; turned over, it hangs from a ceiling
+    if (ceil) s.mesh.rotation.z = Math.PI;
+    s.place(x, ceil ? surfY + 8 - 1 : surfY - 8 + 1, Math.random() < 0.5);
+  }
+  update(g: Game) {
+    const p = g.player;
+    if (++this.t >= ICE_LIFE) this.dead = true;
+    this.sprite!.opacity = Math.min(1, this.t / 10, (ICE_LIFE - this.t) / 120) * 0.9;
+    // her feet are on it
+    if (!this.ceil && p.onGround && Math.abs(p.bottom - this.surfY) < 3 && Math.abs(p.x - this.x) < this.hw + 2) p.onIce = true;
+  }
+}
+
+/**
+ * An icicle grown from a Frost Crawler's ceiling ice: it grows and wobbles, drops, hurts
+ * whatever it falls on (a physical shot, so the shield stops it), and shatters into
+ * a spread of floor ice where it lands.
+ */
+export class Icicle extends Ent {
+  t = 0;
+  vx = 0;
+  vy = 0;
+  onGround = false;
+  falling = false;
+  constructor(g: Game, private from: IcePatch, dmg: number) {
+    super();
+    this.x = from.x + rand(-2, 2);
+    this.y = from.surfY + 7;
+    this.hw = 2;
+    this.hh = 6;
+    this.touchDmg = dmg;
+    this.sprite = new Sprite(g.sheets.fx, g.view.sprites, 9);
+    this.sprite.setFrame(g.sheets.fx.anims.icicle[0]);
+    from.icicle = true;
+  }
+  hitType(): DmgType {
+    return 'shot';
+  }
+  update(g: Game) {
+    this.t++;
+    const s = this.sprite!, top = this.from.surfY;
+    if (!this.falling) {
+      // grows down from the ceiling; shivers just before it lets go
+      const grow = Math.min(1, this.t / (ICICLE_GROW - 14));
+      const shake = this.t > ICICLE_GROW - 14 ? (this.t % 4 < 2 ? -1 : 1) : 0;
+      s.place(this.x + shake, top + 8);
+      s.mesh.scale.y = 16 * grow;
+      s.mesh.position.y = -(top + 8 * grow);
+      if (this.t >= ICICLE_GROW) {
+        this.falling = true;
+        this.hostile = true;
+        this.from.icicle = false;
+        s.mesh.scale.y = 16;
+        g.audio.play('skitter');
+      }
+      return;
+    }
+    this.vy = Math.min(this.vy + 0.2, 5);
+    const r = moveBody(g.room, this, true);
+    s.place(this.x, this.y - this.hh + 8);
+    if (g.room.inWater(this.x, this.y)) {
+      this.dead = true;
+      g.fx.burst(this.x, this.y, 'splash', 1, 0);
+    } else if (r.landed || this.onGround || r.hitX || this.y > g.room.H + 16) {
+      // shatters, glazing the floor where it lands
+      this.dead = true;
+      const floor = this.y + this.hh;
+      g.audio.play('glass');
+      g.fx.burst(this.x, floor - 3, 'glass', 5, 4, { speed: 1.6, grav: 0.2, life: 22, tint: [0.8, 1, 1.4] });
+      if (r.landed || this.onGround) for (const dx of [-8, 0, 8]) if (groundAt(g.room, this.x + dx, floor)) g.spawn(new IcePatch(g, this.x + dx, floor));
+    }
+  }
+}
+
 export class Crawler extends Enemy {
   mode: 'floor' | 'ceil' | 'fall' = 'floor';
+  iceX = NaN; // where it laid its last patch of ice
+  icicleT = rand(ICICLE_EVERY[0], ICICLE_EVERY[1]); // frames to the next icicle
   constructor(g: Game, kind: string, x: number, bottom: number) {
     super(g, kind, x, bottom, 8, 6);
     this.feet = 9;
@@ -341,6 +480,19 @@ export class Crawler extends Enemy {
       const ceil = (Math.floor((top - 6) / TILE) + 1) * TILE;
       this.y = ceil + this.hh;
     }
+  }
+  /** Lay a patch of ice trail at surface y `surfY` every ICE_STEP px it walks. */
+  layIce(g: Game, surfY: number, ceil: boolean) {
+    if (!this.can('trail') || Math.abs(this.x - this.iceX) < ICE_STEP) return;
+    this.iceX = this.x;
+    g.spawn(new IcePatch(g, this.x, surfY, ceil, this));
+  }
+  /** Every so often an icicle grows from a bit of its ceiling trail (not right where it is). */
+  dripIcicle(g: Game) {
+    if (!this.can('trail') || --this.icicleT > 0) return;
+    this.icicleT = rand(ICICLE_EVERY[0], ICICLE_EVERY[1]);
+    const spots = g.ents.filter((e): e is IcePatch => e instanceof IcePatch && e.owner === this && e.ceil && !e.icicle && e.t > 30 && e.t < ICE_LIFE - ICICLE_GROW && Math.abs(e.x - this.x) > 12);
+    if (spots.length) g.spawn(new Icicle(g, spots[Math.floor(Math.random() * spots.length)], Math.max(1, Math.round(this.atk * 0.6))));
   }
   update(g: Game) {
     this.baseUpdate(g);
@@ -361,6 +513,8 @@ export class Crawler extends Enemy {
         this.vx = 0;
         g.audio.play('bone');
       }
+      this.layIce(g, this.y - this.hh, true);
+      this.dripIcicle(g);
       s.anim('crawl', this.t / 60, 8);
       s.mesh.rotation.z = Math.PI; // upside down on the ceiling
       s.place(this.x, this.y - this.hh + 9, this.facing > 0);
@@ -368,6 +522,7 @@ export class Crawler extends Enemy {
     }
     s.mesh.rotation.z = 0;
     if (this.mode === 'fall') {
+      this.iceX = NaN; // a fresh trail where it lands
       const r = this.physics(g);
       s.setFrame(A.drop[0]);
       if (r.landed || this.onGround) {
@@ -384,6 +539,9 @@ export class Crawler extends Enemy {
       this.patrolTurn(g, (near ? 0.95 : 0.5) * sp);
     }
     this.physics(g);
+    // it leaves a trail of ice where it walks (not on water, and not off a ledge)
+    if (this.onGround && !g.room.inWater(this.x, this.bottom - 2)) this.layIce(g, this.bottom, false);
+    this.dripIcicle(g);
     s.anim('crawl', this.t / 60, 10);
     this.place();
   }

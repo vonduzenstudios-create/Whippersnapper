@@ -12,7 +12,8 @@ src/
   gfx/art_chars.ts  2D bone rig (Pose → pixels) for the heroes (HERO = Vesna, HERO_M = Anzel), zombie, skeleton, knight, drowned; bat, wisp, wyrm
   gfx/art_beasts.ts expansion creatures: wild dog, harpy, bell wraith, frost crawler; experimental: hookjaw, mire eel, gloomcaster, rot ooze, grave grub, gravehand; Library: rustling tome, restless chair (also the prop chair); the bone librarian is in art_chars.ts (a skeleton sheet with a cap)
   gfx/art_bosses.ts expansion bosses: Gnarlfang (flayed and cinder forms), the Bell-Mother. Preview on /bosses.html
-  gfx/art_items.ts  item icons, candles/torch/save altar, fx sheet (incl. feather, rock, shockwave, hook, hex), fire sheet, relicfx sheet (glide wings, shield bubble)
+  gfx/art_items.ts  item icons (incl. gold, gold pile, soul shard), candles/torch/save altar, fx sheet (incl. feather, rock, shockwave, hook, hex, ice slick, icicle), fire sheet, relicfx sheet (glide wings, shield bubble, ice block), ring sheet (bell toll)
+  gfx/art_portraits.ts  dialogue portraits (64x64 anime busts, `<speaker>_<face>`: vesna, anzel, pell, bellmother, wyrm, hound) and Pell's world sprite
   gfx/tiles.ts      paints a whole room's tile layer into one canvas (bricks, edges, moss, spikes, ledges)
   gfx/backdrops.ts  per-theme three.js backdrops: geometry, Lambert lighting, shaders, fog, motes
   gfx/font.ts       5x7 bitmap font drawn on the HUD canvas
@@ -44,7 +45,7 @@ src/
   game/stats.ts     Hunter (persistent stats/inventory/flags, save/load)
   game/data.ts      ITEMS, ENEMY stat table (+ enemy_edits.json), ENEMY_TUNING behavior knobs, SUB_COST, xpForLevel
   game/enemy_edits.json  enemy-editor changes and variants, applied on top of the code enemies
-  ui/ui.ts          HUD, title, intro, pause menu (status/equip/items/bestiary/map/controls/sound), map, end screens
+  ui/ui.ts          HUD, title, intro, pause menu (status/equip/items/relics/bestiary/map/controls/sound), dialogue box (drawTalk), Pell's shop (drawShop), map, end screens
   editor/editor.ts  map editor (F2 in game, or editor.html): tabbed tools, doors, world map (move/resize/create rooms), undo, save
   editor/dialog.ts  small HTML form over the canvas, for editor settings that need typing
   editor_main.ts    entry point for editor.html
@@ -128,3 +129,11 @@ World flags in use: `crypt_drained` (Flooded Crypt lever), `pass_buried` (the av
 - Music is scheduled 200 ms ahead on a 40 ms interval.
 - Songs are written as one token per 16th note (`-` holds, `.` rests).
 - New sounds: add a recipe to the `SFX` table in `audio/audio.ts`. New instruments or songs go in `audio/music.ts`.
+
+## Dialogue, boss entrances and the shop (0.14.0)
+
+- `Game.talk(scene, done?)` shows a conversation (a `SCENES` key in story.ts, or a list of `Line`s: speaker, face, text) in state `'talk'`. `UI.updateTalk` types each line out (`TALK_SPEED`), CONFIRM finishes it or moves on, CANCEL skips the rest; then `done` runs. `SPEAKERS` gives each speaker a name plate and a side: the hero stands on the left, everyone else on the right (mirrored). Portraits are frames `<speaker>_<face>` in the portraits sheet; the hero's are `vesna_*` / `anzel_*`, and a missing face falls back to `_neutral`.
+- Boss entrances: `Game.startBoss` sets `bossShow` and `input.script = {}`, so the hero stands still and the camera follows the boss with letterbox bars (`drawHUD` shows only the bars and the banner). Each boss's `enter` pattern shows itself off, then calls `Game.bossTalk()` (scene `boss_<id>`), whose `done` hands the controls back. Leaving the room mid-entrance (`loadRoom`) also hands them back.
+- Shop: room entity `M` is `Merchant` (objects.ts), Pell. Coming within 80 px the first time plays `pell_meet` and sets the `met_pell` flag; after that, UP by him plays `pell_again`. Both end in `UI.openShop()` (state `'shop'`). Stock is `SHOP` in data.ts; `Hunter.bought` counts what's been bought, so stock doesn't come back.
+- Gold and soul shards: `dropGold` (objects.ts) runs on every kill before the drop table: `GOLD_CHANCE` (55%, luck-scaled) for about half to all of the enemy's XP in gold (a pile sprite past 10), and `SHARD_CHANCE` (1.5%) for a soul shard. Candles drop 1–4 gold 12% of the time. `Hunter.gold` / `Hunter.shards`; shards aren't used yet.
+- Relic toggles: `Hunter.grapple` etc. are getters: found (`_grapple`...) and not listed in `relicOff`. Old saves' `grapple: true` goes through the setters. The RELICS page calls `toggleRelic(id)`.

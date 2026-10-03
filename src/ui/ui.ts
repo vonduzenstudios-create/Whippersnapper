@@ -2,12 +2,12 @@
 import type { Game } from '../game/game';
 import { drawText, drawBigText, textWidth } from '../gfx/font';
 import { VW, VH, SCREEN_COLS, SCREEN_ROWS } from '../config';
-import { ITEMS, ENEMY, PICKUP_NAMES, dropChance, DIFFICULTIES } from '../game/data';
+import { ITEMS, ENEMY, PICKUP_NAMES, dropChance, DIFFICULTIES, SHOP } from '../game/data';
 import { Hunter } from '../game/stats';
 import { REBINDABLE, keyLabel, PAD_NAMES, Action, ACTION_LABEL } from '../core/input';
 import type { Sheet } from '../gfx/view';
 import { clamp } from '../core/util';
-import { INTRO, CINE, VICTORY_LINES, HEROES, HeroId, heroText } from '../game/story';
+import { INTRO, CINE, VICTORY_LINES, HEROES, HeroId, heroText, SPEAKERS, Line, Face } from '../game/story';
 import { ZONE_INFO } from '../world/rooms';
 import { startTest, testEntries, TestEntry } from '../game/test_chamber';
 
@@ -15,6 +15,8 @@ import { startTest, testEntries, TestEntry } from '../game/test_chamber';
 type EquipSlot = 'whip' | 'shield' | 'armor' | 'acc1' | 'acc2';
 
 const ROOM_ROWS = 12; // rooms shown at once in the TEST ROOM list
+const TALK_SPEED = 1.2; // characters a frame the dialogue types out
+const TALK_BOX = { x: 8, y: VH - 62, w: VW - 16, h: 56 }; // the dialogue box
 const INTRO_SPEED = 0.45; // px per frame the crawl scrolls up
 const INTRO_FRAMES = Math.ceil((VH + INTRO.length * 14 + 30) / INTRO_SPEED);
 
@@ -27,11 +29,12 @@ const PALE = '#e8dcc8';
 const DIM = '#8a7a90';
 const RED = '#e04050';
 
-type PauseTab = 'status' | 'equip' | 'items' | 'bestiary' | 'map' | 'controls' | 'sound' | 'title';
+type PauseTab = 'status' | 'equip' | 'items' | 'relics' | 'bestiary' | 'map' | 'controls' | 'sound' | 'title';
 const TABS: { id: PauseTab; label: string }[] = [
   { id: 'status', label: 'STATUS' },
   { id: 'equip', label: 'EQUIP' },
   { id: 'items', label: 'ITEMS' },
+  { id: 'relics', label: 'RELICS' },
   { id: 'bestiary', label: 'BESTIARY' },
   { id: 'map', label: 'MAP' },
   { id: 'controls', label: 'CONTROLS' },
@@ -460,6 +463,21 @@ export class UI {
       }
       return;
     }
+    if (tab === 'relics') {
+      // switch a found relic on or off
+      const list = h.relicsFound;
+      if (inp.cancel || inp.mLeft) return back();
+      if (!list.length) return;
+      if (inp.mUp) this.sel = (this.sel + list.length - 1) % list.length;
+      if (inp.mDown) this.sel = (this.sel + 1) % list.length;
+      if (inp.mUp || inp.mDown) g.audio.play('menu');
+      this.sel = Math.min(this.sel, list.length - 1);
+      if (inp.confirm) {
+        h.toggleRelic(list[this.sel]);
+        g.audio.play(h.relicOff.includes(list[this.sel]) ? 'cancel' : 'confirm');
+      }
+      return;
+    }
     if (tab === 'bestiary') {
       const n = Object.keys(ENEMY).length;
       if (inp.cancel || inp.mLeft) return back();
@@ -557,6 +575,18 @@ export class UI {
     this.ctx.drawImage(img, cx, cy, sheet.cw, sheet.ch, Math.round(x), Math.round(y), sheet.cw, sheet.ch);
   }
 
+  /** A small coin, centered on (x, y), for gold counts. */
+  coin(x: number, y: number) {
+    const c = this.ctx;
+    c.fillStyle = '#000';
+    c.fillRect(x - 3, y - 2, 6, 5);
+    c.fillRect(x - 2, y - 3, 4, 7);
+    c.fillStyle = '#d8b040';
+    c.fillRect(x - 2, y - 2, 4, 5);
+    c.fillStyle = '#f0d060';
+    c.fillRect(x - 1, y - 1, 2, 3);
+  }
+
   bar(x: number, y: number, w: number, h: number, frac: number, col: string, back = '#2a0e18') {
     const c = this.ctx;
     c.fillStyle = '#000';
@@ -605,6 +635,8 @@ export class UI {
     if (g.state === 'pause') this.drawPause();
     if (g.state === 'map') this.drawMap(true);
     if (g.state === 'dialog') this.drawDialog();
+    if (g.state === 'talk') this.drawTalk();
+    if (g.state === 'shop') this.drawShop();
     if (g.state === 'gameover') this.drawGameOver();
     if (g.state === 'victory') this.drawVictory();
     if (g.fade > 0) {
@@ -631,6 +663,13 @@ export class UI {
     }
     if (g.state === 'title' || g.state === 'intro') return;
     if (g.cutscene) return this.drawCutscene();
+    if (g.bossShow) {
+      // a boss making its entrance: letterbox bars and its name, nothing else
+      c.fillStyle = '#000';
+      c.fillRect(0, 0, VW, 18);
+      c.fillRect(0, VH - 18, VW, 18);
+      return this.drawBanner();
+    }
     // status frame
     this.panel(4, 4, 122, 30, 0.75);
     drawText(c, `LV${h.level}`, 9, 9, GOLD);
@@ -639,6 +678,9 @@ export class UI {
     // hearts
     drawText(c, '@', 9, 21, '#e0203c');
     drawText(c, String(h.hearts).padStart(2, '0'), 16, 21, PALE);
+    // gold, on a little tab under the frame
+    this.coin(9, 39);
+    drawText(c, String(h.gold), 16, 37, '#f0d060');
     // xp bar
     const prev = h.level > 1 ? Math.round(25 * Math.pow(h.level - 1, 1.75)) : 0;
     this.bar(34, 27, 46, 2, (h.xp - prev) / (h.nextXp - prev), '#c8a040', '#201820');
@@ -667,6 +709,14 @@ export class UI {
       this.panel(VW / 2 - w / 2, 40, w, 17, 0.85);
       drawText(c, g.msg.text, VW / 2, 45, PALE, '#000', 'center');
     }
+    this.drawBanner();
+    // boss bar
+    this.drawBossBar();
+  }
+
+  /** The big title across the screen (a boss's name as its fight starts). */
+  drawBanner() {
+    const g = this.g, c = this.ctx;
     if (g.banner.t > 0) {
       const a = Math.min(1, g.banner.t / 30, (220 - g.banner.t) / 30);
       c.globalAlpha = Math.max(0, a);
@@ -676,7 +726,10 @@ export class UI {
       if (g.banner.sub) drawText(c, g.banner.sub, VW / 2, 100, PALE, '#000', 'center');
       c.globalAlpha = 1;
     }
-    // boss bar
+  }
+
+  drawBossBar() {
+    const g = this.g, c = this.ctx;
     const b = g.boss;
     if (b && b.showBar) {
       this.panel(60, VH - 20, VW - 120, 16, 0.8);
@@ -898,6 +951,176 @@ export class UI {
     if (this.t % 60 < 40) drawText(c, 'CONFIRM: SKIP', VW - 6, 4, '#5a4a60', null, 'right');
   }
 
+  // ================================================================ talk
+
+  /**
+   * Dialogue: CONFIRM finishes typing the line, then moves to the next one; CANCEL skips
+   * the rest of the conversation.
+   */
+  updateTalk() {
+    const g = this.g, inp = g.input, T = g.talkState;
+    if (!T) {
+      g.state = 'play';
+      return;
+    }
+    const text = g.text(T.lines[T.i].text);
+    const before = Math.floor(T.shown);
+    T.shown = Math.min(text.length, T.shown + TALK_SPEED);
+    if (Math.floor(T.shown) !== before && before % 3 === 0 && text[before] !== ' ') g.audio.play('talk');
+    let end = inp.cancel;
+    if (inp.confirm) {
+      if (T.shown < text.length) T.shown = text.length;
+      else if (++T.i >= T.lines.length) end = true;
+      else {
+        T.shown = 0;
+        g.audio.play('menu');
+      }
+    }
+    if (end) {
+      g.talkState = null;
+      g.state = 'play';
+      inp.flush();
+      T.done?.();
+    }
+  }
+
+  /** Word-wrap upper-case text to lines no wider than `w` px. */
+  wrap(text: string, w: number) {
+    const lines: string[] = [];
+    let cur = '';
+    for (const word of text.split(' ')) {
+      const next = cur ? cur + ' ' + word : word;
+      if (textWidth(next) > w && cur) {
+        lines.push(cur);
+        cur = word;
+      } else cur = next;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  /** A dialogue portrait, mirrored to face left when `flip`, darkened when someone else is speaking. */
+  portrait(who: Line['who'], face: Face, x: number, y: number, flip: boolean, lit: boolean) {
+    const g = this.g, c = this.ctx, sh = g.sheets.portraits;
+    const key = who === 'hero' ? g.hunter.hero : who;
+    const idx = sh.anims[`${key}_${face}`]?.[0] ?? sh.anims[`${key}_neutral`]?.[0];
+    if (idx === undefined) return;
+    const img = sh.tex.image as HTMLCanvasElement;
+    c.save();
+    if (!lit) c.filter = 'brightness(45%)';
+    c.translate(Math.round(x) + (flip ? sh.cw : 0), Math.round(y));
+    if (flip) c.scale(-1, 1);
+    c.drawImage(img, (idx % sh.cols) * sh.cw, Math.floor(idx / sh.cols) * sh.ch, sh.cw, sh.ch, 0, 0, sh.cw, sh.ch);
+    c.restore();
+  }
+
+  drawTalk() {
+    const g = this.g, c = this.ctx, T = g.talkState;
+    if (!T) return;
+    const line = T.lines[T.i], B = TALK_BOX;
+    // who stands where: the hero on the left, whoever she is talking to on the right. Each
+    // shows the face of their latest line so far (or of their first, before they've spoken).
+    const faceOf = (left: boolean) => {
+      const mine = (l: Line) => (SPEAKERS[l.who].side === 'left') === left;
+      const said = T.lines.slice(0, T.i + 1).filter(mine);
+      return said[said.length - 1] || T.lines.find(mine);
+    };
+    for (const left of [true, false]) {
+      const l = faceOf(left);
+      if (!l) continue;
+      const lit = l === line;
+      this.portrait(l.who, l.face || 'neutral', left ? B.x + 6 : B.x + B.w - 70, B.y - 58 - (lit ? 2 : 0), !left, lit);
+    }
+    this.panel(B.x, B.y, B.w, B.h, 0.94);
+    // the speaker's name plate, on their side of the box
+    const left = SPEAKERS[line.who].side === 'left';
+    const name = g.text(SPEAKERS[line.who].name), nw = textWidth(name) + 12;
+    const nx = left ? B.x + 76 : B.x + B.w - 76 - nw;
+    this.panel(nx, B.y - 9, nw, 13, 1);
+    drawText(c, name, nx + 6, B.y - 6, GOLD);
+    // the line so far
+    const text = g.text(line.text).slice(0, Math.floor(T.shown));
+    this.wrap(text, B.w - 20).slice(0, 4).forEach((l, i) => drawText(c, l, B.x + 10, B.y + 9 + i * 11, PALE));
+    if (T.shown >= g.text(line.text).length && Math.floor(g.frame / 20) % 2) drawText(c, T.i < T.lines.length - 1 ? 'v' : 'x', B.x + B.w - 12, B.y + B.h - 11, GOLD);
+  }
+
+  // ================================================================ shop
+
+  shopSel = 0;
+  /** Pell's face on the shop screen, and how long until it goes back to a smile. */
+  shopFace: Face = 'smile';
+  shopFaceT = 0;
+  openShop() {
+    const g = this.g;
+    g.state = 'shop';
+    this.shopSel = 0;
+    this.shopFace = 'smile';
+    g.input.flush();
+  }
+  /** How many of a shop item are left. */
+  shopLeft(i: number) {
+    const e = SHOP[i];
+    return e.stock - (this.g.hunter.bought[e.item] || 0);
+  }
+  updateShop() {
+    const g = this.g, inp = g.input, h = g.hunter;
+    if (this.shopFaceT > 0 && --this.shopFaceT === 0) this.shopFace = 'smile';
+    // (ENTER is both CONFIRM and PAUSE, so a pause press only leaves when it isn't a confirm)
+    if (inp.cancel || (inp.pressed('pause') && !inp.confirm)) {
+      g.state = 'play';
+      g.audio.play('cancel');
+      inp.flush();
+      return;
+    }
+    if (inp.mUp) this.shopSel = (this.shopSel + SHOP.length - 1) % SHOP.length;
+    if (inp.mDown) this.shopSel = (this.shopSel + 1) % SHOP.length;
+    if (inp.mUp || inp.mDown) g.audio.play('menu');
+    if (inp.confirm) {
+      const e = SHOP[this.shopSel];
+      if (this.shopLeft(this.shopSel) <= 0) g.audio.play('cancel');
+      else if (h.gold < e.price) {
+        g.audio.play('cancel');
+        this.shopFace = 'sad';
+        this.shopFaceT = 60;
+      } else {
+        h.gold -= e.price;
+        h.bought[e.item] = (h.bought[e.item] || 0) + 1;
+        h.addItem(e.item);
+        g.audio.play('coin');
+        this.shopFace = 'surprised';
+        this.shopFaceT = 40;
+      }
+    }
+  }
+  drawShop() {
+    const g = this.g, c = this.ctx, h = g.hunter;
+    const x = 84, y = 14, w = VW - 96, hgt = VH - 28;
+    c.fillStyle = 'rgba(0,0,0,0.55)';
+    c.fillRect(0, 0, VW, VH);
+    this.portrait('pell', this.shopFace, 12, 40, false, true);
+    drawText(c, 'PELL', 44, 108, GOLD, '#000', 'center');
+    this.panel(x, y, w, hgt);
+    drawText(c, "PELL'S STALL", x + 10, y + 10, GOLD);
+    this.coin(x + w - 50, y + 13);
+    drawText(c, String(h.gold), x + w - 10, y + 10, '#f0d060', '#000', 'right');
+    SHOP.forEach((e, i) => {
+      const yy = y + 26 + i * 22, it = ITEMS[e.item], left = this.shopLeft(i);
+      if (i === this.shopSel) {
+        c.fillStyle = '#4a1828';
+        c.fillRect(x + 6, yy - 3, w - 12, 20);
+      }
+      c.globalAlpha = left > 0 ? 1 : 0.4;
+      this.icon(g.sheets.items, it.icon, x + 10, yy - 1);
+      drawText(c, it.name.toUpperCase(), x + 30, yy + 4, left > 0 ? PALE : DIM);
+      drawText(c, left > 0 ? `X${left}` : 'SOLD OUT', x + w - 64, yy + 4, DIM, '#000', 'right');
+      drawText(c, String(e.price), x + w - 12, yy + 4, h.gold >= e.price ? '#f0d060' : RED, '#000', 'right');
+      c.globalAlpha = 1;
+    });
+    const sel = ITEMS[SHOP[this.shopSel].item];
+    this.wrap(sel.desc.toUpperCase(), w - 20).slice(0, 2).forEach((l, i) => drawText(c, l, x + 10, y + hgt - 40 + i * 11, DIM));
+    drawText(c, 'CONFIRM: BUY   CANCEL: LEAVE', x + w / 2, y + hgt - 14, GOLD, '#000', 'center');
+  }
+
   drawDialog() {
     const g = this.g, c = this.ctx;
     const lines = g.dialog;
@@ -938,6 +1161,8 @@ export class UI {
         return this.drawEquip(px, py, pw);
       case 'items':
         return this.drawItems(px, py, pw);
+      case 'relics':
+        return this.drawRelics(px, py, pw);
       case 'bestiary':
         return this.drawBestiary(px, py, pw);
       case 'map':
@@ -956,7 +1181,7 @@ export class UI {
 
   drawStatus(x: number, y: number) {
     const c = this.ctx, h = this.g.hunter;
-    // portrait
+    // portrait and name
     this.panel(x + 10, y + 12, 52, 56, 1);
     const hero = this.g.sheets.hero;
     const img = hero.tex.image as HTMLCanvasElement;
@@ -964,40 +1189,61 @@ export class UI {
     c.drawImage(img, (f % hero.cols) * hero.cw, Math.floor(f / hero.cols) * hero.ch, 48, 48, x + 12, y + 16, 48, 48);
     drawText(c, this.g.text('{NAME} KORDER'), x + 72, y + 14, GOLD);
     drawText(c, 'CHAIN-HUNTER', x + 72, y + 25, DIM);
-    const rows: [string, string][] = [
+    /** Label on the left, value right-aligned at `right`. */
+    const row = (label: string, value: string, lx: number, right: number, ry: number, col = PALE) => {
+      drawText(c, label, lx, ry, DIM);
+      drawText(c, value, right, ry, col, '#000', 'right');
+    };
+    // level and vitals, then the stats beside them
+    const left: [string, string][] = [
       ['LEVEL', String(h.level)],
       ['EXP', String(h.xp)],
       ['NEXT', String(Math.max(0, h.nextXp - h.xp))],
       ['HP', `${h.hp}/${h.maxHp}`],
       ['HEARTS', `${h.hearts}/${h.maxHearts}`],
     ];
-    rows.forEach((r, i) => {
-      drawText(c, r[0], x + 72, y + 40 + i * 11, DIM);
-      drawText(c, r[1], x + 160, y + 40 + i * 11, PALE, '#000', 'right');
-    });
-    const st: [string, number][] = [
+    left.forEach(([l, v], i) => row(l, v, x + 72, x + 160, y + 40 + i * 11));
+    const right: [string, number][] = [
       ['STR', h.str],
       ['CON', h.con],
       ['LCK', h.lck],
       ['ATK', h.atk],
       ['DEF', h.def],
     ];
-    st.forEach((r, i) => {
-      drawText(c, r[0], x + 180, y + 40 + i * 11, DIM);
-      drawText(c, String(r[1]), x + 240, y + 40 + i * 11, PALE, '#000', 'right');
+    right.forEach(([l, v], i) => row(l, String(v), x + 180, x + 240, y + 40 + i * 11));
+    // a rule, then the tally
+    c.fillStyle = '#4a2a3a';
+    c.fillRect(x + 12, y + 102, 228, 1);
+    row('SUB-WEAPON', h.sub ? ITEMS[h.sub].name.toUpperCase() : '---', x + 12, x + 240, y + 110);
+    row('GOLD', String(h.gold), x + 12, x + 240, y + 122, '#f0d060');
+    row('SOUL SHARDS', String(h.shards), x + 12, x + 240, y + 134, '#c8b0ff');
+    row('ENEMIES SLAIN', String(h.kills), x + 12, x + 240, y + 146);
+  }
+
+  /** Found relics, each with its icon, what it does, and whether it's switched on. */
+  drawRelics(x: number, y: number, w: number) {
+    const c = this.ctx, h = this.g.hunter;
+    drawText(c, 'RELICS', x + 10, y + 10, GOLD);
+    const list = h.relicsFound;
+    if (!list.length) {
+      drawText(c, 'NO RELICS FOUND YET.', x + 10, y + 30, DIM);
+      return;
+    }
+    list.forEach((id, i) => {
+      const yy = y + 23 + i * 24, it = ITEMS[id], on = !h.relicOff.includes(id);
+      const sel = this.focus === 'panel' && i === this.sel;
+      if (sel) {
+        c.fillStyle = '#4a1828';
+        c.fillRect(x + 6, yy, w - 12, 22);
+      }
+      c.globalAlpha = on ? 1 : 0.4;
+      this.icon(this.g.sheets.items, it.icon, x + 10, yy + 3);
+      drawText(c, it.name.toUpperCase(), x + 30, yy + 3, on ? PALE : DIM);
+      drawText(c, it.desc.toUpperCase(), x + 30, yy + 13, DIM);
+      c.globalAlpha = 1;
+      drawText(c, on ? 'ON' : 'OFF', x + w - 12, yy + 8, on ? GOLD : RED, '#000', 'right');
     });
-    drawText(c, `ENEMIES SLAIN ${h.kills}`, x + 12, y + 108, DIM);
-    const relics = [h.grapple && 'GRAPPLE', h.doubleJump && 'MANTLE', h.slide && 'GREAVES', h.glide && 'SHROUD', h.swim && 'PEARL', h.ward && 'WARD'].filter(Boolean);
-    drawText(c, `RELICS: ${relics.length ? relics.join(', ') : '---'}`, x + 12, y + 120, relics.length ? GOLD : DIM);
-    drawText(c, `SUB-WEAPON: ${h.sub ? ITEMS[h.sub].name.toUpperCase() : '---'}`, x + 12, y + 132, PALE);
-    const tips = ['HOLD WHIP AFTER A STRIKE TO DANGLE IT.', 'DOWN + JUMP DROPS THROUGH LEDGES.', 'WHIP UP/DIAGONAL WITH THE D-PAD.'];
-    if (h.equip.shield) tips.push('HOLD SHIELD TO BLOCK. UP TILTS IT.');
-    if (h.doubleJump) tips.push('JUMP AGAIN IN MIDAIR TO DOUBLE JUMP.');
-    if (h.slide) tips.push('DOWN + DASH SLIDES UNDER LOW GAPS.');
-    if (h.glide) tips.push('HOLD JUMP WHILE FALLING TO GLIDE.');
-    if (h.swim) tips.push('IN WATER, HOLD UP OR DOWN TO SWIM.');
-    if (h.ward) tips.push('UP + SUB-WEAPON: SHIELD BUBBLE (3 HEARTS).');
-    tips.slice(-4).forEach((tip, i) => drawText(c, tip, x + 12, y + 150 + i * 11, DIM));
+    if (this.focus === 'panel') drawText(c, 'CONFIRM: SWITCH ON / OFF', x + w / 2, y + 190, GOLD, '#000', 'center');
   }
 
   drawEquip(x: number, y: number, w: number) {

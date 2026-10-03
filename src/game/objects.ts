@@ -31,8 +31,10 @@ export class Candle extends Ent {
     g.fx.burst(this.x, this.y - 6, 'burst', 1);
     g.fx.burst(this.x, this.y - 6, 'ember', 5, 2, { speed: 1.5, grav: 0.05, life: 30 });
     const r = Math.random() * 100 - g.hunter.lck * 0.3;
-    const drop = r < 4 ? 'potion' : r < 9 ? 'meat' : r < 22 ? 'heartB' : 'heartS';
-    g.spawn(new Pickup(g, this.x, this.y - 6, drop, '', true));
+    const drop = r < 4 ? 'potion' : r < 9 ? 'meat' : r < 22 ? 'heartB' : r < 34 ? 'gold' : 'heartS';
+    const p = new Pickup(g, this.x, this.y - 6, drop, '', true);
+    if (drop === 'gold') p.amount = 1 + Math.floor(Math.random() * 4);
+    g.spawn(p);
   }
 }
 
@@ -47,6 +49,8 @@ export class Pickup extends Ent {
   sinkTo?: number;
   /** Column of light over a boss reward, so it can't be missed (see setBeacon). */
   beam: THREE.Mesh | null = null;
+  /** How many coins a 'gold' pickup is worth. */
+  amount = 1;
   constructor(g: Game, x: number, y: number, public kind: string, public key = '', dropped = false) {
     super();
     this.x = x;
@@ -140,7 +144,14 @@ export class Pickup extends Ent {
         g.audio.play('item');
         return;
       case 'gold':
-        g.audio.play('heart');
+        h.gold += this.amount;
+        g.damageNumber(g.player.x, g.player.y - 24, this.amount, '#f0d060');
+        g.audio.play('coin');
+        return;
+      case 'shard':
+        h.shards++;
+        g.message('SOUL SHARD');
+        g.audio.play('chime');
         return;
     }
     const it = ITEMS[this.kind];
@@ -485,6 +496,7 @@ export class EnemyShot extends Ent {
 
 /** Roll the enemy's drop table (ENEMY[kind].drops). At most one item drops. */
 export function rollEnemyDrop(g: Game, kind: string, x: number, y: number) {
+  dropGold(g, kind, x, y);
   const drops = ENEMY[kind]?.drops || [];
   // one roll against stacked chances; rarer items are checked first
   const sorted = [...drops].sort((a, b) => a.chance - b.chance);
@@ -496,6 +508,26 @@ export function rollEnemyDrop(g: Game, kind: string, x: number, y: number) {
       return;
     }
   }
+}
+
+/** Chance (%) an enemy drops coins, and a soul shard (luck raises both). */
+const GOLD_CHANCE = 55;
+const SHARD_CHANCE = 1.5;
+
+/**
+ * Coins (and, rarely, a soul shard) from a kill, rolled apart from its drop table. Tougher
+ * enemies (more XP) drop more: about half to all of their XP in gold, a pile past 10.
+ */
+function dropGold(g: Game, kind: string, x: number, y: number) {
+  const lck = g.hunter.lck;
+  if (Math.random() * 100 < dropChance(SHARD_CHANCE, lck)) g.spawn(new Pickup(g, x, y - 4, 'shard', '', true));
+  if (Math.random() * 100 >= dropChance(GOLD_CHANCE, lck)) return;
+  const amount = Math.max(1, Math.round((ENEMY[kind]?.xp || 4) * (0.5 + Math.random() * 0.5)));
+  const p = new Pickup(g, x + rand(-4, 4), y, 'gold', '', true);
+  p.amount = amount;
+  if (amount > 10) p.sprite!.setFrame(g.sheets.items.anims.goldPile[0]);
+  p.vx = rand(-0.6, 0.6);
+  g.spawn(p);
 }
 
 // ---------------------------------------------------------------- lever (opens gates, drains water)
@@ -578,5 +610,48 @@ export class ShieldDrop extends Ent {
     // blinks out over its last half second (the shield cooldown is 1.5 s)
     if (this.t > 50) s.visible = Math.floor(this.t / 4) % 2 === 0;
     if (this.t > 80) this.dead = true;
+  }
+}
+
+// ---------------------------------------------------------------- merchant
+
+/**
+ * Pell, the ghost who keeps a shop in the Reader's Nook. The first time the hero comes
+ * near, he introduces himself (the 'met_pell' flag); after that, UP by him talks and
+ * opens the shop (UI.openShop).
+ */
+export class Merchant extends Ent {
+  t = 0;
+  bottom: number;
+  constructor(g: Game, x: number, bottom: number) {
+    super();
+    this.x = x;
+    this.bottom = bottom;
+    this.hw = 8;
+    this.hh = 16;
+    this.y = bottom - 20;
+    this.sprite = new Sprite(g.sheets.pell, g.view.sprites, 9);
+  }
+  update(g: Game) {
+    this.t++;
+    const p = g.player, h = g.hunter, s = this.sprite!;
+    const dx = Math.abs(p.x - this.x), dy = Math.abs(p.bottom - this.bottom);
+    const free = p.alive && p.onGround && p.state === 'normal';
+    if (!h.flags.includes('met_pell')) {
+      // the first meeting starts by itself as she walks up
+      if (free && dx < 80 && dy < 40) {
+        h.flags.push('met_pell');
+        g.talk('pell_meet', () => g.ui.openShop());
+      }
+    } else if (dx < 22 && dy < 30) {
+      g.hint = `${g.input.label('up')}: TALK`;
+      if (free && g.input.pressed('up')) g.talk('pell_again', () => g.ui.openShop());
+    }
+    // he reads until she comes close, then looks up at her
+    const near = dx < 70 && dy < 40;
+    s.anim(near ? 'turn' : 'idle', this.t / 60, 3);
+    s.place(this.x, this.bottom - 4 + Math.sin(this.t * 0.05) * 2, near && p.x < this.x);
+    s.glow = 0.25;
+    if (this.t % 18 === 0) g.fx.burst(this.x + rand(-6, 6), this.bottom - 6, 'mote', 1, 0, { vy: -0.4, life: 30, fade: true, glow: 0.5, tint: [0.8, 1, 1.3] });
   }
 }

@@ -103,7 +103,22 @@ export class Hound extends Ent implements Boss {
           g.shake(3, 40);
         }
         if (this.pt === 60) g.bossIntro();
-        if (this.pt > 110) this.set('stalk');
+        if (this.pt > 110 && this.pt < 170) {
+          // prowls toward her, slowly
+          this.face();
+          this.vx = this.facing * 0.8;
+          frame = A.walk[Math.floor(this.pt / 9) % 4];
+        } else if (this.pt >= 170 && this.pt < 200) {
+          frame = A.crouch[0];
+          if (this.pt === 170) g.audio.play('growl');
+        } else if (this.pt >= 200 && this.pt < 230) {
+          // both heads snap at the air
+          frame = this.pt % 10 < 5 ? A.bite[0] : A.crouch[0];
+          if (this.pt % 10 === 0) g.audio.play('bark');
+          if (this.pt === 200) g.shake(2, 20);
+        } else if (this.pt >= 230 && this.pt < 260) frame = A.howl[0];
+        if (this.pt === 260) g.bossTalk();
+        if (this.pt > 260) this.set('stalk');
         break;
       case 'stalk':
         this.face();

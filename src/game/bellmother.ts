@@ -97,7 +97,20 @@ export class BellMother extends Ent implements Boss {
           g.shake(4, 60);
         }
         if (this.pt === 80) g.bossIntro();
-        if (this.pt > 130) this.pick('hover');
+        if (this.pt > 100 && this.pt < 230) {
+          const a = (this.pt - 100) * 0.05;
+          this.steer(W / 2 + Math.sin(a) * (W / 2 - 90), 100 + Math.sin(a * 2) * 34, 3, 0.2);
+          this.facing = this.vx < 0 ? -1 : 1;
+        }
+        if (this.pt === 240) {
+          // a single toll of her bell
+          g.audio.play('toll');
+          g.shake(4, 50);
+          frame = A.cast[0];
+        }
+        if (this.pt > 240 && this.pt < 270) frame = A.cast[0];
+        if (this.pt === 280) g.bossTalk();
+        if (this.pt > 280) this.pick('hover');
         break;
       case 'hover': {
         const tx = clamp(p.x + Math.sin(this.pt * 0.02) * 140, 60, W - 60), ty = 100 + Math.sin(this.pt * 0.05) * 16;

@@ -91,13 +91,13 @@ export function buildLibraryRooms(): RoomDef[] {
     R.push(b.build('lib_catalogue', 'Card Catalogue', 'library', 'library', 7, -2));
   }
 
-  // L3 ── Reader's Nook (1 x 1): a save altar above the Catalogue. The shelf here holds no tomes.
+  // L3 ── Reader's Nook (1 x 1): a save altar above the Catalogue, and Pell's shop. The shelf here holds no tomes.
   {
     const b = new RB(1, 1);
     b.shell().hole('B', 0);
     cases(b, [[15, 9, 5, 3]]);
     tables(b, [[8, 11, 3, 'n', 'n']]);
-    b.e(4, 11, 'S').e(21, 11, 'T', 'lore_nook');
+    b.e(4, 11, 'S').e(21, 11, 'T', 'lore_nook').e(17, 11, 'M'); // Pell keeps his shop by the shelf
     candles(b, [[2, 11], [9, 10], [14, 11], [22, 11]]);
     R.push(b.build('lib_nook', "Reader's Nook", 'library', 'library', 7, -3, { save: true }));
   }

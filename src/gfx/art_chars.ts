@@ -605,40 +605,128 @@ export function buildLibrarianSheet(): SheetBuilder {
   return b;
 }
 
+/**
+ * A poleaxe gripped at (gx, gy), pointing at `a` degrees (0 = straight up, 90 = forward,
+ * 180 = down). The axe blade sits on side `side` of the haft (+1 = clockwise of the point),
+ * the side that leads the swing. `ext` lengthens the haft (it reaches further on the chop).
+ */
+function poleaxe(p: PixelCanvas, gx: number, gy: number, a: number, side: number, ext = 0) {
+  const d: [number, number] = [Math.sin(deg(a)), -Math.cos(deg(a))];
+  const n: [number, number] = [Math.sin(deg(a + 90 * side)), -Math.cos(deg(a + 90 * side))];
+  /** A point `k` px along the haft and `w` px out to the blade side. */
+  const at = (k: number, w = 0): [number, number] => {
+    if (k > 0) k += ext;
+    return [gx + d[0] * k + n[0] * w, gy + d[1] * k + n[1] * w];
+  };
+  const steel = hex('#d0d4e0'), steelD = hex('#8a8ea0');
+  const [h0, h1] = [at(-12), at(17)];
+  p.line(h0[0], h0[1], h1[0], h1[1], hex('#6a4a2a'), 1.6);
+  // the spike on the end (what it jabs with)
+  p.poly([at(16, -1.8), at(23), at(16, 1.8)], steel);
+  // the axe blade: a crescent flaring out from the haft
+  p.poly([at(9.5), at(8, 4.5), at(12, 7), at(16.5, 5), at(15)], steelD);
+  p.poly([at(10.5, 1), at(9.5, 4), at(12, 6), at(15, 4.5), at(14.5, 1)], steel);
+  const e = at(12, 6.5);
+  p.set(e[0], e[1], hex('#ffffff'));
+  // a hooked back spike, and the red tassel under the head
+  p.poly([at(11.5), at(12.5, -4), at(13.5)], steelD);
+  const tz = at(8.5, -1);
+  p.set(tz[0], tz[1], hex('#a01c2c'));
+}
+
+/** The knight's shield: red with a gold cross. `w` narrows it. */
+function knightShield(p: PixelCanvas, x: number, y: number, w = 7) {
+  const h = Math.floor(w / 2);
+  p.rect(Math.round(x - h), Math.round(y - 6), w, 12, hex('#5a5e70'));
+  p.rect(Math.round(x - h + 1), Math.round(y - 5), w - 2, 10, hex('#7a1a28'));
+  p.line(x + 0.5, y - 4, x + 0.5, y + 4, hex('#d8c070'));
+  p.line(x - 1.5, y - 1, x + 2.5, y - 1, hex('#d8c070'));
+}
+
+/**
+ * The knight partway through its about-face, drawn by hand rather than with the side-view
+ * rig: `t` turns it from profile (0) to facing the camera (1), and the poleaxe points at
+ * `a` degrees with its blade on `side` (see poleaxe). Hip at (hx, hy), like the rig.
+ */
+function knightTurning(p: PixelCanvas, hx: number, hy: number, t: number, a: number, side: number) {
+  const s = KNIGHT, m = s.metal!;
+  const o = 1 - t; // how much profile it still shows (its features sit toward the front)
+  const lerp = (u: number, v: number) => u + (v - u) * t;
+  // legs: from a narrow step in profile to planted apart, facing out
+  for (const [lx, dim] of [[hx - lerp(1, 3.5), 0.72], [hx + lerp(2, 3.5), 1]] as [number, number][]) {
+    p.line(lx, hy, lx, hy + 15, shade(s.pantsD, dim), s.legW);
+    p.line(lx + 0.4, hy, lx + 0.4, hy + 7, shade(s.pants, dim), s.legW - 1);
+    p.line(lx, hy + 8, lx, hy + 15, shade(s.bootD, dim), s.legW + 0.6);
+    p.line(lx + 0.4, hy + 8, lx + 0.4, hy + 14, shade(s.boot, dim), s.legW - 0.4);
+    p.rect(Math.round(lx) - 1, Math.round(hy + 15), t > 0.6 ? 3 : 4, 2, shade(s.boot, dim));
+  }
+  // torso: a breastplate that widens as it comes round to face out
+  const sy = hy - s.torso, sw = lerp(4.5, 6.5), ww = lerp(3.5, 4.5), c = hx + o * 1.5;
+  p.poly([[hx - sw, sy], [hx + sw, sy], [hx + ww, hy], [hx - ww, hy]], s.topD);
+  p.poly([[c - sw * 0.4, sy], [hx + sw, sy], [hx + ww, hy], [c - ww * 0.3, hy]], s.top);
+  p.line(c, sy + 2, c, hy - 2, shade(m, 1.15));
+  p.line(hx - ww, hy - 1, hx + ww, hy - 1, s.belt!, 2);
+  p.set(Math.round(c), Math.round(hy - 1), hex('#d8c070'));
+  p.circle(hx - sw + 0.5, sy + 1, 2.2, shade(m, 0.75));
+  p.circle(hx + sw - 0.5, sy + 1, 2.2, m);
+  // shield on the off arm: swings from across its front out to its side
+  knightShield(p, hx + lerp(1, -8.5), hy - 6, Math.round(lerp(5, 7)));
+  // helm: the visor slit and eyes slide round from the side to the front
+  const kx = hx + o, ky = sy - 4.5;
+  p.circle(kx, ky, 4, shade(m, 0.8));
+  p.ellipse(kx + o * 0.5, ky - 0.5, 3.5, 3.6, m);
+  p.line(kx - 1 - 2 * t, ky, kx + 4 - t, ky, hex('#120a10'));
+  p.set(Math.round(kx + 3 - 1.5 * t), Math.round(ky), hex('#ff4040'));
+  if (t > 0.45) p.set(Math.round(kx - 1.5), Math.round(ky), hex('#ff4040'));
+  // plume: streams back in profile, stands up as a crest from the front
+  p.line(kx, ky - 4, kx - 4 * o, ky - 7 - t, hex('#a01c2c'), 2);
+  p.line(kx - 4 * o, ky - 7 - t, kx - 8 * o, ky - 4 - t * 4, hex('#701020'), 2);
+  // weapon arm: held out along the haft as the poleaxe sweeps round like a clock hand
+  const shx = hx + lerp(2.5, 4), shy = sy + 1;
+  const gx = shx + Math.sin(deg(a)) * 9, gy = shy - Math.cos(deg(a)) * 9;
+  poleaxe(p, gx, gy, a, side, KNIGHT_REACH);
+  p.line(shx, shy, gx, gy, s.topD, s.armW);
+  p.line(shx + 0.4, shy - 0.4, gx + 0.4, gy - 0.4, s.top, s.armW - 1);
+  p.circle(gx, gy, 1.4, s.glove);
+}
+
+/** px the poleaxe is held further out along the haft while it swings round (the chop reaches further). */
+const KNIGHT_REACH = 7;
+
+/**
+ * The knight's about-face, frame by frame (Knight.update plays these):
+ * [turned toward the camera 0..1, poleaxe angle, blade side, frames shown].
+ */
+export const KNIGHT_TURN_FRAMES: [number, number, number, number][] = [
+  // the slow rise: it turns toward the camera as the poleaxe climbs over its head
+  [0.1, 78, -1, 12], [0.35, 58, -1, 12], [0.65, 36, -1, 12], [0.9, 14, -1, 12],
+  // now facing the other way, the fast fall: it whips round and chops down in front
+  [0.85, 20, 1, 3], [0.45, 70, 1, 3], [0.1, 118, 1, 3], [0, 138, 1, 15],
+];
+
 export function buildKnightSheet(): SheetBuilder {
-  const b = new SheetBuilder(72, 52, 28, 30);
-  const base = (o: Partial<Pose>): Pose => ({ hx: 28, hy: 33, lean: 4, fl: [12, 8], bl: [-12, 8], fa: [60, 30], ba: [20, 60], ...o });
-  /** `upright`: the spear planted point-up (turning around), with the shield swung across the chest. */
-  const draw = (q: Pose, spearOut: number, upright = false) => {
+  const b = new SheetBuilder(92, 80, 28, 58); // big: the poleaxe swings up over its head and the jab reaches far
+  const base = (o: Partial<Pose>): Pose => ({ hx: 28, hy: 61, lean: 4, fl: [12, 8], bl: [-12, 8], fa: [60, 30], ba: [20, 60], ...o });
+  /** A side-view frame: poleaxe held level in the front hand (spike `out` px further forward), shield on the back hand. */
+  const draw = (q: Pose, out: number) => {
     const p = b.canvas();
     const r = drawHumanoid(p, KNIGHT, q);
-    const hx = r.hand[0], hy = r.hand[1];
-    if (upright) {
-      p.line(hx, hy + 14, hx, hy - 18, hex('#6a4a2a'), 1.6);
-      p.poly([[hx - 2.5, hy - 18], [hx, hy - 25], [hx + 2.5, hy - 18]], hex('#d0d4e0'));
-      p.set(hx - 1, hy - 17, hex('#a01c2c'));
-    } else {
-      // spear held in front hand, pointing forward
-      p.line(hx - 14 + spearOut, hy, hx + 16 + spearOut, hy, hex('#6a4a2a'), 1.6);
-      p.poly([[hx + 16 + spearOut, hy - 2.5], [hx + 23 + spearOut, hy], [hx + 16 + spearOut, hy + 2.5]], hex('#d0d4e0'));
-      p.set(hx + 15 + spearOut, hy - 1, hex('#a01c2c'));
-    }
-    // shield on back hand
-    const bx = r.backHand[0] + 3, by = r.backHand[1] - 4;
-    p.rect(Math.round(bx - 3), Math.round(by - 6), 7, 12, hex('#5a5e70'));
-    p.rect(Math.round(bx - 2), Math.round(by - 5), 5, 10, hex('#7a1a28'));
-    p.line(bx + 0.5, by - 4, bx + 0.5, by + 4, hex('#d8c070'));
-    p.line(bx - 1.5, by - 1, bx + 2.5, by - 1, hex('#d8c070'));
+    poleaxe(p, r.hand[0] + out, r.hand[1], 90, 1);
+    knightShield(p, r.backHand[0] + 3, r.backHand[1] - 4);
     return finish(p, O);
   };
   b.add('walk', ...[0, 1, 2, 3].map((i) => {
     const s = Math.sin((i / 4) * Math.PI * 2);
-    return draw(base({ fl: [16 * s, 10], bl: [-16 * s, 10], hy: 33 + (i % 2) }), 0);
+    return draw(base({ fl: [16 * s, 10], bl: [-16 * s, 10], hy: 61 + (i % 2) }), 0);
   }));
   b.add('ready', draw(base({ lean: -6, fa: [50, 50], fl: [25, 15], bl: [-25, 10] }), -8));
   b.add('thrust', draw(base({ lean: 14, fa: [88, 0], fl: [30, 10], bl: [-30, 10] }), 6), draw(base({ lean: 16, fa: [90, 0], fl: [32, 10], bl: [-32, 10] }), 14));
-  // turning around: upright, spear planted, shuffling its feet (the shield guards nothing)
-  b.add('turn', draw(base({ lean: -2, fa: [20, 60], ba: [-30, 40], fl: [8, 6], bl: [-14, 10] }), 0, true), draw(base({ lean: -2, hy: 34, fa: [20, 60], ba: [-30, 40], fl: [-6, 14], bl: [10, 4] }), 0, true));
+  // the about-face, which is also its wind-up and overhead chop
+  b.add('turn', ...KNIGHT_TURN_FRAMES.map(([t, a, side]) => {
+    const p = b.canvas();
+    knightTurning(p, 28, 61, t, a, side);
+    return finish(p, O);
+  }));
   return b;
 }
 
@@ -711,6 +799,20 @@ export function buildWispSheet(): SheetBuilder {
     frames.push(finish(p, hex('#0a2030')));
   }
   b.add('float', ...frames);
+  // the flames it drips, in its own colors (so palette-swapped variants match): a falling
+  // drop, then a small fire burning on the floor (its base on the frame's bottom row)
+  const drop = b.canvas();
+  drop.poly([[12, 11], [14, 15], [12, 17], [10, 15]], hex('#58b8d8'));
+  drop.set(12, 15, hex('#c8f0ff'));
+  b.add('drip', finish(drop, hex('#0a2030')));
+  b.add('flame', ...[0, 1, 2, 3].map((i) => {
+    const p = b.canvas();
+    const s = [0, 1.5, -1, 0.5][i], h = [16, 19, 15, 18][i];
+    p.poly([[5, 27], [7 + s, 27 - h * 0.6], [12 + s, 27 - h], [16 + s * 0.5, 27 - h * 0.55], [19, 27]], hex('#2c6c8c'));
+    p.poly([[7, 27], [9 + s, 27 - h * 0.5], [12 + s, 27 - h * 0.8], [15, 27 - h * 0.4], [17, 27]], hex('#58b8d8'));
+    p.poly([[9, 27], [12 + s * 0.5, 27 - h * 0.45], [15, 27]], hex('#c8f0ff'));
+    return p;
+  }));
   return b;
 }
 

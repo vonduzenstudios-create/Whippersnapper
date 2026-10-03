@@ -51,6 +51,8 @@ export const ITEMS: Record<string, ItemDef> = {
   acc_blood: { id: 'acc_blood', name: 'Blood Ring', slot: 'acc', icon: 'ring', desc: 'Warm to the touch. STR+4', str: 4 },
   acc_garnet: { id: 'acc_garnet', name: 'Garnet Brooch', slot: 'acc', icon: 'ring', desc: 'A ward against harm. CON+4', con: 4 },
   acc_rootstone: { id: 'acc_rootstone', name: 'Rootstone', slot: 'acc', icon: 'rootstone', desc: 'A grave-stone shard grown through with roots. Hits no longer knock you back.', noKnock: true },
+  // sold only in Pell's shop (the Reader's Nook)
+  acc_lens: { id: 'acc_lens', name: 'Reading Lens', slot: 'acc', icon: 'ring', desc: 'A monocle some reader left on a desk. Things hidden come easier. LCK+5 CON+1', lck: 5, con: 1 },
   potion: { id: 'potion', name: 'Potion', slot: 'use', icon: 'potion', desc: 'Restores 40 HP.', heal: 40 },
   elixir: { id: 'elixir', name: 'Elixir', slot: 'use', icon: 'potion', desc: 'Restores all HP.', heal: 9999 },
   sub_holy: { id: 'sub_holy', name: 'Holy Water', slot: 'sub', icon: 'holy', desc: 'Bursts into blue flame. 1 heart.' },
@@ -69,6 +71,18 @@ export const ITEMS: Record<string, ItemDef> = {
   relic_pearl: { id: 'relic_pearl', name: 'Undertow Pearl', slot: 'relic', icon: 'pearl', desc: 'Move freely and at full speed in water.' },
   relic_ward: { id: 'relic_ward', name: 'Ashglass Ward', slot: 'relic', icon: 'ward', desc: 'Raise a shield bubble. 3 hearts.' },
 };
+
+/**
+ * What Pell sells in the Reader's Nook: price in gold, and how many he has. Stock doesn't
+ * come back (Hunter.bought counts what's been bought).
+ */
+export const SHOP: { item: string; price: number; stock: number }[] = [
+  { item: 'potion', price: 40, stock: 5 },
+  { item: 'elixir', price: 250, stock: 1 },
+  { item: 'acc_lens', price: 180, stock: 1 },
+  { item: 'shield_heater', price: 240, stock: 1 },
+  { item: 'acc_rootstone', price: 320, stock: 1 },
+];
 
 export const SUB_COST: Record<string, number> = { sub_holy: 1, sub_cross: 2, sub_knife: 1 };
 /** Hearts spent to raise the Ashglass Ward's shield bubble. */
@@ -129,12 +143,13 @@ export const ENEMY_TUNING: Record<string, TuneField[]> = {
   zombie: [SPEED, SIGHT],
   bat: [SPEED, SIGHT],
   knight: [SPEED, SIGHT, COOL,
-    { key: 'shield', label: 'Front shield', kind: 'bool', help: 'Halves hits from the front' },
-    { key: 'thrust', label: 'Spear thrust', kind: 'bool', help: 'Stops and lunges with the spear' }],
+    { key: 'shield', label: 'Front shield', kind: 'bool', help: 'Stops 90% of every hit from the front. Only its back (or a knight mid-turn) takes full damage' },
+    { key: 'thrust', label: 'Poleaxe jab', kind: 'bool', help: 'Stops and jabs with the spike of its poleaxe' }],
   skeleton: [SPEED, SIGHT, COOL,
     { key: 'throw', label: 'Throws bones', kind: 'bool', help: 'Lobs bones in an arc' },
     { key: 'hop', label: 'Hops away', kind: 'bool', help: 'Jumps back when you get close' }],
-  wisp: [SPEED, SIGHT],
+  wisp: [SPEED, SIGHT,
+    { key: 'drip', label: 'Drips flames', kind: 'bool', help: 'Flames drip off it while it hunts you and burn on the floor for a moment' }],
   drowned: [SPEED, SIGHT, COOL,
     { key: 'spit', label: 'Spits fireballs', kind: 'bool', help: 'Fires burning bile along the ground' },
     { key: 'leap', label: 'Lurks and leaps', kind: 'bool', help: 'Hides underwater until you come near. Off: it walks around from the start' }],
@@ -144,9 +159,10 @@ export const ENEMY_TUNING: Record<string, TuneField[]> = {
     { key: 'swoop', label: 'Swoops', kind: 'bool', help: 'Dives at you in an arc' },
     { key: 'darts', label: 'Feather darts', kind: 'bool', help: 'Throws feathers from the air' }],
   wraith: [SPEED, SIGHT, COOL,
-    { key: 'toll', label: 'Bell toll', kind: 'bool', help: 'Rings its bell to send a shockwave along the floor' }],
+    { key: 'toll', label: 'Bell toll', kind: 'bool', help: 'Rings its bell: the sound hurts you up close and sends a shockwave along the floor' }],
   crawler: [SPEED, SIGHT,
-    { key: 'drop', label: 'Drops from ceilings', kind: 'bool', help: 'Lets go of the ceiling when you pass below' }],
+    { key: 'drop', label: 'Drops from ceilings', kind: 'bool', help: 'Lets go of the ceiling when you pass below' },
+    { key: 'trail', label: 'Ice trail', kind: 'bool', help: 'Leaves ice where it walks: standing on it slows you more and more, then freezes you solid. Jumping keeps you clear' }],
   // experimental enemies (0.4.0), see enemies_extra.ts
   hookjaw: [SPEED, SIGHT, COOL,
     { key: 'hook', label: 'Chain hook', kind: 'bool', help: 'Throws a hook that drags you toward it' },
@@ -210,8 +226,8 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
     drops: [{ item: 'heartS', chance: 30 }, { item: 'heartB', chance: 4 }],
   },
   knight: {
-    hp: 70, atk: 18, def: 5, xp: 24, name: 'Spear Knight', portrait: 'walk',
-    desc: 'A sworn guard still keeping its post. The shield halves blows from the front. Strike its back.',
+    hp: 70, atk: 18, def: 5, xp: 24, name: 'Poleaxe Knight', portrait: 'walk',
+    desc: 'A sworn guard still keeping its post. Its shield turns almost any blow from the front, so get round to its back. It turns slowly, raising its poleaxe overhead as it comes round, then brings it down hard. Strike during the turn and get clear before the chop.',
     drops: [{ item: 'heartB', chance: 12 }, { item: 'potion', chance: 8 }, { item: 'meat', chance: 6 }, { item: 'elixir', chance: 1 }],
   },
   skeleton: {
@@ -221,7 +237,7 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
   },
   wisp: {
     hp: 18, atk: 14, def: 0, xp: 9, name: 'Grave Wisp', portrait: 'float',
-    desc: 'A drifting grave-light. It follows the living slowly and never gives up.',
+    desc: 'A drifting grave-light. It follows the living slowly and never gives up, and while it hunts, flames drip from it and burn where they land.',
     drops: [{ item: 'heartS', chance: 15 }, { item: 'heartB', chance: 15 }, { item: 'potion', chance: 2 }],
   },
   drowned: {
@@ -241,12 +257,12 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
   },
   wraith: {
     hp: 44, atk: 15, def: 2, xp: 20, name: 'Bell Wraith', portrait: 'float',
-    desc: 'A dead bell-ringer still at work. Its toll rolls along the floor as a shockwave. Jump it.',
+    desc: 'A dead bell-ringer still at work. When it lifts its bell, back off: the toll itself hurts anyone close by, and it rolls on along the floor as a shockwave. Jump that.',
     drops: [{ item: 'heartB', chance: 14 }, { item: 'potion', chance: 6 }, { item: 'elixir', chance: 1 }],
   },
   crawler: {
     hp: 26, atk: 13, def: 3, xp: 13, name: 'Frost Crawler', portrait: 'crawl',
-    desc: 'An ice beetle from the frozen waterworks. Clings to ceilings and drops on whatever passes below.',
+    desc: 'An ice beetle from the frozen waterworks. Clings to ceilings and drops on whatever passes below, and leaves a trail of ice behind it. Stand on the ice too long and you slow to a crawl, then freeze solid. Hop across it instead.',
     drops: [{ item: 'heartS', chance: 25 }, { item: 'heartB', chance: 6 }, { item: 'meat', chance: 4 }],
   },
   hookjaw: {
@@ -281,7 +297,7 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
   },
   hand: {
     hp: 20, atk: 0, def: 0, xp: 8, name: 'Gravehand', portrait: 'reach',
-    desc: 'A dead hand that swims unseen under the floor, following your steps. When the dirt rumbles at your feet, move! It closes around your ankles and holds on: mash left, right or jump to break free. Run over it and it trips you flat.',
+    desc: 'A dead hand that swims under the floor after you. Watch its furrow of soil and listen for its nails: it keeps pace with you, then comes faster than you can run. It feels you only through the ground, so leaping throws it off. When the dirt rumbles at your feet, jump! It closes around your ankles and holds on: mash left, right or jump to break free. Run over it and it trips you flat.',
     drops: [{ item: 'heartS', chance: 25 }, { item: 'heartB', chance: 5 }],
   },
   tome: {

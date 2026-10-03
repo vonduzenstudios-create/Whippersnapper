@@ -209,6 +209,21 @@ export function buildItemSheet(): SheetBuilder {
     p.circle(8, 8, 2.5, hex('#f0d060'));
     p.set(7, 6, hex('#ffffff'));
   });
+  // a little stack of coins (a bigger gold drop)
+  mk('goldPile', (p) => {
+    for (const [x, y] of [[5, 11], [11, 11], [8, 8], [8, 12]] as [number, number][]) {
+      p.ellipse(x, y, 3.5, 2, hex('#a07828'));
+      p.ellipse(x, y - 1, 3.5, 2, hex('#e0b850'));
+      p.set(x - 1, y - 2, hex('#fff0a0'));
+    }
+  });
+  // a soul shard: a sliver of pale violet crystal with a light caught inside
+  mk('shard', (p) => {
+    p.poly([[8, 1], [12, 7], [9, 15], [5, 8]], hex('#6a4ab0'));
+    p.poly([[8, 2], [10, 7], [8, 13], [7, 8]], hex('#b49af0'));
+    p.set(8, 7, hex('#ffffff'));
+    p.set(8, 8, hex('#f0e8ff'));
+  });
   return b;
 }
 
@@ -435,6 +450,20 @@ export function buildFxSheet(): SheetBuilder {
     for (let k = 0; k < 4; k++) p.line(3 + k * 3, 15, 4 + k * 3, 15 - (4 + ((k + i) % 2) * 5), c, 1.5);
     p.line(1, 15, 15, 15, hex('#8a70d0'), 2);
   });
+  // a patch of a Frost Crawler's ice trail, glazed over the floor (bottom rows of the cell)
+  add('iceSlick', 2, (p, i) => {
+    p.rect(0, 13, 16, 3, hex('#9ad0ec', 200));
+    p.rect(1, 12, 14, 1, hex('#c8ecff', 220));
+    p.line(2 + i * 5, 13, 5 + i * 5, 13, hex('#ffffff'));
+    p.set(11 - i * 6, 14, hex('#ffffff'));
+    p.set(7 + i * 4, 11, hex('#e0f6ff', 200)); // a little frost crystal
+  });
+  // an icicle growing from a Frost Crawler's ceiling trail, point down (its root on row 0)
+  add('icicle', 1, (p) => {
+    p.poly([[5, 0], [11, 0], [9, 7], [8, 14], [7, 7]], hex('#8ac4e4'));
+    p.poly([[6, 0], [8, 0], [8, 11], [7, 6]], hex('#e0f6ff'));
+    p.line(10, 1, 9, 6, hex('#5890c0'));
+  }, hex('#1a3a58'));
   // the Devourer's tongue: fleshy segments that overlap into one long tongue, and its barbed tip
   add('tongueSeg', 1, (p) => {
     p.ellipse(8, 8, 3.2, 2.4, hex('#a83848'));
@@ -614,6 +643,47 @@ export function buildRelicFxSheet(): SheetBuilder {
     face.outline(hex('#120a12'));
     b.add(`shield_${look}`, placeRotated(b.canvas(), face, 0), placeRotated(b.canvas(), face, -0.75), placeRotated(b.canvas(), face, -Math.PI / 2));
   }
+  // a block of ice around a frozen hero (Frost Crawler trails): whole, cracked, about to burst
+  b.add('iceBlock', ...[0, 1, 2].map((crack) => {
+    const p = b.canvas();
+    const ice = hex('#a8d8f0', 170), iceL = hex('#e0f6ff', 210), iceD = hex('#5890c0', 200);
+    p.poly([[11, 10], [17, 5], [32, 6], [37, 12], [36, 44], [12, 44]], ice);
+    p.poly([[13, 11], [18, 7], [24, 7], [16, 20], [14, 34]], iceL); // a glint down the left face
+    p.line(31, 8, 35, 13, iceL);
+    p.line(35, 14, 35, 43, iceD);
+    p.line(12, 43, 36, 43, iceD);
+    // cracks spreading from the middle as she struggles
+    const cracks: [number, number, number, number][][] = [
+      [],
+      [[24, 22, 29, 15], [24, 22, 19, 30]],
+      [[24, 22, 29, 15], [24, 22, 19, 30], [29, 15, 34, 12], [24, 22, 33, 27], [19, 30, 14, 33], [24, 22, 22, 9]],
+    ];
+    for (const [x0, y0, x1, y1] of cracks[crack]) p.line(x0, y0, x1, y1, hex('#ffffff'));
+    p.outline(hex('#1a3a58'));
+    return p;
+  }));
+  return b;
+}
+
+/**
+ * The ring of sound a Bell Wraith's toll sends out around it: big frames (128x128, centered)
+ * that grow from a tight ring to a faint wide one.
+ */
+export const RING_RADII = [10, 20, 30, 40, 48, 54];
+export function buildRingSheet(): SheetBuilder {
+  const b = new SheetBuilder(128, 128, 64, 64);
+  b.add('ring', ...RING_RADII.map((r, i) => {
+    const p = b.canvas();
+    const w = 4 - i * 0.5; // thins out as it spreads
+    for (let y = 0; y < 128; y++)
+      for (let x = 0; x < 128; x++) {
+        const d = Math.hypot(x + 0.5 - 64, y + 0.5 - 64) - r;
+        if (d > -w && d < 0) p.set(x, y, d > -1.2 ? hex('#ffffff', 230 - i * 25) : hex('#b8a0ff', 200 - i * 25));
+        // a few ripples trailing inside it
+        else if (i > 1 && Math.abs(d + w + 4) < 0.6 && (x + y) % 3 === 0) p.set(x, y, hex('#8a70d0', 140 - i * 15));
+      }
+    return p;
+  }));
   return b;
 }
 

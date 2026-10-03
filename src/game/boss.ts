@@ -130,8 +130,17 @@ export class Wyrm extends Ent implements Boss {
           g.shake(5, 50);
           this.jaw = 1.2;
           g.bossIntro();
-        } else if (this.pt > 200) this.nextPattern();
-        else this.moveToward(W - 240 + Math.sin(this.pt * 0.1) * 20, 250, 1, 0.1);
+        } else if (this.pt < 290) {
+          // showing itself off: a slow lap of the arena, its whole length uncoiling
+          const a = (this.pt - 140) * 0.042;
+          this.moveToward(W / 2 + Math.cos(a) * (W / 2 - 110), 210 + Math.sin(a) * 70, 2.6, 0.09);
+        } else if (this.pt === 290) {
+          g.audio.play('roar');
+          g.shake(4, 40);
+          this.jaw = 1.2;
+        } else if (this.pt < 330) this.moveToward(W - 240 + Math.sin(this.pt * 0.1) * 20, 250, 1.5, 0.1);
+        else if (this.pt === 330) g.bossTalk();
+        else this.nextPattern();
         break;
       }
       case 'lunge': {

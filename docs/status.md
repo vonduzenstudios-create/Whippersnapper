@@ -124,9 +124,28 @@ Update this file when you verify something or finish a listed item.
   - Down + Sub-weapon throws the cross while staying crouched (hitbox stays 24 px tall), and she's still crouched after. Standing throws are unchanged. Both release at the same height (the throw frame's hand is already low).
   - Not seen on screen yet: the crouch throw borrows the crouching-whip frames.
 
+- Enemy balance (0.13.0, 2026-10-02), checked with typecheck and frame-stepped runs in the test chamber (`#test=<id>`), plus screenshots:
+  - Poleaxe Knight: a 50-damage hit from the front did 5, from behind 50. With the hero 30 px behind it on the ground, it started turning at once, faced her at frame 48 and chopped her on frame 51 for 17. The eight turn frames were looked at side by side (rise toward the camera, then the whip-round chop).
+  - Grave Wisp: flames dripped every ~1.5 s while it chased, landed and burned 100 frames, about 3 damage a touch after DEF (its body did ~16).
+  - Bell Wraith: the ring hurt the hero within about 60 px of the bell, not at 62 or 70. The ring was seen on screen.
+  - Frost Crawler: patches every 8 px along its path. On the ice, walking speed was 0.80 at chill 101 (1.65 normally). Frozen at chill 150, broken out with 8 LEFT presses, chill reset. A hit while frozen shattered the ice. The see-through block and the frosty tint were seen on screen.
+  - Gravehand: with the hero walking away at 1.65, the gap held at exactly 100 px for 100 frames, then it sped up and caught her ~45 frames later. When she jumped, it lost her at once and slowed to a stop. When she landed back on its floor it sensed her again. Landing on a table (16 px higher) correctly didn't count. The bigger furrow was seen on screen.
+
+- 0.14.0 (2026-10-02), checked with typecheck, build, frame-stepped runs and screenshots:
+  - All 21 portraits were looked at, 4 at a time at 4x. Wyrm, Gnarlfang and Bell-Mother entrances each ran to their dialogue (Wyrm at entrance frame 330, Gnarlfang 260, Bell-Mother 280); stepping through Gnarlfang's lines with ENTER handed control back (`input.script` null) and the fight began (`stalk`). The camera framed the Bell-Mother mid-toll.
+  - Pell: walking up in the Reader's Nook started `pell_meet` (11 lines), which opened the shop. Two ENTER presses bought two potions (500 → 420 gold, stock 5 → 3). ENTER used to close the shop (it's also PAUSE); fixed.
+  - Drops: 300 Poleaxe Knight kills gave 207 gold drops (12–24, average 18) and 4 soul shards.
+  - RELICS page: switching the Raven Mantle off made `doubleJump` false while `_doubleJump` stayed true, and both were saved; an old-style save (`grapple: true`) loaded through the setter.
+  - Gravehand: the strike started 2.0–2.2 s after it sensed the hero, walking or standing, with the gap held for the first 90 frames. Crawler on a ceiling: 4 icicles in 420 frames, each leaving floor ice.
+  - Knight: the jab frames fit the new 92-wide sheet.
+
 ## Not verified yet
 
-- 0.12.0 by hand: whether the 20-frame rumble and the faint trail are fair (a Gravehand can't be outrun, so jumping at the rumble is the only dodge), how the trip and the 10-press mash feel on a real keyboard and gamepad, and the Devourer's damage (40% of its ATK a bite). The new shield block values (50–90%) haven't been played against. The Knight's "almost three hits" window was worked out from frame counts, not played. The Devourer isn't placed in any room.
+- 0.14.0 by hand: the dialogue on a gamepad, the pace of the boss entrances (8–9 s before the talk), shop prices against how much gold a real run earns, and the Wyrm's portrait (a horned skull head-on, while its sprite is a long-snouted profile). The `talk` and `coin` sounds haven't been heard by a human. Signs and lore stones still use the old plain text box.
+
+- 0.13.0 by hand: whether the Poleaxe Knight's 48-frame rise is long enough to get hits in and still escape the chop, whether the bell ring's ~60 px reach is fair, how quickly crawler ice builds up in real play (crawlers that cling to ceilings leave no trail until they drop), and whether the Gravehand's stalk feels like dread or just slow. The `dong` and `scrape` sounds haven't been heard by a human yet. In the test chamber the wisp and crawler were moved by script (the crawler was put on the floor by hand).
+
+- 0.12.0 by hand: whether the 20-frame rumble and the faint trail are fair (a Gravehand can't be outrun, so jumping at the rumble is the only dodge), how the trip and the 10-press mash feel on a real keyboard and gamepad, and the Devourer's damage (40% of its ATK a bite). The new shield block values (50–90%) haven't been played against. The Knight's "almost three hits" window was worked out from frame counts, not played (replaced in 0.13.0 by the turn-and-chop). The Devourer isn't placed in any room.
 
 - 0.10.0 by hand: how the shield feels (half speed, the arc sizes, the 90-frame knock-down), the run on a real gamepad's RT and the shield on LT, the new sounds (`block`, `shieldUp`, `shieldDown`, `snap`, `skitter`), the Gallows Spider's speeds and spit rate. None of the new items or the spider are placed in the world. The knife's mark is worth little against today's low enemy DEF values (0–5).
 

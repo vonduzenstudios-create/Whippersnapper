@@ -750,7 +750,18 @@ export function buildHandSheet(): SheetBuilder {
     p.ellipse(16, 36.5, 7, 1, dirtL);
     return fin(p, hex('#1a1008'));
   };
+  /** Swimming under the floor after her: a mound of soil pushed along, broken earth behind it. */
+  const furrow = (i: number) => {
+    const p = b.canvas();
+    p.ellipse(20, 36, 8, 3.5 + i * 0.5, dirt);
+    p.ellipse(20.5, 34.5 - i * 0.5, 5, 1.5, dirtL);
+    p.set(22, 33 - i, nail); // a fingernail scraping through the soil
+    for (let k = 0; k < 6; k++) p.rect(11 - k * 2 + i, 35 - ((k + i) % 2), 2, 2, k % 2 ? dirtL : dirt); // broken earth behind
+    if (i) p.rect(27, 32, 2, 2, dirtL); // a clod thrown up ahead
+    return fin(p, hex('#1a1008'));
+  };
   b.add('tips', tips(0), tips(1));
+  b.add('furrow', furrow(0), furrow(1));
   b.add('rumble', rumble(0), rumble(1));
   b.add('fist', fist(0), fist(1));
   b.add('reach', hand(18, 0, 0), hand(18, 0.15, 1));

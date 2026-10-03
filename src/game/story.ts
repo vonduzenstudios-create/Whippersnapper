@@ -309,3 +309,62 @@ export const RELIC_TEXT: Record<string, string[]> = {
 
 /** Shown on the victory screen, which now leads back into the game. */
 export const VICTORY_LINES = ['THE WYRM WAS ONLY THE WARDEN.', 'BEYOND THE LAIR, A SEALED DOOR HAS OPENED.'];
+
+// ---------------------------------------------------------------- dialogue scenes
+
+/** Who can speak in a dialogue scene. 'hero' is whichever twin is playing. */
+export type Speaker = 'hero' | 'pell' | 'wyrm' | 'hound' | 'bellmother';
+/** A face for the speaker's portrait (see gfx/art_portraits.ts; missing ones fall back to neutral). */
+export type Face = 'neutral' | 'smile' | 'angry' | 'surprised' | 'sad';
+export interface Line {
+  who: Speaker;
+  face?: Face;
+  text: string;
+}
+/** Name plates, and which side of the box each speaker stands on. */
+export const SPEAKERS: Record<Speaker, { name: string; side: 'left' | 'right' }> = {
+  hero: { name: '{NAME}', side: 'left' },
+  pell: { name: 'PELL', side: 'right' },
+  wyrm: { name: 'THE OSSUARY WYRM', side: 'right' },
+  hound: { name: 'GNARLFANG', side: 'right' },
+  bellmother: { name: 'THE BELL-MOTHER', side: 'right' },
+};
+
+/** Conversations, shown with Game.talk(). Boss scenes are named `boss_<id>`. */
+export const SCENES: Record<string, Line[]> = {
+  // the first time you meet Pell in the Ashen Library
+  pell_meet: [
+    { who: 'pell', face: 'surprised', text: 'OH! A READER. A LIVING ONE. IT HAS BEEN... WELL. IT HAS BEEN A WHILE.' },
+    { who: 'hero', face: 'surprised', text: 'A GHOST THAT TALKS. THAT IS NEW.' },
+    { who: 'pell', face: 'smile', text: "PELL. THE ARCHIVIST'S LAST APPRENTICE, AND NOW CARETAKER OF ABSOLUTELY EVERYTHING." },
+    { who: 'hero', face: 'neutral', text: 'I AM LOOKING FOR A WOMAN. SILVER HAIR, A CHAIN AT HER BELT. SHE WRITES IN THE MARGINS.' },
+    { who: 'pell', face: 'sad', text: 'ILSABET. SHE CAME THROUGH NINE NIGHTS AGO, ASKING FOR ENTRY THREE OF THE LEDGER.' },
+    { who: 'pell', face: 'sad', text: 'I TOLD HER IT WAS TORN OUT. SHE SAID SHE KNEW WHERE THE PAGE HAD GONE, AND WENT DOWN.' },
+    { who: 'hero', face: 'angry', text: 'DOWN WHERE?' },
+    { who: 'pell', face: 'neutral', text: 'BELOW THE STACKS. WHERE THE ARCHIVIST KEPT WHAT SHOULD NOT BE READ.' },
+    { who: 'pell', face: 'smile', text: 'READERS LEFT A GREAT DEAL BEHIND OVER THE YEARS. I COULD PART WITH SOME OF IT. FOR COIN.' },
+    { who: 'hero', face: 'smile', text: 'A GHOST WHO WANTS GOLD?' },
+    { who: 'pell', face: 'smile', text: 'EVEN THE DEAD KEEP ACCOUNTS. COME AND BROWSE ANY TIME.' },
+  ],
+  // every visit after that, before the shop opens
+  pell_again: [{ who: 'pell', face: 'smile', text: 'BACK AGAIN? BROWSE ALL YOU LIKE. JUST DO NOT BREATHE ON THE BINDINGS.' }],
+  boss_wyrm: [
+    { who: 'wyrm', face: 'angry', text: 'KORDER. I KNOW THAT BLOOD. IT TASTES OF CHAINS.' },
+    { who: 'hero', face: 'angry', text: 'WHERE IS MY MOTHER?' },
+    { who: 'wyrm', face: 'neutral', text: 'SHE WALKED PAST ME AS IF I WERE NOTHING. I AM THE WARDEN OF THIS DOOR, CHILD. IT WILL NOT HAPPEN TWICE.' },
+    { who: 'hero', face: 'angry', text: 'THEN STAND ASIDE, OR BE BOUND AGAIN.' },
+  ],
+  boss_hound: [
+    { who: 'hound', face: 'neutral', text: 'A KORDER IN OUR KENNELS. THE PACK REMEMBERS YOUR KIND.' },
+    { who: 'hound', face: 'angry', text: 'YOUR ORDER CHAINED US HERE TO GUARD THEIR DEAD. WE GUARD THEM STILL.' },
+    { who: 'hero', face: 'neutral', text: 'I AM NOT HERE FOR YOUR KENNELS. LET ME PASS.' },
+    { who: 'hound', face: 'angry', text: 'NOTHING PASSES. NOTHING STAYS DEAD. NOT EVEN US.' },
+  ],
+  boss_bellmother: [
+    { who: 'bellmother', face: 'smile', text: 'LISTEN, LITTLE HUNTER. EVERY TOLL WAKES ANOTHER OF THE DEAD.' },
+    { who: 'hero', face: 'angry', text: 'THEN I WILL SILENCE THE BELL.' },
+    { who: 'bellmother', face: 'neutral', text: 'THE LAST KORDER WHO CLIMBED MY TOWER LEFT HER BLOOD ON THE ROPES. SHE RANG BEAUTIFULLY.' },
+    { who: 'hero', face: 'surprised', text: '...MOTHER?' },
+    { who: 'bellmother', face: 'angry', text: 'COME. LET ME HEAR HOW YOU RING.' },
+  ],
+};

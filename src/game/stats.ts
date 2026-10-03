@@ -20,12 +20,48 @@ export class Hunter {
   owned: string[] = ['whip_leather', 'shield_buckler', 'armor_coat'];
   sub = ''; // the selected sub-weapon
   subs: string[] = []; // every sub-weapon found so far
-  grapple = false;
-  doubleJump = false; // Raven Mantle
-  slide = false; // Frostrunner Greaves
-  glide = false; // Duskwing Shroud (experimental)
-  swim = false; // Undertow Pearl (experimental)
-  ward = false; // Ashglass Ward (experimental)
+  gold = 0; // coins from enemies and candles, spent at the Archivist's shop
+  shards = 0; // soul shards: rare enemy drops, kept for later
+  bought: Record<string, number> = {}; // shop items bought, by item id (see SHOP in data.ts)
+  // Relics. The `_` fields say a relic was found; the getters below are what the game reads,
+  // and they're false while the relic is switched off on the RELICS page (`relicOff`, item ids).
+  // Old saves store `grapple: true` etc., which Object.assign sends through the setters.
+  _grapple = false;
+  _doubleJump = false;
+  _slide = false;
+  _glide = false;
+  _swim = false;
+  _ward = false;
+  relicOff: string[] = [];
+  /** Chain Grapple */
+  get grapple() { return this._grapple && !this.relicOff.includes('relic_grapple'); }
+  set grapple(v) { this._grapple = v; }
+  /** Raven Mantle */
+  get doubleJump() { return this._doubleJump && !this.relicOff.includes('relic_mantle'); }
+  set doubleJump(v) { this._doubleJump = v; }
+  /** Frostrunner Greaves */
+  get slide() { return this._slide && !this.relicOff.includes('relic_greaves'); }
+  set slide(v) { this._slide = v; }
+  /** Duskwing Shroud (experimental) */
+  get glide() { return this._glide && !this.relicOff.includes('relic_shroud'); }
+  set glide(v) { this._glide = v; }
+  /** Undertow Pearl (experimental) */
+  get swim() { return this._swim && !this.relicOff.includes('relic_pearl'); }
+  set swim(v) { this._swim = v; }
+  /** Ashglass Ward (experimental) */
+  get ward() { return this._ward && !this.relicOff.includes('relic_ward'); }
+  set ward(v) { this._ward = v; }
+  /** The relics found so far (item ids, in the order the RELICS page lists them), on or off. */
+  get relicsFound() {
+    const found: [string, boolean][] = [['relic_grapple', this._grapple], ['relic_mantle', this._doubleJump], ['relic_greaves', this._slide], ['relic_shroud', this._glide], ['relic_pearl', this._swim], ['relic_ward', this._ward]];
+    return found.filter(([, has]) => has).map(([id]) => id);
+  }
+  /** Switch a found relic on or off (the RELICS page). */
+  toggleRelic(id: string) {
+    const i = this.relicOff.indexOf(id);
+    if (i >= 0) this.relicOff.splice(i, 1);
+    else this.relicOff.push(id);
+  }
   collected: string[] = [];
   flags: string[] = []; // world switches that stay flipped, e.g. 'crypt_drained', 'boss_hound'
   broken: string[] = []; // breakable stones already smashed, as 'roomId:x,y' (they stay broken)

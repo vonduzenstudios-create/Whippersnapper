@@ -801,15 +801,25 @@ export class Grub extends Enemy {
 
 // ---------------------------------------------------------------- gravehand
 
-const HAND_TRACK = 2.6; // px/frame it swims under the floor: a touch faster than a run
+// It stalks: once it senses her it holds a fixed distance from her (wherever she goes) for
+// a moment, so she can see it, then it rushes in, faster and faster, until it's under her
+// feet: two or three seconds in all. It only senses her through the floor, so a jump throws
+// it off, and it starts the stalk over when she lands.
+const HAND_HOLD = 90; // frames it keeps its distance once it senses her (1.5 s)...
+const HAND_HOLD_SPEED = 5; // (fast enough to keep that distance even if she runs)
+const HAND_MIN = 0.8; // ...then it rushes in from this speed...
+const HAND_ACCEL = 0.12; // ...speeding up by this much each frame...
+const HAND_MAX = 4.5; // ...up to this, far faster than a run (2.5)
+const HAND_WARN_TRACK = 2.6; // how fast the rumble follows her feet before it strikes
 const HAND_WARN = 20; // the dirt rumbles under her feet this long (1/3 s) before it strikes
 const HAND_SNAP = 8; // frames after bursting up that it can still close on her
 const HAND_RESTED = 600; // after she mashes free it lies quiet for 10 s
 const HAND_TRIP_DMG = 10; // what a face-first fall costs
 
 /**
- * A dead hand that swims under the floor, following the hero along it, betrayed only by a
- * faint trail of stirred dirt. When it's under her feet the dirt rumbles for a third of a second, then it bursts up: standing or
+ * A dead hand that swims under the floor after the hero. Its furrow of pushed-up soil and
+ * the scrape of its nails give it away before it reaches her: it holds its distance for a
+ * moment, then rushes in. When it's under her feet the dirt rumbles for a third of a second, then it bursts up: standing or
  * walking, it closes around her ankles and holds her (mash LEFT/RIGHT/JUMP to break free,
  * see Player.grab); running, it trips her flat. Jumping at the rumble makes it miss.
  * It deals no damage of its own, and it can only be hit while it's up.
@@ -819,10 +829,16 @@ export class Gravehand extends Enemy implements Holder {
   st = 0;
   cool = 30;
   homeX: number; // where it was placed (the leash is measured from here)
+  senseT = -1; // frames since it sensed her through the floor (-1 = it can't)
+  spd = 0; // how fast it's swimming after her
+  lastX: number; // where it last sensed her
+  gap = 0; // the distance it holds from her, and on which side (+ = to her right)
+  trailD = 0; // px swum since the last clod of the trail
   constructor(g: Game, kind: string, x: number, bottom: number) {
     super(g, kind, x, bottom, 7, 14);
     this.feet = 0;
     this.homeX = x;
+    this.lastX = x;
     this.hostile = false; // contact never hurts, the grab is its only attack
     this.touchDmg = 0;
     this.atk = 0;
@@ -842,33 +858,76 @@ export class Gravehand extends Enemy implements Holder {
     this.set('sink');
     this.cool = mashed ? HAND_RESTED : 150 * this.num('cooldown');
   }
-  /** Swim under the floor toward `tx`, staying on this floor and inside the leash. */
-  track(g: Game, tx: number) {
+  /** Swim under the floor toward `tx` at up to `speed`, staying on this floor and inside the leash. Returns the px moved. */
+  track(g: Game, tx: number, speed: number) {
     const leash = this.num('leash') * TILE;
     if (leash > 0) tx = clamp(tx, this.homeX - leash, this.homeX + leash);
-    const step = clamp(tx - this.x, -HAND_TRACK, HAND_TRACK);
-    if (!step) return;
+    const step = clamp(tx - this.x, -speed, speed);
+    if (!step) return 0;
     const nx = this.x + step, lead = nx + Math.sign(step) * 4;
     // the floor has to carry on there, with no wall in the way
-    if (!groundAt(g.room, lead, this.bottom) || g.room.solidPx(lead, this.bottom - 4)) return;
+    if (!groundAt(g.room, lead, this.bottom) || g.room.solidPx(lead, this.bottom - 4)) return 0;
     this.x = nx;
-    // the faint trail: a puff of stirred dirt every few frames while it moves
-    if (this.t % 5 === 0) g.fx.burst(this.x + rand(-3, 3), this.bottom - 1, 'dust', 1, 1, { vy: -0.3, life: 16, fade: true, tint: [0.7, 0.6, 0.55] });
+    this.facing = step < 0 ? -1 : 1;
+    // its trail: clods of stirred earth that linger on the floor behind it
+    this.trailD += Math.abs(step);
+    if (this.trailD >= 5) {
+      this.trailD = 0;
+      g.fx.burst(this.x - this.facing * 8, this.bottom - 2, 'dust', 1, 1, { vy: -0.1, life: 90, fade: true, tint: [0.75, 0.55, 0.42] });
+    }
+    return Math.abs(step);
+  }
+  /** It feels her through the floor: she's standing on it, close enough. Off the ground, it loses her. */
+  senses(g: Game) {
+    const p = g.player;
+    return p.alive && p.onGround && p.state !== 'trip' && Math.abs(p.bottom - this.bottom) < 6 && Math.abs(p.x - this.x) < 260 * this.num('sight');
+  }
+  /** Swimming after her (the 'under' state): hold its distance, then rush in. */
+  stalk(g: Game) {
+    const p = g.player, s = this.sprite!, A = this.anims;
+    let tx = this.lastX;
+    if (this.senses(g)) {
+      if (this.senseT < 0) {
+        this.senseT = 0;
+        this.gap = this.x - p.x;
+      }
+      this.senseT++;
+      this.lastX = p.x;
+      if (this.senseT <= HAND_HOLD) {
+        // keeping its distance: it moves when she moves, and waits when she waits
+        tx = p.x + this.gap;
+        this.spd = HAND_HOLD_SPEED;
+      } else {
+        tx = p.x;
+        this.spd = this.senseT === HAND_HOLD + 1 ? HAND_MIN : Math.min(HAND_MAX, this.spd + HAND_ACCEL);
+      }
+    } else {
+      // lost her: it slows and stops where it last felt her
+      if (this.senseT >= 0) this.spd = Math.min(this.spd, HAND_MAX);
+      this.senseT = -1;
+      this.spd *= 0.92;
+    }
+    const moved = this.track(g, tx, this.spd);
+    // the furrow it pushes along: always there to see, plainer as it closes in
+    s.visible = true;
+    s.setFrame(A.furrow[Math.floor(this.t / (moved > 1.5 ? 4 : 9)) % 2]);
+    s.opacity = moved > 0.1 ? 1 : 0.5;
+    // the scrape of its nails, quickening (and louder) as it speeds up
+    const rush = Math.min(1, moved / HAND_MAX), every = Math.round(30 - rush * 22);
+    if (moved > 0.1 && this.t % every === 0) g.audio.play('scrape', rush);
   }
   update(g: Game) {
     this.baseUpdate(g);
     const p = g.player, s = this.sprite!, A = this.anims;
     this.st++;
     if (this.cool > 0) this.cool--;
-    // she's over this floor: standing on it, or in the air above it
-    const above = p.alive && p.bottom <= this.bottom + 6 && p.bottom > this.bottom - 100 && Math.abs(p.x - this.x) < 260 * this.num('sight');
     const onIt = p.alive && p.onGround && Math.abs(p.bottom - this.bottom) < 6;
     let shakeX = 0;
     s.mesh.renderOrder = 10;
+    s.opacity = 1;
     switch (this.state) {
       case 'under':
-        s.visible = false;
-        if (above && p.state !== 'trip') this.track(g, p.x);
+        this.stalk(g);
         if (this.cool <= 0 && onIt && p.holdT <= 0 && p.freeT <= 0 && Math.abs(p.x - this.x) < 6) {
           this.set('warn');
           g.audio.play('burrow');
@@ -876,7 +935,7 @@ export class Gravehand extends Enemy implements Holder {
         break;
       case 'warn':
         // the warning: the dirt heaves under her feet, following her. Jump!
-        if (above) this.track(g, p.x);
+        if (this.senses(g)) this.track(g, p.x, HAND_WARN_TRACK);
         s.visible = true;
         s.setFrame(A.rumble[Math.floor(this.st / 3) % 2]);
         shakeX = this.st % 4 < 2 ? -1 : 1;
@@ -925,6 +984,8 @@ export class Gravehand extends Enemy implements Holder {
         if (this.st % 4 === 0) g.fx.burst(this.x + rand(-5, 5), this.bottom - 3, 'dust', 1, 2, { vy: -0.8 });
         if (this.st >= 16) {
           this.cool = Math.max(this.cool, 60);
+          this.senseT = -1; // it starts its stalk over
+          this.spd = 0;
           this.set('under');
         }
         break;

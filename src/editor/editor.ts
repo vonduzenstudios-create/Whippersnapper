@@ -85,6 +85,7 @@ function buildTools(): Record<Cat, Tool[]> {
       { id: 'T', kind: 'ent', label: 'SIGN / LORE STONE (DOUBLE-CLICK: TEXT)' },
       { id: 'L', kind: 'ent', label: 'LEVER (DOUBLE-CLICK: SET ITS FLAG)' },
       { id: 'n', kind: 'ent', label: 'CHAIR (FACES A TABLE NEXT TO IT)' },
+      { id: 'M', kind: 'ent', label: 'MERCHANT (PELL AND HIS SHOP)' },
     ],
     items: ITEM_IDS.map((id) => ({ id: 'i', kind: 'ent' as const, arg: id, label: `ITEM: ${ITEMS[id].name.toUpperCase()}` })),
   };

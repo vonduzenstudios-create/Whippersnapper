@@ -96,6 +96,7 @@ Entities:
 | `a` | Restless Chair (Library): looks like a prop chair until you come close |
 | `l` | Bone Librarian (Library): put it on the floor in front of a bookcase; it shelves books with its back turned until you come close |
 | `n` | chair (scenery). Faces a table within 3 tiles on its row |
+| `M` | Pell, the merchant (the Reader's Nook): introduces himself the first time, then UP opens his shop |
 | `v` | Devourer: a mouth on tentacles (a stronger Hookjaw) whose tongue drags you into its jaws (see player-mechanics.md) |
 | `p` | Gallows Spider: place it anywhere under a ceiling; it finds the ceiling above and hangs from it. Leave it a clear drop below |
 

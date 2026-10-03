@@ -6,7 +6,7 @@ import { Music } from '../audio/music';
 import { HERO, HERO_M, buildHeroSheet, buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildWyrmSheet, buildLibrarianSheet } from '../gfx/art_chars';
 import { buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet, buildHookjawSheet, buildDevourerSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet } from '../gfx/art_beasts';
 import { buildHoundSheet, buildCinderHoundSheet, buildBellMotherSheet } from '../gfx/art_bosses';
-import { buildItemSheet, buildCandleSheet, buildFxSheet, buildFireSheet, buildRelicFxSheet } from '../gfx/art_items';
+import { buildItemSheet, buildCandleSheet, buildFxSheet, buildFireSheet, buildRelicFxSheet, buildRingSheet } from '../gfx/art_items';
 import { paintTiles } from '../gfx/tiles';
 import { buildBackdrop, buildWaterFront, Backdrop, WaterFront } from '../gfx/backdrops';
 import { buildRooms, RoomDef, Zone, CHASE_FLAG, ZONE_INFO } from '../world/rooms';
@@ -16,19 +16,20 @@ import { Ent, HitKind, Boss } from './ent';
 import { BOSSES } from './bosses';
 import { FX } from './fx';
 import { Hunter } from './stats';
-import { Candle, Pickup, RingAnchor, Altar, EnemyShot, Lever, Sign } from './objects';
+import { Candle, Pickup, RingAnchor, Altar, EnemyShot, Lever, Sign, Merchant } from './objects';
 import { Avalanche, LEASH } from './avalanche';
 import { Cutscene } from './cutscene';
 import { spawnEnemy } from './spawn';
 import { ChairProp } from './enemies_library';
 import { ENEMY } from './data';
-import { HeroId, heroText } from './story';
+import { HeroId, heroText, Line, SCENES } from './story';
+import { buildPortraitSheet, buildPellSheet } from '../gfx/art_portraits';
 import { UI } from '../ui/ui';
 import { Editor } from '../editor/editor';
 import { VW, VH, TILE, CELL_W, CELL_H, STEP, SCREEN_COLS, SCREEN_ROWS } from '../config';
 import { clamp, overlap, rand, Box } from '../core/util';
 
-export type GState = 'title' | 'select' | 'intro' | 'play' | 'pause' | 'map' | 'dialog' | 'transition' | 'gameover' | 'victory' | 'edit';
+export type GState = 'title' | 'select' | 'intro' | 'play' | 'pause' | 'map' | 'dialog' | 'talk' | 'shop' | 'transition' | 'gameover' | 'victory' | 'edit';
 
 export interface Sheets {
   /** The current hero (one of heroes.vesna / heroes.anzel, swapped by applyHero()). */
@@ -64,6 +65,9 @@ export interface Sheets {
   fire: Sheet;
   /** Glide wings and the shield bubble worn by the hero. */
   relicfx: Sheet;
+  ring: Sheet;
+  portraits: Sheet;
+  pell: Sheet;
 }
 
 /** The room a new game starts in (the opening cinematic plays there). */
@@ -112,6 +116,10 @@ export class Game {
   msg = { text: '', t: 0 };
   banner = { text: '', sub: '', t: 0 };
   dialog: string[] = [];
+  /** The conversation on screen (state 'talk'): its lines, the current one, how much of it has typed out, and what to do after. */
+  talkState: { lines: Line[]; i: number; shown: number; done?: () => void } | null = null;
+  /** A boss is showing itself off before the fight: the hero waits, the camera watches the boss, letterbox bars. */
+  bossShow = false;
   hint = '';
   fade = 0; // 0..1 black overlay
   fadeFlash = 0;
@@ -172,6 +180,9 @@ export class Game {
       fx: buildSheet(buildFxSheet()),
       fire: buildSheet(buildFireSheet()),
       relicfx: buildSheet(buildRelicFxSheet()),
+      ring: buildSheet(buildRingSheet()),
+      portraits: buildSheet(buildPortraitSheet()),
+      pell: buildSheet(buildPellSheet()),
     };
     console.log(`[nocturne] sprites generated in ${(performance.now() - t0).toFixed(0)}ms`);
     this.buildEnemySheets();
@@ -332,6 +343,11 @@ export class Game {
     this.rings = [];
     this.beacons = [];
     this.boss = null;
+    if (this.bossShow) {
+      // left (or died) mid-entrance: give the controls back
+      this.bossShow = false;
+      this.input.script = null;
+    }
     this.fx.clear();
     this.dmgNums = [];
     this.view.clearWorld();
@@ -395,6 +411,9 @@ export class Game {
           break;
         case 'n':
           this.ents.push(new ChairProp(this, x, bottom));
+          break;
+        case 'M':
+          this.ents.push(new Merchant(this, x, bottom));
           break;
         case 'W':
         case 'P':
@@ -581,6 +600,26 @@ export class Game {
   showDialog(lines: string[]) {
     this.dialog = lines.map((l) => this.text(l));
     this.state = 'dialog';
+  }
+  /**
+   * Start a conversation with portraits (a SCENES key, or lines). Play pauses until the last
+   * line is dismissed, then `done` runs.
+   */
+  talk(scene: string | Line[], done?: () => void) {
+    const lines = typeof scene === 'string' ? SCENES[scene] : scene;
+    if (!lines?.length) return done?.();
+    this.talkState = { lines, i: 0, shown: 0, done };
+    this.state = 'talk';
+    this.hint = '';
+    this.input.flush();
+  }
+  /** Called by a boss at the end of its entrance: its pre-fight exchange, then the fight starts. */
+  bossTalk() {
+    this.banner.t = 0; // its name has had its moment
+    this.talk(`boss_${this.room.def.boss}`, () => {
+      this.bossShow = false;
+      this.input.script = null;
+    });
   }
   shake(amt: number, frames: number) {
     if (amt >= this.shakeAmt || this.shakeT <= 0) {
@@ -793,6 +832,12 @@ export class Game {
       case 'victory':
         this.ui.update();
         break;
+      case 'talk':
+        this.ui.updateTalk();
+        break;
+      case 'shop':
+        this.ui.updateShop();
+        break;
       case 'dialog':
         if (this.input.confirm || this.input.cancel) {
           this.state = 'play';
@@ -935,13 +980,21 @@ export class Game {
     const w = def.ents.find((e) => e.t === 'W');
     this.boss = info.make(this, w ? w.x * TILE + 8 : r.W / 2, w ? (w.y + 1) * TILE : r.H - 2 * TILE);
     this.ents.push(this.boss);
+    // the hero stops and watches it make its entrance (see bossTalk for the end of it)
+    this.bossShow = true;
+    this.input.script = {};
   }
 
   updateCamera() {
     const p = this.player, r = this.room, v = this.view;
     const tx = clamp(p.x - VW / 2, 0, Math.max(0, r.W - VW));
     const ty = clamp(p.y - VH / 2 - 8, 0, Math.max(0, r.H - VH));
-    if (!this.cutscene?.holdCam) {
+    if (this.bossShow && this.boss) {
+      // the camera follows the boss while it shows itself off
+      const b = this.boss, bx = clamp(b.x - VW / 2, 0, Math.max(0, r.W - VW)), by = clamp(b.y - VH / 2 + 10, 0, Math.max(0, r.H - VH));
+      v.camX += (bx - v.camX) * 0.05;
+      v.camY += (by - v.camY) * 0.05;
+    } else if (!this.cutscene?.holdCam) {
       v.camX += (tx - v.camX) * 0.25;
       v.camY += (ty - v.camY) * 0.14;
       if (Math.abs(tx - v.camX) < 0.5) v.camX = tx;

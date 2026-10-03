@@ -31,6 +31,13 @@ const WARD_COOL = 60; // frames after it fades or pops before it can be raised a
 const SLOW_MUL = 0.55; // walking speed while hexed by a Gloomcaster
 const HOLD_TIME = 150; // a Gravehand lets go by itself after this many frames (2.5 s)
 const FREE_GRACE = 60; // after breaking free, hands can't grab again for this long
+// Frost Crawler ice trails: the longer she stands on one, the slower she gets, until she
+// freezes solid. Only time on the ground counts, and in the air she moves at full speed.
+const CHILL_MAX = 150; // frames on the ice (2.5 s) until she's frozen
+const CHILL_SLOW = 0.8; // speed lost just before she freezes (she's down to 20%)
+const CHILL_THAW = 2; // chill lost each frame she's off the ice (or in the air)
+const ICE_MASH = 8; // presses to break out of the ice...
+const ICE_TIME = 150; // ...or it cracks open by itself after this long
 const TRIP_DOWN = 40; // frames she lies on her face after a Gravehand trips her...
 const TRIP_UP = 14; // ...and frames to get back up
 const BLOCK_PUSH = 2.6; // a blocked melee blow or lunge shoves her back this fast (it eases off)
@@ -125,6 +132,19 @@ export class Player implements Body {
   wings: Sprite; // drawn behind her while gliding
   bubble: Sprite; // the shield bubble
   shield: Sprite; // the raised shield, held in front of her
+  iceBlock: Sprite; // the ice she's frozen in
+  /** A Frost Crawler's trail is under her feet (set by IcePatch each frame, used up by update). */
+  onIce = false;
+  chill = 0; // frames of standing on ice, eased off when she's off it: slows her, then freezes her at CHILL_MAX
+  /** What holds her when she's frozen solid (see freeze): breaking out shatters the ice. */
+  private iceHold: Holder = {
+    released: () => {
+      const g = this.g;
+      this.chill = 0;
+      g.audio.play('glass');
+      g.fx.burst(this.x, this.y, 'glass', 8, 10, { speed: 2, grav: 0.2, life: 28, tint: [0.8, 1, 1.4] });
+    },
+  };
 
   constructor(private g: Game) {
     this.wings = new Sprite(g.sheets.relicfx, g.view.sprites, 11);
@@ -133,6 +153,8 @@ export class Player implements Body {
     this.bubble.visible = false;
     this.shield = new Sprite(g.sheets.relicfx, g.view.sprites, 13);
     this.shield.visible = false;
+    this.iceBlock = new Sprite(g.sheets.relicfx, g.view.sprites, 13);
+    this.iceBlock.visible = false;
     this.sprite = new Sprite(g.sheets.hero, g.view.sprites, 12);
     for (let i = 0; i < ECHOES; i++) {
       const s = new Sprite(g.sheets.hero, g.view.sprites, 11);
@@ -208,7 +230,14 @@ export class Player implements Body {
     }
     // Undertow Pearl: water doesn't slow her down, and she swims freely
     const freeSwim = this.inWater && g.hunter.swim;
-    const wmul = (this.inWater && !freeSwim ? 0.6 : 1) * (this.slowT > 0 ? SLOW_MUL : 1);
+    // Frost Crawler ice: standing on it chills her more and more; jumping keeps her free of it
+    const iced = this.onIce && this.onGround && this.state !== 'dead';
+    this.onIce = false;
+    if (iced && this.holdT <= 0) {
+      if (++this.chill >= CHILL_MAX) this.freeze();
+    } else if (!this.frozen) this.chill = Math.max(0, this.chill - CHILL_THAW);
+    const chillMul = this.onGround ? 1 - CHILL_SLOW * (this.chill / CHILL_MAX) : 1;
+    const wmul = (this.inWater && !freeSwim ? 0.6 : 1) * (this.slowT > 0 ? SLOW_MUL : 1) * chillMul;
     const L = inp.down('left'), R = inp.down('right'), U = inp.down('up'), D = inp.down('down');
     const hdir = (R ? 1 : 0) - (L ? 1 : 0);
 
@@ -931,6 +960,14 @@ export class Player implements Body {
     }
     this.ring = null;
     this.dangle = false;
+    if (this.frozen) {
+      // the blow shatters the ice she was frozen in
+      this.holdT = 0;
+      this.holdBy = null;
+      this.holdLock = false;
+      this.freeT = FREE_GRACE;
+      this.iceHold.released(false);
+    }
     if (h.hp <= 0) return this.die(fromX);
     if (this.state === 'slide' && !this.fits(STAND_HH)) {
       this.invuln = 100; // no knockback inside a low gap: standing up there would wedge her in the ceiling
@@ -1038,6 +1075,16 @@ export class Player implements Body {
   hex(frames: number) {
     this.slowT = Math.max(this.slowT, frames);
     this.webbed = false;
+  }
+  /** Frozen solid in a block of ice (too long on a Frost Crawler's trail). */
+  get frozen() {
+    return this.holdBy === this.iceHold && this.holdT > 0;
+  }
+  /** The chill took her: she's locked in ice until she mashes out or it cracks open. */
+  freeze() {
+    if (!this.grab(this.iceHold, ICE_MASH, ICE_TIME, true)) return;
+    this.g.audio.play('glass');
+    this.g.fx.burst(this.x, this.y, 'flake', 6, 10, { vy: -0.4, life: 30, fade: true });
   }
   /** A Gallows Spider's web glob: the same slow as a hex, but sticky white instead of violet. */
   web(frames: number) {
@@ -1225,6 +1272,15 @@ export class Player implements Body {
       this.bubble.opacity = 0.75 + Math.sin(this.animT * 0.15) * 0.15;
       this.bubble.glow = 0.4;
     }
+    // frozen solid: the block cracks more the closer she is to breaking out
+    this.iceBlock.visible = this.frozen;
+    if (this.frozen) {
+      const left = this.mashLeft / ICE_MASH;
+      this.iceBlock.setFrame(A.iceBlock[left > 0.66 ? 0 : left > 0.33 ? 1 : 2]);
+      this.iceBlock.place(this.x, cy - 2);
+      this.iceBlock.glow = 0.15;
+      this.iceBlock.opacity = 0.6; // she shows through the ice
+    }
   }
 
   /** The raised shield, held out in front of her (tilted up when she aims it up). */
@@ -1243,6 +1299,7 @@ export class Player implements Body {
     this.shield.visible = false;
     this.wings.visible = false;
     this.bubble.visible = false;
+    this.iceBlock.visible = false;
     for (const e of this.echoes) e.s.visible = false;
     this.sprite.visible = false;
     for (const l of this.links) l.visible = false;
@@ -1302,7 +1359,7 @@ export class Player implements Body {
       }
     }
     // held: she strains against the grip
-    const strain = this.holdT > 0 ? (this.animT % 4 < 2 ? -1 : 1) : 0;
+    const strain = this.holdT > 0 && !this.frozen ? (this.animT % 4 < 2 ? -1 : 1) : 0;
     s.place(this.x + strain, this.bottom - 18, this.facing < 0);
     const blink = this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln / 3) % 2 === 0;
     s.opacity = blink ? 0.35 : 1;
@@ -1314,6 +1371,11 @@ export class Player implements Body {
       // hexed: a sickly violet cast, with motes rising off her
       s.tint(0.85, 0.65, 1.15);
       if (this.animT % 8 === 0) this.g.fx.burst(this.x, this.y, 'mote', 1, 8, { vy: -0.5, life: 24, fade: true, tint: [1.3, 0.5, 1.6] });
+    } else if (this.chill > 0) {
+      // chilled: she pales to frosty blue, shedding flakes faster the colder she gets
+      const c = this.chill / CHILL_MAX;
+      s.tint(1 - 0.3 * c, 1 - 0.08 * c, 1 + 0.35 * c);
+      if (this.animT % Math.max(4, Math.round(16 - c * 12)) === 0) this.g.fx.burst(this.x, this.y, 'flake', 1, 7, { vy: -0.3, life: 22, fade: true });
     } else s.tint(1, 1, 1);
     this.renderEchoes();
     this.renderRelics();

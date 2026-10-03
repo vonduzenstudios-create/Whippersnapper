@@ -100,6 +100,34 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 
 The same number is in `package.json`. Newest version first.
 
+### 0.14.0 (2026-10-02)
+
+Talking, shopping and boss entrances:
+
+- Dialogue scenes with anime-style portraits: the hero on the left, whoever they're talking to on the right, the line typing out with a soft blip. Each character has several faces (calm, smiling, angry, surprised, sad). CONFIRM moves on, CANCEL skips.
+- Boss entrances: when a fight starts, the hero stands still and the camera follows the boss as it shows itself off. The Ossuary Wyrm does a full lap of its lair and roars twice. Gnarlfang howls, prowls toward you and snaps with both heads. The Bell-Mother sweeps a figure of eight round the belfry and tolls her bell. Then a short exchange, and the fight begins.
+- Pell, the ghost of the Archivist's last apprentice, haunts the Reader's Nook. The first time you come near he introduces himself (he met your mother). After that, UP by him opens his stall: potions, an elixir, the new Reading Lens (LCK+5 CON+1), the Iron Heater shield and the Rootstone, in limited stock.
+- Gold: enemies drop coins (more from tougher ones), and candles sometimes do. Your gold shows under the HUD and on the STATUS page. Very rarely an enemy drops a soul shard; they're counted, and will be used for something later.
+- New RELICS page in the pause menu: every relic you've found, with what it does, and you can switch each one on or off.
+- STATUS page cleaned up: no relic list or control tips, just your stats, sub-weapon, gold, shards and kills.
+
+Enemy fixes:
+
+- Grave Wisp: its dripped flames now burn in its own ghostly blue (and in a variant's colors).
+- Poleaxe Knight: the jab's spike is no longer cut off at the end of the thrust, and the chop on its turn reaches further (52 px from it, was 40), with a longer poleaxe swing to match.
+- Frost Crawler: it leaves ice on ceilings too, and icicles grow from that ice, shiver, and fall. They hurt (your shield stops them) and shatter into floor ice where they land.
+- Gravehand: faster and more deliberate. Once it senses you it holds its distance for 1.5 s (it moves when you move), then rushes in, faster and faster, until a jump throws it off or it grabs you. From sensing you to the strike takes about 2 seconds.
+
+### 0.13.0 (2026-10-02)
+
+Enemy balance:
+
+- Poleaxe Knight (was the Spear Knight): it carries a poleaxe now. Its shield stops 90% of every hit from the front, even mid-jab, so you have to get round to its back. Turning around is its big attack: over 0.8 s it turns toward the camera, raising the poleaxe over its head like a clock hand, then whips round and chops down on the other side. Its back is open the whole time. Strike during the rise, then get clear or jump before the chop. In front of it, it still jabs with the spike.
+- Grave Wisp: while it hunts you, flames drip off it and burn on the floor for 1.7 s. They're smaller and weaker than holy water, and water puts them out. The Grave Wispette doesn't drip (new "Drips flames" switch in the enemy editor).
+- Bell Wraith: its toll is now a big, low DONG, warned by a quiet tinkle as it lifts the bell. Up close, the sound itself hurts: a ring of force spreads about 60 px from the bell. The floor shockwaves still roll on from there.
+- Frost Crawler: leaves a trail of ice where it walks, which thaws after 6 s. Standing on it chills you: you slow down more and more and turn frosty blue, until after 2.5 s on the ice you freeze solid. Mash left, right or jump to break out (8 presses), or a hit shatters the ice. In the air you move at full speed and the chill wears off, so hop across. New "Ice trail" switch in the enemy editor.
+- Gravehand: you can see it coming now. It pushes a mound of soil along under the floor with a trail of broken earth behind it, and you hear its nails scrape faster as it speeds up. Once it senses you it matches your pace for 1.7 s, then speeds up until it's faster than a run. It only feels you through the ground: jump and it loses you and slows to a stop. When you land within range, the stalk starts over.
+
 ### 0.12.2 (2026-10-02)
 
 - Devourer redrawn: no longer a Hookjaw with a head, but a great round mouth on eight tentacles, with a cleaver arm and a clawed arm. The top and bottom halves of its body are its jaws. Its "hook" is now its barbed tongue, which it curls out and lashes at you. When it bites, its whole body tips forward, mouth down, and swallows your head and shoulders.

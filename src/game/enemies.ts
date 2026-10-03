@@ -6,6 +6,7 @@ import { ENEMY, Tune, defaultTune } from './data';
 import { sign, clamp, rand, overlap } from '../core/util';
 import { GRAVITY, MAX_FALL } from '../config';
 import { EnemyShot, rollEnemyDrop } from './objects';
+import { KNIGHT_TURN_FRAMES } from '../gfx/art_chars';
 
 /** Frames a Throwing Knife's mark lasts if nothing else hits the enemy (5 s). */
 const EXPOSE_TIME = 300;
@@ -235,13 +236,18 @@ export class Bat extends Enemy {
   }
 }
 
-// ---------------------------------------------------------------- spear knight
+// ---------------------------------------------------------------- poleaxe knight
 /**
- * Frames a Spear Knight takes to turn around. Its shield guards neither side meanwhile, so
- * jumping over it buys about this long at its back: two whip strikes easily, a third only
- * if the first starts the moment you land (a swing is 21 frames and strikes on its 6th).
+ * A Poleaxe Knight's about-face (1.2 s) is also its big attack: a slow rise as it turns,
+ * the poleaxe climbing over its head, then a fast chop down on the side it now faces.
+ * Its shield guards nothing meanwhile, so the rise is the time to strike its back,
+ * then get clear (or jump) before the chop. Timings come from the art's frame list.
  */
-const KNIGHT_TURN = 50;
+const TURN_ENDS = KNIGHT_TURN_FRAMES.reduce<number[]>((a, f) => [...a, (a[a.length - 1] || 0) + f[3]], []);
+const KNIGHT_TURN = TURN_ENDS[TURN_ENDS.length - 1];
+const KNIGHT_FLIP = TURN_ENDS[3]; // it faces the new way once the rise is done
+const KNIGHT_CHOP = [TURN_ENDS[4], TURN_ENDS[6] + 4]; // frames the falling blade can hit
+const KNIGHT_SHIELD = 0.1; // share of a hit from the front that gets past the shield
 const KNIGHT_JABS = 2; // extra thrusts it chains when the first is blocked: it keeps shoving
 
 export class Knight extends Enemy {
@@ -263,9 +269,10 @@ export class Knight extends Enemy {
     this.st = 0;
   }
   onHit(g: Game, dmg: number, fromX: number, crit: boolean, kind: HitKind) {
-    // shield blocks hits from the front at half damage (not mid-thrust, and not while turning)
-    const front = this.can('shield') && sign(fromX - this.x) === this.facing && this.state !== 'thrust' && this.state !== 'turn';
-    super.onHit(g, front ? Math.max(1, Math.floor(dmg * 0.5)) : dmg, fromX, crit, kind);
+    // the shield stops 90% of a hit from the front, even mid-thrust: get round to its back.
+    // While it turns, the shield faces nothing.
+    const front = this.can('shield') && sign(fromX - this.x) === this.facing && this.state !== 'turn';
+    super.onHit(g, front ? Math.max(1, Math.round(dmg * KNIGHT_SHIELD)) : dmg, fromX, crit, kind);
     if (front) {
       g.audio.play('clink');
       g.fx.burst(this.x + this.facing * 8, this.y - 4, 'spark', 1);
@@ -304,13 +311,29 @@ export class Knight extends Enemy {
         }
         break;
       }
-      case 'turn':
-        // plants the spear upright and shuffles round; it faces the new way halfway through
+      case 'turn': {
+        // slow rise (turning to face the camera, poleaxe overhead), then a fast chop
         this.vx = 0;
-        this.sprite!.setFrame(A.turn[Math.floor(this.st / 8) % 2]);
-        if (this.st === KNIGHT_TURN >> 1) this.facing = -this.facing as 1 | -1;
+        const f = TURN_ENDS.findIndex((end) => this.st < end);
+        this.sprite!.setFrame(A.turn[f < 0 ? A.turn.length - 1 : f]);
+        if (this.st === KNIGHT_FLIP) {
+          this.facing = -this.facing as 1 | -1;
+          g.audio.play('dash');
+        }
+        if (this.st >= KNIGHT_CHOP[0] && this.st < KNIGHT_CHOP[1]) {
+          // the blade's arc: from over its head down to the floor in front
+          const blade = { x: this.x + this.facing * 28, y: this.y - 8, hw: 24, hh: 24 };
+          if (p.alive && overlap(blade, p)) p.takeDamage(this.atk + 4, this.x, false, true, 'melee', this.y - 16);
+        }
+        if (this.st === TURN_ENDS[6]) {
+          // the head bites into the floor
+          g.audio.play('knock');
+          g.shake(1.5, 6);
+          g.fx.burst(this.x + this.facing * 38, this.bottom - 3, 'dust', 3, 4, { speed: 1.2, life: 20 });
+        }
         if (this.st >= KNIGHT_TURN) this.set('walk');
         break;
+      }
       case 'ready':
         this.vx = 0;
         this.sprite!.setFrame(A.ready[0]);
@@ -417,6 +440,8 @@ export class Skeleton extends Enemy {
 
 // ---------------------------------------------------------------- wisp
 export class Wisp extends Enemy {
+  chasing = false; // the hero is in sight and it's drifting after her
+  dripT = 40; // frames to its next flame drip
   constructor(g: Game, kind: string, x: number, y: number) {
     super(g, kind, x, y + 8, 6, 7);
     this.feet = 7;
@@ -426,7 +451,8 @@ export class Wisp extends Enemy {
     const p = g.player;
     const dx = p.x - this.x, dy = p.y - 6 - this.y;
     const d = Math.hypot(dx, dy) || 1;
-    if (d < 260 * this.num('sight') && this.stun <= 0) {
+    this.chasing = p.alive && d < 260 * this.num('sight');
+    if (this.chasing && this.stun <= 0) {
       const sp = this.num('speed'), max = 0.85 * sp;
       this.vx = clamp(this.vx + (dx / d) * 0.035 * sp, -max, max);
       this.vy = clamp(this.vy + (dy / d) * 0.035 * sp, -max, max);
@@ -443,6 +469,78 @@ export class Wisp extends Enemy {
     s.glow = 0.3;
     s.place(this.x, this.y, false);
     if (this.t % 10 === 0) g.fx.burst(this.x + rand(-4, 4), this.y + 4, 'mote', 1, 0, { vy: -0.5, life: 30, fade: true, glow: 0.5 });
+    // while it hunts, flames drip off its body and burn a little while where they land
+    if (this.can('drip') && this.chasing && this.stun <= 0 && --this.dripT <= 0) {
+      this.dripT = rand(70, 110);
+      g.spawn(new WispFlame(g, this.kind, this.x + rand(-3, 3), this.y + 6, Math.max(1, Math.round(this.atk * 0.45))));
+    }
+  }
+}
+
+const DRIP_BURN = 100; // frames a dripped flame burns on the floor (holy water: 90)
+
+/**
+ * A flame dripped by a Grave Wisp: it falls, then burns on the floor where it lands, like a
+ * small, weak holy water fire that hurts the hero instead. Water puts it out. It's drawn
+ * from the wisp's own sheet, so it burns in the wisp's colors (a variant's too).
+ */
+export class WispFlame extends Ent {
+  vx = 0;
+  vy = 0.4;
+  onGround = false;
+  t = 0;
+  burning = false;
+  constructor(g: Game, kind: string, x: number, y: number, dmg: number) {
+    super();
+    this.x = x;
+    this.y = y;
+    this.hw = 2;
+    this.hh = 2;
+    this.hostile = true;
+    this.touchDmg = dmg;
+    this.sprite = new Sprite(g.enemySheet(kind), g.view.sprites, 14);
+    this.sprite.setFrame(this.sprite.sheet.anims.drip[0]);
+    this.sprite.glow = 0.6;
+  }
+  /** Fire: the shield doesn't help. */
+  hitType(): DmgType {
+    return 'magic';
+  }
+  update(g: Game) {
+    this.t++;
+    const s = this.sprite!;
+    if (!this.burning) {
+      this.vy = Math.min(this.vy + 0.12, 3);
+      const r = moveBody(g.room, this, true);
+      s.place(this.x, this.y - 2);
+      if (this.t % 4 === 0) g.fx.burst(this.x, this.y - 2, 'mote', 1, 1, { vy: -0.4, life: 12, fade: true, glow: 0.5 });
+      if (g.room.inWater(this.x, this.y) || this.y > g.room.H + 16) {
+        this.dead = true;
+        g.fx.burst(this.x, this.y, 'smoke', 1, 2, { vy: -0.5, fps: 8, life: 24 });
+      } else if (r.landed || this.onGround) {
+        // catch on the floor: a small fire, a third the width of holy water's
+        const floor = this.y + this.hh;
+        this.burning = true;
+        this.t = 0;
+        this.hw = 5;
+        this.hh = 6;
+        this.y = floor - this.hh;
+        g.audio.play('flame');
+      }
+      return;
+    }
+    // it flares up, burns, and gutters out
+    const grow = Math.min(1, this.t / 8) * (this.t > DRIP_BURN - 20 ? Math.max(0, (DRIP_BURN - this.t) / 20) : 1);
+    // the flame frames stand on their bottom row; squash them from the floor up as they grow and die
+    const floor = this.y + this.hh, ch = s.sheet.ch;
+    s.anim('flame', this.t / 60, 14);
+    s.place(this.x, floor - 12);
+    s.mesh.scale.y = ch * grow;
+    s.mesh.position.y = -(floor - (ch / 2) * grow);
+    s.glow = 0.3;
+    this.hostile = grow > 0.4; // a tiny or dying flame can't hurt
+    if (this.t % 9 === 0) g.fx.burst(this.x + rand(-4, 4), this.y - 4, 'mote', 1, 0, { vy: -0.8, life: 20, fade: true, glow: 0.5 });
+    if (this.t >= DRIP_BURN) this.dead = true;
   }
 }
 
