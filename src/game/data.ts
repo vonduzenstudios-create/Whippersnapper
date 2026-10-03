@@ -130,8 +130,8 @@ export interface TuneField {
   label: string;
   kind: 'num' | 'bool';
   help: string;
-  /** Number knobs: the normal value (default 1, a multiplier), and the editor's step and minimum. */
-  def?: number;
+  /** The normal value: a number knob's (default 1, a multiplier) or an on/off switch's (default on). Number knobs also have the editor's step and minimum. */
+  def?: number | boolean;
   step?: number;
   min?: number;
 }
@@ -159,31 +159,38 @@ export const ENEMY_TUNING: Record<string, TuneField[]> = {
     { key: 'swoop', label: 'Swoops', kind: 'bool', help: 'Dives at you in an arc' },
     { key: 'darts', label: 'Feather darts', kind: 'bool', help: 'Throws feathers from the air' }],
   wraith: [SPEED, SIGHT, COOL,
-    { key: 'toll', label: 'Bell toll', kind: 'bool', help: 'Rings its bell: the sound hurts you up close and sends a shockwave along the floor' }],
+    { key: 'toll', label: 'Bell toll', kind: 'bool', help: 'Rings its bell: the sound hurts you up close and sends a shockwave along the floor' },
+    { key: 'reverb', label: 'Reverb', kind: 'bool', help: 'Hitting it rings its bell back at you, out to 80% of your whip reach. Strike from the tip to stay clear' }],
   crawler: [SPEED, SIGHT,
     { key: 'drop', label: 'Drops from ceilings', kind: 'bool', help: 'Lets go of the ceiling when you pass below' },
     { key: 'trail', label: 'Ice trail', kind: 'bool', help: 'Leaves ice where it walks: standing on it slows you more and more, then freezes you solid. Jumping keeps you clear' }],
   // experimental enemies (0.4.0), see enemies_extra.ts
   hookjaw: [SPEED, SIGHT, COOL,
     { key: 'hook', label: 'Chain hook', kind: 'bool', help: 'Throws a hook that drags you toward it' },
-    { key: 'chop', label: 'Cleaver chop', kind: 'bool', help: 'Chops at you when you are close' }],
+    { key: 'chop', label: 'Cleaver chop', kind: 'bool', help: 'Chops at you when you are close, knocking you back out to hook range' }],
   eel: [SPEED, SIGHT, COOL,
     { key: 'lunge', label: 'Lunges', kind: 'bool', help: 'Darts at you when it gets close underwater' },
     { key: 'leap', label: 'Leaps out', kind: 'bool', help: 'Jumps out of the water at you when you stand near the surface' }],
   caster: [SIGHT, COOL,
     { key: 'blink', label: 'Teleports', kind: 'bool', help: 'Vanishes and reappears near you between casts' },
-    { key: 'homing', label: 'Homing hex', kind: 'bool', help: 'Its hex bolt curves after you. Off: flies straight' }],
+    { key: 'homing', label: 'Homing hex', kind: 'bool', help: 'Its hex bolt curves after you. Off: flies straight' },
+    { key: 'disarm', label: 'Hex disarms', kind: 'bool', help: 'A hex that hits you also seals your whip in a bubble that floats off for 3-5 s. Touch it to pop it early' },
+    { key: 'hardcore', label: 'Hardcore disarm', kind: 'bool', def: false, help: 'On: when the bubble pops by itself your whip drops to the floor and stays there until you pick it up. Off: it flies back to you' }],
   ooze: [SPEED, SIGHT,
     { key: 'split', label: 'Splits', kind: 'bool', help: 'Splits into two smaller oozes when killed' }],
   grub: [SPEED, SIGHT, COOL,
-    { key: 'burrow', label: 'Burrows again', kind: 'bool', help: 'Digs back under after an attack. Off: stays on the surface' }],
+    { key: 'burrow', label: 'Burrows again', kind: 'bool', help: 'Digs back under after an attack (when it does not cocoon). Off: stays on the surface' },
+    { key: 'evolve', label: 'Hatches moths', kind: 'bool', help: 'Left on the surface for 2 s it spins a cocoon, and 1.7 s later three Grave Moths burst out. Kill it before it hatches' }],
+  moth: [SPEED, SIGHT, COOL,
+    { key: 'poison', label: 'Poison powder', kind: 'bool', help: 'Bursting on you leaves a poison that drains your HP every half second (it never takes your last HP)' },
+    { key: 'poisonTime', label: 'Poison length', kind: 'num', help: 'How long the poison lasts (1 = 5 s)' }],
   hand: [SIGHT, COOL,
     { key: 'mash', label: 'Presses to escape', kind: 'num', def: 10, step: 1, min: 1, help: 'Left, right or jump presses it takes to break its grip (it lets go by itself after 2.5 s)' },
     { key: 'leash', label: 'Leash (tiles)', kind: 'num', def: 0, step: 1, min: 0, help: 'How far it may follow you underground from where it was placed. 0 = anywhere along its floor' },
     { key: 'trip', label: 'Trips runners', kind: 'bool', help: 'Running over it trips you onto your face instead of holding you' }],
   devourer: [SPEED, SIGHT, COOL,
-    { key: 'hook', label: 'Chain hook', kind: 'bool', help: 'Lashes out its barbed tongue to drag you into its jaws' },
-    { key: 'chop', label: 'Cleaver chop', kind: 'bool', help: 'Chops at you when you are close' },
+    { key: 'hook', label: 'Tongue lash', kind: 'bool', help: 'Lashes out its barbed tongue to drag you into its jaws' },
+    { key: 'chop', label: 'Tentacle whirl', kind: 'bool', help: 'Spins its tentacles when you are close and slaps you far away, out to tongue range' },
     { key: 'mash', label: 'Presses to escape', kind: 'num', def: 10, step: 1, min: 1, help: 'Left, right or jump presses it takes to tear free of its bite. It keeps biting until you do' }],
   // the Ashen Library (0.6.0), see enemies_library.ts
   tome: [SPEED, SIGHT, COOL,
@@ -203,13 +210,13 @@ export const BASE_ENEMIES = Object.keys(ENEMY_TUNING);
 /** The room-entity letter for each base enemy. */
 export const ENEMY_LETTER: Record<string, string> = {
   zombie: 'z', bat: 'b', knight: 'k', skeleton: 's', wisp: 'w', drowned: 'd', dog: 'g', harpy: 'y', wraith: 'r', crawler: 'c',
-  hookjaw: 'h', eel: 'e', caster: 'm', ooze: 'o', grub: 'u', hand: 'x', tome: 't', chair: 'a', librarian: 'l', spider: 'p', devourer: 'v',
+  hookjaw: 'h', eel: 'e', caster: 'm', ooze: 'o', grub: 'u', hand: 'x', tome: 't', chair: 'a', librarian: 'l', spider: 'p', devourer: 'v', moth: 'f',
 };
 
 /** Every knob of a base enemy at its normal value. */
 export function defaultTune(base: string): Tune {
   const t: Tune = {};
-  for (const f of ENEMY_TUNING[base] || []) t[f.key] = f.kind === 'num' ? f.def ?? 1 : true;
+  for (const f of ENEMY_TUNING[base] || []) t[f.key] = f.def ?? (f.kind === 'num' ? 1 : true);
   return t;
 }
 
@@ -257,12 +264,12 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
   },
   wraith: {
     hp: 44, atk: 15, def: 2, xp: 20, name: 'Bell Wraith', portrait: 'float',
-    desc: 'A dead bell-ringer still at work. When it lifts its bell, back off: the toll itself hurts anyone close by, and it rolls on along the floor as a shockwave. Jump that.',
+    desc: 'A dead bell-ringer still at work. When it lifts its bell, back off: the toll itself hurts anyone close by, and it rolls on along the floor as a shockwave. Jump that. Every blow makes the bell ring back, so strike it from the very tip of your whip.',
     drops: [{ item: 'heartB', chance: 14 }, { item: 'potion', chance: 6 }, { item: 'elixir', chance: 1 }],
   },
   crawler: {
     hp: 26, atk: 13, def: 3, xp: 13, name: 'Frost Crawler', portrait: 'crawl',
-    desc: 'An ice beetle from the frozen waterworks. Clings to ceilings and drops on whatever passes below, and leaves a trail of ice behind it. Stand on the ice too long and you slow to a crawl, then freeze solid. Hop across it instead.',
+    desc: 'An ice beetle from the frozen waterworks. It goes its own way and pays you no mind, crawling up walls, across ceilings and round every corner, and drops on whatever passes below. It leaves a trail of ice behind it. Stand on the ice too long and you slow to a crawl, then freeze solid. Hop across it instead.',
     drops: [{ item: 'heartS', chance: 25 }, { item: 'heartB', chance: 6 }, { item: 'meat', chance: 4 }],
   },
   hookjaw: {
@@ -272,7 +279,7 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
   },
   devourer: {
     hp: 110, atk: 20, def: 4, xp: 40, name: 'Devourer', portrait: 'walk',
-    desc: 'Little more than a mouth on legs. Its barbed tongue lashes out and drags you in, and its whole body opens to swallow your head. It does not let go. Mash to tear free, or be eaten a bite at a time.',
+    desc: 'Little more than a mouth on legs. Its barbed tongue lashes out and drags you in, and its whole body opens to swallow your head. It does not let go. Mash to tear free, or be eaten a bite at a time. Get too close and it whirls its tentacles to slap you away, then reaches for you again.',
     drops: [{ item: 'heartB', chance: 18 }, { item: 'meat', chance: 10 }, { item: 'potion', chance: 8 }, { item: 'elixir', chance: 2 }],
   },
   eel: {
@@ -282,7 +289,7 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
   },
   caster: {
     hp: 36, atk: 15, def: 1, xp: 20, name: 'Gloomcaster', portrait: 'idle',
-    desc: 'A hollow-eyed acolyte who steps through shadow. Its hex slows your limbs and shatters wards. Strike while it casts.',
+    desc: 'A hollow-eyed acolyte who steps through shadow. Its hex slows your limbs, shatters wards and tears the whip from your hand, sealed in a drifting bubble: chase it down and touch it to pop it. Strike while it casts.',
     drops: [{ item: 'heartB', chance: 15 }, { item: 'potion', chance: 6 }, { item: 'elixir', chance: 1 }],
   },
   ooze: {
@@ -292,8 +299,13 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
   },
   grub: {
     hp: 32, atk: 15, def: 2, xp: 15, name: 'Grave Grub', portrait: 'wriggle',
-    desc: 'A blind burrower. Watch for the moving mound of earth, then jump when it trembles. It lies helpless for a moment after it strikes.',
+    desc: 'A blind burrower. Watch for the moving mound of earth, then jump when it trembles. It lies helpless for a moment after it strikes: kill it then, or it wraps itself in a cocoon and hatches a swarm of Grave Moths.',
     drops: [{ item: 'heartS', chance: 20 }, { item: 'meat', chance: 8 }, { item: 'heartB', chance: 6 }],
+  },
+  moth: {
+    hp: 8, atk: 8, def: 0, xp: 5, name: 'Grave Moth', portrait: 'fly',
+    desc: 'What a Grave Grub becomes when it is left lying too long. They come in threes, flitting at you in mad zigzags, and burst into a cloud of poison powder on whatever they touch. One hit kills one.',
+    drops: [{ item: 'heartS', chance: 15 }],
   },
   hand: {
     hp: 20, atk: 0, def: 0, xp: 8, name: 'Gravehand', portrait: 'reach',

@@ -4,7 +4,8 @@ import { clamp, approach, sign, dist, rand } from '../core/util';
 import { GRAVITY, MAX_FALL, TILE } from '../config';
 import type { Game } from './game';
 import { SUB_COST, ITEMS, DIFFICULTIES, WARD_COST } from './data';
-import { HolyFlask, CrossProj, KnifeProj, ShieldDrop } from './objects';
+import { HolyFlask, CrossProj, KnifeProj, ShieldDrop, WhipBubble } from './objects';
+import type { WhipHolder } from './objects';
 import type { DmgType } from './ent';
 
 const WALK = 1.65;
@@ -127,6 +128,10 @@ export class Player implements Body {
   wardCool = 0; // frames before the bubble can be raised again
   wardHitT = 0; // throttles the "blocked" sparks while something keeps touching the bubble
   slowT = 0; // frames left of a Gloomcaster's hex (slower walking)
+  /** A Gloomcaster's hex took her whip: the bubble holding it, or the whip flying back (see disarm). */
+  whipEnt: WhipHolder | null = null;
+  poisonT = 0; // frames left of a moth's poison (see poison)
+  poisonDmg = 0; // HP the poison takes each tick
   yankX = 0; // where a Hookjaw's chain is dragging her
   holdT = 0; // frames until the holder lets go by itself (0 = free): can't walk, jump or dash
   holdBy: Holder | null = null; // the hand or jaws that have her
@@ -223,6 +228,15 @@ export class Player implements Body {
     if (this.landT > 0) this.landT--;
     if (this.wardHitT > 0) this.wardHitT--;
     if (this.slowT > 0) this.slowT--;
+    if (this.poisonT > 0) {
+      // poison eats at her every half second, but never takes her last HP
+      if (--this.poisonT % 30 === 0 && g.hunter.hp > 1 && this.state !== 'dead') {
+        const d = Math.min(this.poisonDmg, g.hunter.hp - 1);
+        g.hunter.hp -= d;
+        g.damageNumber(this.x, this.y - 20, d, '#90e060');
+      }
+      if (this.poisonT <= 0) this.poisonDmg = 0;
+    }
     if (this.wardCool > 0) this.wardCool--;
     if (this.shieldCool > 0) this.shieldCool--;
     if (this.shieldHitT > 0) this.shieldHitT--;
@@ -632,6 +646,11 @@ export class Player implements Body {
   }
 
   startAttack(U: boolean, D: boolean, hdir: number) {
+    if (this.disarmed) {
+      // no whip to swing (or grapple with) until she gets it back
+      this.g.audio.play('cancel');
+      return;
+    }
     if (hdir) this.facing = hdir;
     const air = !this.onGround;
     let dir = 0;
@@ -941,7 +960,7 @@ export class Player implements Body {
    *
    * `type` says what the raised shield does (see DmgType): melee blows from the side it
    * faces are cut by the shield's block value, shots from that side are stopped, and touch
-   * or magic hits go straight through and knock the shield down for a while. (fromX, fromY)
+   * or magic hits go straight through and, if it was raised, knock the shield down for a while. (fromX, fromY)
    * is where the hit came from.
    */
   takeDamage(raw: number, fromX: number, ignoreInvuln = false, fromEnemy = true, type: DmgType = 'touch', fromY = this.y) {
@@ -960,8 +979,9 @@ export class Player implements Body {
       return false;
     }
     const blocked = faced && type === 'melee';
-    if (fromEnemy && (type === 'touch' || type === 'magic') && h.equip.shield) {
-      if (this.guarding) g.audio.play('shieldDown');
+    if (fromEnemy && (type === 'touch' || type === 'magic') && h.equip.shield && this.guarding) {
+      // only a raised shield gets knocked away: lowered, it stays on her arm
+      g.audio.play('shieldDown');
       if (this.shieldCool <= 0) this.dropShield(fromX);
       this.guarding = false;
       this.shieldCool = SHIELD_COOL;
@@ -1096,6 +1116,31 @@ export class Player implements Body {
   hex(frames: number) {
     this.slowT = Math.max(this.slowT, frames);
     this.webbed = false;
+  }
+  /** No whip in hand: a hex sealed it in a bubble, it's flying back, or it lies where it fell. */
+  get disarmed() {
+    return !!this.whipEnt || !!this.g.hunter.lostWhip;
+  }
+  /**
+   * A Gloomcaster's hex tears the whip from her hand, sealed in a bubble that drifts off
+   * (WhipBubble). `hard`: if it pops by itself, the whip drops instead of flying back.
+   */
+  disarm(hard: boolean) {
+    const g = this.g;
+    if (this.disarmed) return;
+    if (this.state === 'attack' || this.state === 'hang') this.set('normal');
+    this.ring = null;
+    this.dangle = false;
+    const [hx, hy] = this.hand();
+    this.whipEnt = new WhipBubble(g, hx, hy - 4, -this.facing, hard);
+    g.spawn(this.whipEnt);
+    g.audio.play('hex');
+    g.damageNumber(this.x, this.y - 32, 'DISARMED', '#d090ff');
+  }
+  /** A moth's powder: she loses `dmg` HP every half second for `frames` frames (it never takes her last HP). */
+  poison(frames: number, dmg: number) {
+    this.poisonT = Math.max(this.poisonT, frames);
+    this.poisonDmg = Math.max(this.poisonDmg, dmg);
   }
   /** Frozen solid in a block of ice (too long on a Frost Crawler's trail). */
   get frozen() {
@@ -1384,8 +1429,12 @@ export class Player implements Body {
     s.place(this.x + strain, this.bottom - 18, this.facing < 0);
     const blink = this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln / 3) % 2 === 0;
     s.opacity = blink ? 0.35 : 1;
-    // webbed: pale and sticky, with strands trailing off her
-    if (this.slowT > 0 && this.webbed) {
+    if (this.poisonT > 0) {
+      // poisoned: a sickly green, with spores drifting off her
+      s.tint(0.75, 1.15, 0.6);
+      if (this.animT % 9 === 0) this.g.fx.burst(this.x, this.y, 'mote', 1, 8, { vy: -0.4, life: 24, fade: true, tint: [0.8, 1.5, 0.5] });
+    } else if (this.slowT > 0 && this.webbed) {
+      // webbed: pale and sticky, with strands trailing off her
       s.tint(1.05, 1.05, 0.95);
       if (this.animT % 10 === 0) this.g.fx.burst(this.x, this.bottom - 6, 'mote', 1, 6, { vy: 0.3, life: 20, fade: true, tint: [1.2, 1.2, 1.1] });
     } else if (this.slowT > 0) {

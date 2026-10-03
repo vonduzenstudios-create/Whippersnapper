@@ -335,7 +335,11 @@ export function buildHookjawSheet(): SheetBuilder {
 interface DevourerPose {
   step: number; // -1..1 stride
   arm: 'down' | 'up' | 'hug'; // the clawed front arm; hug = wrapped round her while it bites
-  cleaver: 0 | 1 | 2; // 0 lowered, 1 raised, 2 chopped down in front
+  /**
+   * Tentacles: undefined = walking on them; 'coil' = drawn in tight under it (the whirl's
+   * warning); a number = whirling round, flung out flat, turned by that many radians.
+   */
+  whirl?: 'coil' | number;
   /** How far the body's two halves gape (radians, 0 = shut). */
   open: number;
   /** The whole body tipped forward (+) or back (-), radians. A bite pitches it mouth-down. */
@@ -349,8 +353,8 @@ interface DevourerPose {
 const DEV_R = 14; // the body's radius: the whole body is the mouth
 
 /**
- * The Devourer: little more than a great round mouth on tentacles, with two arms (a cleaver and
- * a claw). Its "hook" is its long barbed tongue (the HookChain, drawn as tongue). The top and bottom halves of its body are its jaws, hinged at the back.
+ * The Devourer: little more than a great round mouth on tentacles, with one clawed arm. Up close
+ * it spins and lashes its tentacles out flat (`whirl`). Its "hook" is its long barbed tongue (the HookChain, drawn as tongue). The top and bottom halves of its body are its jaws, hinged at the back.
  * Its `bite` frames tip the whole body forward, mouth down, over the spot where the hero's
  * head is when she's held BITE_DX (16 px) in front of it, and are drawn over her.
  * AI in game/enemies_extra.ts.
@@ -359,7 +363,6 @@ export function buildDevourerSheet(): SheetBuilder {
   const b = new SheetBuilder(64, 58, 28, 34); // feet 22: the ground is row 56
   const skin = hex('#5e5262'), skinD = hex('#362c3a'), skinL = hex('#857688');
   const belly = hex('#8a7a78'), bellyD = hex('#5a4c4c');
-  const iron = hex('#6e6a72');
   const gum = hex('#8a1c2c'), mouth = hex('#2a0610'), tooth = hex('#e8e0c8'), eye = hex('#ff5a30'), tongue = hex('#c04050');
   const draw = (q: DevourerPose) => {
     const p = b.canvas();
@@ -379,30 +382,26 @@ export function buildDevourerSheet(): SheetBuilder {
       return pts;
     };
     const center = at(R, 0, pitch); // middle of the body, for the legs and arms
-    // cleaver arm (behind the body)
-    const cl = q.cleaver;
-    const sh: [number, number] = [center[0] - 8, center[1] + 4];
-    const hand: [number, number] = cl === 0 ? [sh[0] - 4, sh[1] + 9] : cl === 1 ? [sh[0] - 3, sh[1] - 24] : [sh[0] + 28, sh[1] + 6];
-    p.line(sh[0], sh[1], hand[0], hand[1], skinD, 3.4);
-    if (cl === 0) p.poly([[hand[0] - 3, hand[1]], [hand[0] + 3, hand[1]], [hand[0] + 4, hand[1] + 10], [hand[0] - 5, hand[1] + 10]], iron);
-    else if (cl === 1) p.poly([[hand[0] - 1, hand[1] - 1], [hand[0] + 8, hand[1] - 4], [hand[0] + 9, hand[1] - 13], [hand[0], hand[1] - 10]], iron);
-    else p.poly([[hand[0], hand[1] - 3], [hand[0] + 12, hand[1] - 1], [hand[0] + 12, hand[1] + 6], [hand[0], hand[1] + 4]], iron);
     // tentacle legs: a row of them along its underside, each a tapering S-curve that bows
     // out past the body, comes back in and curls its tip against the floor. They turn with
     // the body, so when it tips forward to bite they sprout from its back, behind her, and
-    // reach down to the floor. `step` sways them, back to front.
+    // reach down to the floor. `step` sways them, back to front. Coiled, they're drawn in
+    // under it; whirling, only the back row stands and the front row is flung out (`flung`).
     const LEGS = 8;
     const legDark = hex('#2e2434'), legLit = hex('#56485e'), sucker = hex('#a89098');
+    const whirling = typeof q.whirl === 'number';
+    const spread = q.whirl === 'coil' ? 16 : whirling ? 26 : 40; // how far apart the feet stand
     for (const back of [true, false]) {
+      if (!back && whirling) continue;
       for (let k = back ? 1 : 0; k < LEGS; k += 2) {
         const f = k / (LEGS - 1); // 0 = rear leg .. 1 = front leg
         const lx = R + (f - 0.5) * R * 1.4;
         const hip = at(lx, Math.sqrt(R * R - (lx - R) ** 2) * 0.75, pitch);
         const sway = Math.sin(f * Math.PI * 2 + q.step * Math.PI);
         const out = f < 0.5 ? -1 : 1;
-        const foot: [number, number] = [gx + 2 + (f - 0.5) * 40 + sway * 2.5, G - 1];
+        const foot: [number, number] = [gx + 2 + (f - 0.5) * spread + sway * 2.5, G - 1];
         // control points: bow outward and up first, then sweep back down to the foot
-        const c1: [number, number] = [hip[0] + out * (6 + Math.abs(f - 0.5) * 10) + sway * 2, hip[1] - 2];
+        const c1: [number, number] = [hip[0] + out * ((q.whirl === 'coil' ? 2 : 6) + Math.abs(f - 0.5) * 10) + sway * 2, hip[1] - 2];
         const c2: [number, number] = [foot[0] - out * 5 - sway * 3, foot[1] - 9];
         const n = 14, pts: [number, number][] = [];
         for (let i = 0; i <= n; i++) {
@@ -420,6 +419,33 @@ export function buildDevourerSheet(): SheetBuilder {
         p.set(foot[0] + out * 2.5, foot[1] - 2, c);
       }
     }
+    /**
+     * Whirling: six tentacles flung out flat as it spins, seen side-on. Each one's angle round
+     * the spin sets how far it reaches left or right (cos) and whether it's on the near side
+     * of the body (sin > 0, drawn over it) or the far side (drawn behind, darker). Each
+     * trails a bend against the spin and a blur of suckers.
+     */
+    const flung = (near: boolean) => {
+      if (!whirling) return;
+      for (let i = 0; i < 6; i++) {
+        const a = (q.whirl as number) + (i * Math.PI) / 3;
+        if (Math.sin(a) > 0 !== near) continue;
+        const y0 = center[1] + 5 + ((i % 3) - 1) * 3;
+        const root: [number, number] = [center[0] + Math.cos(a) * R * 0.5, y0];
+        const tip: [number, number] = [center[0] + Math.cos(a) * 30, y0 + 3 + ((i % 2) * 2 - 1) * 2];
+        const bend = Math.sin(a) * 6; // trailing against the spin
+        const mid: [number, number] = [(root[0] + tip[0]) / 2, (root[1] + tip[1]) / 2 - bend];
+        const n = 10, pts: [number, number][] = [];
+        for (let j = 0; j <= n; j++) {
+          const t = j / n, u = 1 - t;
+          pts.push([u * u * root[0] + 2 * u * t * mid[0] + t * t * tip[0], u * u * root[1] + 2 * u * t * mid[1] + t * t * tip[1]]);
+        }
+        const c = near ? legLit : legDark;
+        for (let j = 1; j <= n; j++) p.line(...pts[j - 1], ...pts[j], c, Math.max(1.2, 3.4 * (1 - j / (n + 3))));
+        if (near) for (let j = 3; j < n; j += 2) p.set(pts[j][0], pts[j][1] + 1, sucker);
+      }
+    };
+    flung(false);
     // the inside of the mouth, between the halves
     if (q.open > 0.02) {
       p.poly([at(-1, 0, pitch), at(2 * R + 1, 0, upA), at(2 * R + 1, 0, lowA)], mouth);
@@ -468,21 +494,24 @@ export function buildDevourerSheet(): SheetBuilder {
       p.line(fs[0] - 4, fs[1] + 2, fs[0] + 8, fs[1] + 10, skin, 3.4); // hug: wrapped round her middle
       claw(fs[0] + 8, fs[1] + 10, 2.5, -1.5);
     }
+    flung(true);
     return fin(p);
   };
-  b.add('walk', ...[0, 1, 0, -1].map((s) => draw({ step: s, arm: 'down', cleaver: 0, open: 0.03 })));
+  b.add('walk', ...[0, 1, 0, -1].map((s) => draw({ step: s, arm: 'down', open: 0.03 })));
   // rears back with its tongue curled out, then lashes it (the tongue itself is the HookChain)
-  b.add('wind', draw({ step: 0, arm: 'up', cleaver: 0, open: 0.35, pitch: -0.2, hinge: [13, 31], tongueOut: true }));
-  b.add('throw', draw({ step: 0.5, arm: 'down', cleaver: 0, open: 0.45, pitch: 0.1 }));
-  b.add('chop', draw({ step: 0, arm: 'down', cleaver: 1, open: 0.03 }), draw({ step: 1, arm: 'down', cleaver: 2, open: 0.03 }));
+  b.add('wind', draw({ step: 0, arm: 'up', open: 0.35, pitch: -0.2, hinge: [13, 31], tongueOut: true }));
+  b.add('throw', draw({ step: 0.5, arm: 'down', open: 0.45, pitch: 0.1 }));
+  // the whirl: tentacles drawn in tight (the warning), then flung out flat as it spins
+  b.add('coil', draw({ step: 0, arm: 'down', open: 0.1, whirl: 'coil', hinge: [14, 33] }));
+  b.add('whirl', ...[0, 1, 2, 3].map((k) => draw({ step: 0, arm: 'down', open: 0.2, whirl: (k * Math.PI) / 6, hinge: [14, 27] })));
   // waiting for her: the whole body gapes open
-  b.add('jaws', draw({ step: 0.5, arm: 'up', cleaver: 0, open: 0.75, pitch: 0.15 }));
+  b.add('jaws', draw({ step: 0.5, arm: 'up', open: 0.75, pitch: 0.15 }));
   // tipped forward and mouth down over her head: 0 chewing (a crack open), 1 clamped shut
   const biteHinge: [number, number] = [31, 7];
   b.add('bite',
-    draw({ step: 0.5, arm: 'hug', cleaver: 0, open: 0.18, pitch: 1.05, hinge: biteHinge }),
-    draw({ step: 0.5, arm: 'hug', cleaver: 0, open: 0.04, pitch: 1.05, hinge: biteHinge }));
-  b.add('reel', draw({ step: -1, arm: 'up', cleaver: 0, open: 0.5, pitch: -0.35, hinge: [12, 30] }));
+    draw({ step: 0.5, arm: 'hug', open: 0.18, pitch: 1.05, hinge: biteHinge }),
+    draw({ step: 0.5, arm: 'hug', open: 0.04, pitch: 1.05, hinge: biteHinge }));
+  b.add('reel', draw({ step: -1, arm: 'up', open: 0.5, pitch: -0.35, hinge: [12, 30] }));
   return b;
 }
 
@@ -657,6 +686,70 @@ export function buildGrubSheet(): SheetBuilder {
   b.add('burst', rear(1, true));
   b.add('dig', rear(0.4, false));
   b.add('wriggle', flop(0), flop(1.5));
+  /** Left stranded too long, it wraps itself in grey silk: a lumpy cocoon that swells and splits (`i` = 0..2). */
+  const cocoon = (i: number) => {
+    const p = b.canvas();
+    const silk = hex('#b8b0a0'), silkD = hex('#6a6458'), glow = hex('#c8f070');
+    const h = 13 + i * 2, w = 7 + i;
+    p.ellipse(16, 36 - h / 2, w, h / 2, silkD);
+    p.ellipse(15.5, 35.5 - h / 2, w - 1.2, h / 2 - 1.2, silk);
+    // the threads wound round it
+    for (let k = 0; k < 5; k++) {
+      const y = 36 - h + 3 + k * (h / 5);
+      p.line(16 - w + 1, y, 16 + w - 1, y + 2, silkD);
+    }
+    // something moving inside: lumps under the silk, and at the end a split with a sickly glow
+    p.set(13 + i, 30 - i * 2, silkD);
+    p.set(18 - i, 27, silkD);
+    if (i === 2) {
+      p.line(16, 36 - h + 2, 15, 36 - h / 2, mouth, 1.5);
+      p.set(16, 36 - h + 5, glow);
+      p.set(15, 36 - h + 8, glow);
+    }
+    p.ellipse(16, 36, w + 2, 2, dirt);
+    return fin(p, hex('#1a1008'));
+  };
+  b.add('cocoon', cocoon(0), cocoon(1), cocoon(2));
+  return b;
+}
+
+// ---------------------------------------------------------------- grave moth
+
+/**
+ * A Grave Moth, hatched from a grub left too long on the surface. Ragged grey wings with
+ * sickly green eyespots and a fat, dusty body. Frames: `fly` (wings up, level, down) and
+ * `dive` (wings swept back). AI in game/enemies_extra.ts.
+ */
+export function buildMothSheet(): SheetBuilder {
+  const b = new SheetBuilder(24, 20, 12, 10);
+  const wing = hex('#8a8478'), wingD = hex('#4a4640'), spot = hex('#a8e050'), spotD = hex('#3a5010');
+  const body = hex('#6a5a48'), fuzz = hex('#a89a80'), eye = hex('#ff4040');
+  /** `lift`: how far the wings are raised (-1 down .. 1 up); `swept`: folded back for a dive. */
+  const draw = (lift: number, swept = false) => {
+    const p = b.canvas();
+    const cx = 12, cy = 11;
+    // the far wing, darker, behind the body
+    const tipY = cy - lift * 8, tipX = swept ? cx - 9 : cx - 2;
+    p.poly([[cx, cy - 1], [tipX - 3, tipY - 1], [tipX + 1, tipY + 2], [cx + 2, cy + 1]], wingD);
+    // the body: a fat dusty abdomen, a fuzzy head with red eyes and feathery antennae
+    p.ellipse(cx - 2, cy + 1, 4.5, 2.5, body);
+    for (let k = 0; k < 3; k++) p.set(cx - 5 + k * 2, cy + 1, fuzz); // its stripes
+    p.circle(cx + 3, cy, 2.2, fuzz);
+    p.set(cx + 4, cy - 1, eye);
+    p.line(cx + 4, cy - 2, cx + 7, cy - 5, wingD);
+    p.line(cx + 3, cy - 2, cx + 5, cy - 6, wingD);
+    // the near wing, ragged at the edge, with its eyespot
+    const nx = swept ? cx - 10 : cx - 4, ny = cy - lift * 9 + (lift < 0 ? 3 : 0);
+    p.poly([[cx + 1, cy], [nx - 4, ny - 1], [nx - 2, ny + 4], [nx + 2, ny + 5], [cx + 2, cy + 2]], wing);
+    const sx = (cx + nx) / 2 - 1, sy = (cy + ny) / 2 + 1;
+    p.set(sx, sy, spot);
+    p.set(sx + 1, sy, spot);
+    p.set(sx, sy + 1, spotD);
+    p.set(nx - 3, ny + 1, wingD); // a tatter
+    return fin(p, hex('#141010'));
+  };
+  b.add('fly', draw(1), draw(0), draw(-0.8));
+  b.add('dive', draw(0.3, true));
   return b;
 }
 

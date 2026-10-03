@@ -528,6 +528,21 @@ const SFX: Record<string, Sfx> = {
     a.noise({ dur: 0.12, vol: 0.22, type: 'lowpass', f0: 900, f1: 200, q: 3 });
     a.tone({ type: 'sine', f0: 180, f1: 90, dur: 0.1, vol: 0.12 });
   },
+  // a boss's freeze frame: a deep, ringing hit
+  sting: (a) => {
+    a.noise({ dur: 0.25, vol: 0.35, type: 'lowpass', f0: 1800, f1: 150 });
+    a.tone({ type: 'sawtooth', f0: 110, f1: 52, dur: 0.9, vol: 0.14, lp: 900 });
+    a.tone({ type: 'square', f0: 220, f1: 104, dur: 0.6, vol: 0.05, lp: 1400, t: 0.02 });
+  },
+  // a Grave Moth darting in: quick, dry, papery wingbeats
+  flutter: (a) => {
+    for (let i = 0; i < 4; i++) a.noise({ dur: 0.025, vol: 0.13, type: 'bandpass', f0: 1400 + i * 150, q: 2, t: i * 0.045 });
+  },
+  // a Grave Moth bursting: a soft, dusty puff
+  powder: (a) => {
+    a.noise({ dur: 0.3, vol: 0.22, type: 'bandpass', f0: 1800, f1: 600, q: 0.8 });
+    a.tone({ type: 'sine', f0: 140, f1: 70, dur: 0.15, vol: 0.08 });
+  },
   // Grave Grub digging: gritty, scraping earth
   // dialogue typing out: a soft, slightly random blip every few letters
   talk: (a) => a.tone({ type: 'triangle', f0: 520 + Math.random() * 80, dur: 0.035, vol: 0.05 }),

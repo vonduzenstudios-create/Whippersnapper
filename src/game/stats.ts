@@ -65,6 +65,8 @@ export class Hunter {
   collected: string[] = [];
   flags: string[] = []; // world switches that stay flipped, e.g. 'crypt_drained', 'boss_hound'
   broken: string[] = []; // breakable stones already smashed, as 'roomId:x,y' (they stay broken)
+  /** A Gloomcaster's hex (hardcore) dropped her whip here: it lies there until she picks it up. */
+  lostWhip: { room: string; x: number; y: number } | null = null;
   bestiary: Record<string, number> = {}; // kills per enemy kind
   visited: string[] = [];
   bossDefeated = false; // the Ossuary Wyrm (older saves only have this); other bosses use 'boss_<id>' flags

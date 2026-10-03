@@ -13,7 +13,7 @@ import { buildHoundSheet, buildBellMotherSheet } from './gfx/art_bosses';
 import { TEST_EDITS_KEY } from './config';
 import {
   buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet,
-  buildHookjawSheet, buildDevourerSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet,
+  buildHookjawSheet, buildDevourerSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet, buildMothSheet,
 } from './gfx/art_beasts';
 
 const BASE_SHEETS: Record<string, Sheet> = {
@@ -38,6 +38,7 @@ const BASE_SHEETS: Record<string, Sheet> = {
   chair: buildSheet(buildChairSheet()),
   librarian: buildSheet(buildLibrarianSheet()),
   spider: buildSheet(buildSpiderSheet()),
+  moth: buildSheet(buildMothSheet()),
 };
 /** The bosses: their stats and text can be edited here, but not their colors, and they have no variants. */
 const BOSS_SHEETS: Record<string, Sheet> = {

@@ -664,7 +664,9 @@ export class UI {
     if (g.state === 'title' || g.state === 'intro') return;
     if (g.cutscene) return this.drawCutscene();
     if (g.bossShow) {
-      // a boss making its entrance: letterbox bars and its name, nothing else
+      // a boss scene: letterbox bars and its name, nothing else. On its freeze frame (and
+      // while it talks) the screen darkens round it, so it stands out.
+      if (g.freezeT > 0 || g.state === 'talk') this.drawVignette();
       c.fillStyle = '#000';
       c.fillRect(0, 0, VW, 18);
       c.fillRect(0, VH - 18, VW, 18);
@@ -714,18 +716,45 @@ export class UI {
     this.drawBossBar();
   }
 
-  /** The big title across the screen (a boss's name as its fight starts). */
+  /** True if the boss on screen stands in the lower part of it: boss scene text goes up top instead. */
+  bossLow() {
+    const g = this.g, b = g.boss;
+    return !!b && b.y - g.view.camY > VH * 0.45;
+  }
+
+  /** The banner on screen, and whether it sits at the top (picked once as it appears, so it doesn't jump about). */
+  private bannerFor: object | null = null;
+  private bannerTop = false;
+  /** The big title across the screen (a boss's name as its fight starts), on the side of the screen away from the boss. */
   drawBanner() {
     const g = this.g, c = this.ctx;
     if (g.banner.t > 0) {
       const a = Math.min(1, g.banner.t / 30, (220 - g.banner.t) / 30);
+      const h = g.banner.sub ? 40 : 30;
+      if (this.bannerFor !== g.banner) {
+        this.bannerFor = g.banner;
+        this.bannerTop = this.bossLow();
+      }
+      const y = !g.boss ? 74 : this.bannerTop ? 22 : VH - 22 - h;
       c.globalAlpha = Math.max(0, a);
       c.fillStyle = 'rgba(0,0,0,0.5)';
-      c.fillRect(0, 74, VW, g.banner.sub ? 40 : 30);
-      drawBigText(c, g.banner.text, VW / 2, 80, 2, GOLD, '#3a0a10');
-      if (g.banner.sub) drawText(c, g.banner.sub, VW / 2, 100, PALE, '#000', 'center');
+      c.fillRect(0, y, VW, h);
+      drawBigText(c, g.banner.text, VW / 2, y + 6, 2, GOLD, '#3a0a10');
+      if (g.banner.sub) drawText(c, g.banner.sub, VW / 2, y + 26, PALE, '#000', 'center');
       c.globalAlpha = 1;
     }
+  }
+
+  /** A boss's freeze frame: a white flash fading into a dark red vignette centered on it. */
+  drawVignette() {
+    const g = this.g, c = this.ctx, b = g.boss;
+    if (!b) return;
+    const x = b.x - g.view.camX, y = b.y - g.view.camY;
+    const grad = c.createRadialGradient(x, y, 30, x, y, 230);
+    grad.addColorStop(0, 'rgba(20,0,6,0)');
+    grad.addColorStop(1, 'rgba(24,0,6,0.85)');
+    c.fillStyle = grad;
+    c.fillRect(0, 0, VW, VH);
   }
 
   drawBossBar() {
@@ -1017,7 +1046,10 @@ export class UI {
   drawTalk() {
     const g = this.g, c = this.ctx, T = g.talkState;
     if (!T) return;
-    const line = T.lines[T.i], B = TALK_BOX;
+    // in a boss scene with the boss low on screen, the box moves up top (portraits hang
+    // below it at the sides) so it doesn't cover the boss
+    const top = g.bossShow && this.bossLow();
+    const line = T.lines[T.i], B = top ? { ...TALK_BOX, y: 24 } : TALK_BOX;
     // who stands where: the hero on the left, whoever she is talking to on the right. Each
     // shows the face of their latest line so far (or of their first, before they've spoken).
     const faceOf = (left: boolean) => {
@@ -1029,15 +1061,16 @@ export class UI {
       const l = faceOf(left);
       if (!l) continue;
       const lit = l === line;
-      this.portrait(l.who, l.face || 'neutral', left ? B.x + 6 : B.x + B.w - 70, B.y - 58 - (lit ? 2 : 0), !left, lit);
+      this.portrait(l.who, l.face || 'neutral', left ? B.x + 6 : B.x + B.w - 70, (top ? B.y + B.h + 2 : B.y - 58) - (lit ? 2 : 0), !left, lit);
     }
     this.panel(B.x, B.y, B.w, B.h, 0.94);
     // the speaker's name plate, on their side of the box
     const left = SPEAKERS[line.who].side === 'left';
     const name = g.text(SPEAKERS[line.who].name), nw = textWidth(name) + 12;
     const nx = left ? B.x + 76 : B.x + B.w - 76 - nw;
-    this.panel(nx, B.y - 9, nw, 13, 1);
-    drawText(c, name, nx + 6, B.y - 6, GOLD);
+    const ny = top ? B.y + B.h - 4 : B.y - 9; // on the box's edge next to the portraits
+    this.panel(nx, ny, nw, 13, 1);
+    drawText(c, name, nx + 6, ny + 3, GOLD);
     // the line so far
     const text = g.text(line.text).slice(0, Math.floor(T.shown));
     this.wrap(text, B.w - 20).slice(0, 4).forEach((l, i) => drawText(c, l, B.x + 10, B.y + 9 + i * 11, PALE));

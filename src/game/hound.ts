@@ -202,6 +202,7 @@ export class Hound extends Ent implements Boss {
       case 'howl':
         this.vx = 0;
         frame = A.howl[0];
+        if (this.pt === 1) this.face();
         if (this.pt === 10) {
           g.audio.play('howl');
           g.shake(3, 50);
@@ -215,6 +216,7 @@ export class Hound extends Ent implements Boss {
             g.fx.burst(x, floor - 10, 'smoke', 4, 8, { vy: -0.5, fps: 8, life: 40 });
           }
         }
+        if (this.pt === 60 && this.data.scene) g.bossTalk('boss_hound_phase2');
         if (this.pt > 90) this.next();
         break;
       case 'spit': {
@@ -246,7 +248,9 @@ export class Hound extends Ent implements Boss {
           g.audio.play('explode');
           g.shake(3, 8);
         }
-        // ...a long silence, then embers stir in the body and something like a heartbeat
+        // ...a long silence, then embers stir in the body and something like a heartbeat.
+        // That's when the scene starts: she stops, and the camera turns back to it
+        if (this.pt === 150) g.bossScene();
         if (this.pt > 150 && this.pt % 12 === 0) g.fx.burst(this.x + rand(-28, 28), this.y + rand(-10, 18), 'spark', 1, 4);
         if (this.pt === 170 || this.pt === 196) {
           g.audio.play('growl');
@@ -276,7 +280,10 @@ export class Hound extends Ent implements Boss {
         frame = A.howl[0];
         this.hp = Math.min(this.maxHp, this.hp + this.maxHp / 60);
         if (this.pt % 6 === 0) g.fx.burst(this.x + rand(-30, 30), this.y + rand(-20, 10), 'spark', 1, 4);
-        if (this.pt > 80) {
+        if (this.pt === 1) this.face();
+        // its name has had a moment on screen: freeze on the howl, and it has something to say
+        if (this.pt === 110) g.bossTalk('boss_hound_revive');
+        if (this.pt > 110) {
           this.hostile = true;
           this.whipTarget = true;
           this.set('stalk');
@@ -331,9 +338,12 @@ export class Hound extends Ent implements Boss {
     g.fx.burst(this.x + sign(fromX - this.x) * 16, this.y - 4, 'spark', 1, 4);
     if (kind === 'whip') g.hitstop(4);
     if (this.phase === 1 && this.hp > 0 && this.hp <= this.maxHp / 2) {
+      // half dead, it howls for its pack: a scene, ending on its howl (see 'howl')
       this.phase = 2;
-      g.message('GNARLFANG HOWLS FOR ITS PACK!', 140);
+      for (const e of g.ents) if (e instanceof EnemyShot || e instanceof Shockwave) e.dead = true;
+      g.bossScene();
       this.set('howl');
+      this.data.scene = true;
     }
     if (this.hp <= 0) {
       this.hp = 0;

@@ -606,6 +606,28 @@ export function buildRelicFxSheet(): SheetBuilder {
     return p;
   };
   b.add('bubble', bubble(0), bubble(1), bubble(2), bubble(3));
+  // a Gloomcaster's hex bubble, holding her whip: violet glass with a pearly sheen that
+  // slides round the rim (pink, violet, sea-green), a soft fill and a bright glint
+  const pearl = [hex('#f0a8e8'), hex('#b890ff'), hex('#8ae8d8'), hex('#c8a0ff')];
+  const hexBubble = (i: number) => {
+    const p = b.canvas();
+    const cx = 24, cy = 24, r = 12;
+    p.circle(cx, cy, r, hex('#6a3aa0', 70));
+    p.circle(cx - 2, cy - 2, r - 4, hex('#8a5ac8', 40));
+    for (let a = 0; a < 360; a += 3) {
+      const t = (a * Math.PI) / 180;
+      const k = Math.floor(((a / 360) * 4 + i) % 4); // the sheen's colors turn with the frame
+      p.set(cx + Math.cos(t) * r, cy + Math.sin(t) * r, pearl[k]);
+      if (a % 6 === 0) p.set(cx + Math.cos(t) * (r - 1), cy + Math.sin(t) * (r - 1), hex('#4a2070', 180));
+    }
+    // the glint, sliding a little each frame
+    const gx = cx - 5 + i, gy = cy - 6;
+    p.set(gx, gy, hex('#ffffff'));
+    p.set(gx + 1, gy, hex('#ffffff'));
+    p.set(gx, gy + 1, hex('#ffe8ff', 200));
+    return p;
+  };
+  b.add('hexBubble', hexBubble(0), hexBubble(1), hexBubble(2), hexBubble(3));
   // the raised shield, seen from the side: a narrow face held out in front of her.
   // Frame 0: held level. Frame 1: aimed up and forward, its top leaning back over her head (\ when
   // facing right). Frame 2: held flat overhead.

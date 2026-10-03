@@ -113,7 +113,15 @@ export class Pickup extends Ent {
         this.vy = Math.min(this.vy + 0.08, 0.7);
         this.vx = Math.sin(this.t * 0.08) * 0.8;
       } else this.vy = Math.min(this.vy + 0.18, 4);
-      moveBody(g.room, this, true);
+      if (this.kind === 'shard' && this.t > 30 && g.player.alive) {
+        // a soul shard rises off the floor and floats to her, quicker as it closes in
+        const p = g.player, dx = p.x - this.x, dy = p.y - this.y, d = Math.hypot(dx, dy) || 1;
+        const sp = Math.min(4, 0.6 + (this.t - 30) * 0.03);
+        this.x += (dx / d) * sp;
+        this.y += (dy / d) * sp;
+        this.vx = this.vy = 0;
+        if (this.t % 4 === 0) g.fx.burst(this.x, this.y, 'mote', 1, 0, { life: 18, fade: true, glow: 1 });
+      } else moveBody(g.room, this, true);
       if (this.onGround) this.vx = 0;
     }
     if (this.sinkTo !== undefined && this.y < this.sinkTo) this.y = Math.min(this.sinkTo, this.y + 0.8);
@@ -610,6 +618,198 @@ export class ShieldDrop extends Ent {
     // blinks out over its last half second (the shield cooldown is 1.5 s)
     if (this.t > 50) s.visible = Math.floor(this.t / 4) % 2 === 0;
     if (this.t > 80) this.dead = true;
+  }
+}
+
+// ---------------------------------------------------------------- the hexed whip
+
+/** Something holding the hero's whip away from her: it settles up when she leaves the room. */
+export interface WhipHolder extends Ent {
+  leaveRoom(g: Game): void;
+}
+
+/**
+ * Where something dropped at (x, y) comes to rest: the first floor straight below with room
+ * above it (not spikes), or failing that the nearest such floor to the side. [x, floorY].
+ */
+function floorSpot(g: Game, x: number, y: number): [number, number] {
+  const r = g.room;
+  const down = (cx: number) => {
+    const tx = Math.floor(cx / TILE);
+    for (let ty = Math.max(1, Math.floor(y / TILE)); ty < r.rows; ty++) {
+      if (!r.floorAt(tx, ty) || r.solidAt(tx, ty - 1)) continue;
+      return r.tile(tx, ty - 1) === '^' ? -1 : ty * TILE;
+    }
+    return -1;
+  };
+  for (let d = 0; d < r.W; d += TILE)
+    for (const cx of d ? [x - d, x + d] : [x]) {
+      if (cx < TILE || cx > r.W - TILE) continue;
+      const fy = down(cx);
+      if (fy >= 0) return [cx, fy];
+    }
+  return [x, y];
+}
+
+/**
+ * A Gloomcaster's hex tore the whip from her hand and sealed it in a violet bubble that
+ * drifts about at random. Touching it pops it and she has her whip back. Left alone, it
+ * pops by itself after `life` frames: softcore, the whip flies back to her (WhipReturn);
+ * hardcore, it drops to the floor and stays there until she picks it up (WhipDrop).
+ */
+export class WhipBubble extends Ent implements WhipHolder {
+  t = 0;
+  vx: number;
+  vy = -1.6;
+  turnT = 20; // frames to its next change of course
+  whip: Sprite;
+  constructor(g: Game, x: number, y: number, dir: number, private hard: boolean, private life = rand(180, 300)) {
+    super();
+    this.x = x;
+    this.y = y;
+    this.hw = this.hh = 10;
+    this.vx = dir * 1.4;
+    this.whip = new Sprite(g.sheets.items, g.view.sprites, 13);
+    this.whip.setFrame(g.sheets.items.anims.whip[0]);
+    this.sprite = new Sprite(g.sheets.relicfx, g.view.sprites, 14);
+    this.sprite.glow = 0.3;
+  }
+  update(g: Game) {
+    this.t++;
+    const r = g.room, p = g.player;
+    // an erratic drift: a fresh random heading every so often, with a nervous wobble on top
+    if (--this.turnT <= 0) {
+      this.turnT = rand(15, 40);
+      const a = rand(0, Math.PI * 2), sp = rand(0.5, 1.6);
+      this.vx = Math.cos(a) * sp;
+      this.vy = Math.sin(a) * sp * 0.7;
+    }
+    const wob = Math.sin(this.t * 0.3) * 0.4;
+    const nx = this.x + this.vx + wob, ny = this.y + this.vy + Math.cos(this.t * 0.23) * 0.3;
+    // bounce off walls and stay well inside the room
+    if (nx < 16 || nx > r.W - 16 || r.solidPx(nx + Math.sign(this.vx) * 10, this.y)) this.vx = -this.vx;
+    else this.x = nx;
+    if (ny < 20 || ny > r.H - 24 || r.solidPx(this.x, ny + Math.sign(this.vy) * 10)) this.vy = -this.vy;
+    else this.y = ny;
+    const s = this.sprite!;
+    s.anim('hexBubble', this.t / 60, 8);
+    s.place(this.x, this.y);
+    this.whip.mesh.rotation.z = Math.sin(this.t * 0.05) * 0.6;
+    this.whip.place(this.x, this.y);
+    if (this.t % 8 === 0) g.fx.burst(this.x + rand(-9, 9), this.y + rand(-9, 9), 'mote', 1, 0, { life: 20, fade: true, tint: [1.3, 0.6, 1.6], glow: 0.8 });
+    // the last second it shivers and blinks: about to pop
+    if (this.life - this.t < 60) s.visible = Math.floor(this.t / 3) % 2 === 0;
+    if (this.t > 20 && p.alive && overlap(this, p)) return this.pop(g, true);
+    if (this.t >= this.life) this.pop(g, false);
+  }
+  /** Burst: `touched` = she popped it and takes the whip straight back. */
+  pop(g: Game, touched: boolean) {
+    this.dead = true;
+    g.audio.play('glass');
+    g.fx.burst(this.x, this.y, 'star', 8, 10, { speed: 1.6, life: 26, fade: true, tint: [1.3, 0.7, 1.6] });
+    const p = g.player;
+    if (touched) {
+      p.whipEnt = null;
+      g.audio.play('item');
+      return;
+    }
+    const next = this.hard ? new WhipDrop(g, this.x, this.y, false) : new WhipReturn(g, this.x, this.y);
+    p.whipEnt = this.hard ? null : (next as WhipReturn);
+    g.spawn(next);
+  }
+  /** She left the room before it popped. Hardcore, the whip falls where the bubble was. */
+  leaveRoom(g: Game) {
+    if (!this.hard) return;
+    const [x, fy] = floorSpot(g, this.x, this.y);
+    g.hunter.lostWhip = { room: g.room.def.id, x, y: fy - 4 };
+  }
+  destroy() {
+    this.whip.dispose();
+    super.destroy();
+  }
+}
+
+/** Softcore: the whip, freed from its bubble, flies back to her hand. */
+export class WhipReturn extends Ent implements WhipHolder {
+  t = 0;
+  constructor(g: Game, x: number, y: number) {
+    super();
+    this.x = x;
+    this.y = y;
+    this.sprite = new Sprite(g.sheets.items, g.view.sprites, 13);
+    this.sprite.setFrame(g.sheets.items.anims.whip[0]);
+    this.sprite.glow = 0.5;
+  }
+  update(g: Game) {
+    this.t++;
+    const p = g.player, dx = p.x - this.x, dy = p.y - 6 - this.y, d = Math.hypot(dx, dy);
+    const sp = Math.min(7, 1 + this.t * 0.15);
+    if (d < sp + 4 || !p.alive) {
+      this.dead = true;
+      p.whipEnt = null;
+      g.audio.play('item');
+      g.fx.burst(p.x, p.y - 6, 'star', 5, 6, { life: 20, fade: true });
+      return;
+    }
+    this.x += (dx / d) * sp;
+    this.y += (dy / d) * sp;
+    const s = this.sprite!;
+    s.mesh.rotation.z = this.t * 0.4;
+    s.place(this.x, this.y);
+    if (this.t % 3 === 0) g.fx.burst(this.x, this.y, 'mote', 1, 0, { life: 14, fade: true, glow: 1 });
+  }
+  leaveRoom() {} // it reached her on the way out
+}
+
+/**
+ * Hardcore: the whip lies on the floor where it fell (Hunter.lostWhip remembers the spot,
+ * even across rooms and saves) until she walks over it. `placed` = loaded from that spot.
+ */
+export class WhipDrop extends Ent {
+  t = 0;
+  vy = 0;
+  landed: boolean;
+  constructor(g: Game, x: number, y: number, placed: boolean) {
+    super();
+    this.hw = this.hh = 5;
+    this.landed = placed;
+    if (placed) {
+      this.x = x;
+      this.y = y;
+    } else {
+      // it falls straight down (or, over a pit or water, to the nearest floor beside it)
+      const [fx, fy] = floorSpot(g, x, y);
+      this.x = fx;
+      this.y = fx === x ? y : Math.min(y, fy - 4);
+      this.floorY = fy - 4;
+      g.hunter.lostWhip = { room: g.room.def.id, x: fx, y: fy - 4 };
+    }
+    this.sprite = new Sprite(g.sheets.items, g.view.sprites, 9);
+    this.sprite.setFrame(g.sheets.items.anims.whip[0]);
+  }
+  floorY = 0;
+  update(g: Game) {
+    this.t++;
+    if (!this.landed) {
+      this.vy = Math.min(this.vy + 0.25, 5);
+      this.y += this.vy;
+      if (this.y >= this.floorY) {
+        this.y = this.floorY;
+        this.landed = true;
+        g.audio.play('clink');
+        g.fx.burst(this.x, this.y + 3, 'dust', 2, 4);
+      }
+    }
+    const s = this.sprite!;
+    s.glow = 0.2 + Math.sin(this.t * 0.1) * 0.2;
+    s.place(this.x, this.y);
+    const p = g.player;
+    if (this.landed && p.alive && overlap(this, { x: p.x, y: p.y, hw: p.hw + 2, hh: p.hh })) {
+      this.dead = true;
+      g.hunter.lostWhip = null;
+      g.audio.play('item');
+      g.message('WHIP RECOVERED', 120);
+    }
   }
 }
 

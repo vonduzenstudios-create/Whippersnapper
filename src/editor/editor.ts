@@ -43,7 +43,7 @@ const CATS: [Cat, string][] = [
 const ITEM_IDS = Object.keys(ITEMS).filter((id) => ITEMS[id].slot !== 'relic');
 const ENEMY_HINT: Record<string, string> = {
   bat: ' (HANGS FROM THE CEILING)', drowned: ' (PUT IT IN WATER)', harpy: ' (FLIES)', wraith: ' (FLOATS)',
-  crawler: ' (RIGHT UNDER A CEILING: CLINGS TO IT)', eel: ' (PUT IT IN WATER)', grub: ' (PUT IT ON A FLOOR)', hand: ' (PUT IT ON A FLOOR)',
+  crawler: ' (CRAWLS ROUND WALLS AND CEILINGS. RIGHT UNDER A CEILING: STARTS ON IT)', eel: ' (PUT IT IN WATER)', grub: ' (PUT IT ON A FLOOR)', hand: ' (PUT IT ON A FLOOR)',
   tome: ' (PUT IT INSIDE A BOOKCASE: SLEEPS UNTIL YOU PASS)',
   chair: ' (LOOKS LIKE A PROP CHAIR UNTIL YOU COME CLOSE)',
   librarian: ' (ON THE FLOOR IN FRONT OF A BOOKCASE: SHELVES BOOKS UNTIL YOU COME CLOSE)',
@@ -120,6 +120,7 @@ const MARKERS: Record<string, { sheet: keyof Sheets; anim: string; dy: number }>
   o: { sheet: 'ooze', anim: 'big', dy: 0 },
   u: { sheet: 'grub', anim: 'mound', dy: 0 },
   x: { sheet: 'hand', anim: 'reach', dy: 0 },
+  f: { sheet: 'moth', anim: 'fly', dy: 8 },
   t: { sheet: 'tome', anim: 'shelf', dy: 8 },
   a: { sheet: 'chair', anim: 'sit', dy: 8 },
   n: { sheet: 'chair', anim: 'sit', dy: 8 },

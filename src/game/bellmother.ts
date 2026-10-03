@@ -4,6 +4,7 @@
 //   feathers - three fans of feather darts from above
 //   toll     - rings the great bell: shockwaves roll in from both walls along the floor
 //              (twice, with falling masonry, below half HP)
+//   rage     - at half HP (a scene): she shrieks and rings the bell with her own body, twice
 //   summon   - below half HP: calls two harpies
 import { Sprite } from '../gfx/view';
 import { Ent, HitKind, Boss } from './ent';
@@ -13,7 +14,7 @@ import { EnemyShot } from './objects';
 import { Harpy, Shockwave } from './enemies_expansion';
 import { clamp, rand, sign } from '../core/util';
 
-type Pat = 'enter' | 'hover' | 'swoop' | 'feathers' | 'toll' | 'summon' | 'dying';
+type Pat = 'enter' | 'hover' | 'swoop' | 'feathers' | 'toll' | 'summon' | 'rage' | 'dying';
 
 export class BellMother extends Ent implements Boss {
   label = 'BELL-MOTHER';
@@ -108,7 +109,7 @@ export class BellMother extends Ent implements Boss {
           g.shake(4, 50);
           frame = A.cast[0];
         }
-        if (this.pt > 240 && this.pt < 270) frame = A.cast[0];
+        if (this.pt > 240 && this.pt <= 280) frame = A.cast[0]; // held for the freeze frame
         if (this.pt === 280) g.bossTalk();
         if (this.pt > 280) this.pick('hover');
         break;
@@ -181,6 +182,27 @@ export class BellMother extends Ent implements Boss {
         if (this.pt > 50 + rings * 70 + 30) this.pick('hover');
         break;
       }
+      case 'rage':
+        // her second wind (a scene): she rises to the middle of the belfry, shrieks, then
+        // throws herself against the great bell twice. It ends frozen on her, mid-toll
+        this.steer(W / 2, 80, 2.5);
+        this.facing = p.x < this.x ? -1 : 1;
+        frame = this.pt < 50 ? A.fly[Math.floor(g.frame / 5) % 4] : A.cast[0];
+        if (this.pt === 30) {
+          g.audio.play('screech');
+          g.shake(5, 40);
+          g.fadeFlash = 12;
+        }
+        if (this.pt === 60 || this.pt === 95) {
+          g.audio.play('toll');
+          g.shake(6, 40);
+          this.flashT = 10;
+          g.fx.burst(this.x, this.y - 10, 'spark', 6, 16, { speed: 2, life: 26 });
+        }
+        s.glow = this.pt > 50 ? 0.5 : 0;
+        if (this.pt === 110) g.bossTalk('boss_bellmother_phase2');
+        if (this.pt > 110) this.pick('summon');
+        break;
       case 'summon':
         this.steer(W / 2, 90, 2);
         frame = A.cast[0];
@@ -221,21 +243,23 @@ export class BellMother extends Ent implements Boss {
     s.place(this.x, this.y, this.facing < 0);
     s.flash = this.flashT > 0 ? (this.flashT % 4 < 2 ? 0.9 : 0.4) : 0;
     if (this.phase === 2) s.tint(1.2, 0.9, 0.85);
-    if (this.pat !== 'toll') s.glow = 0;
+    if (this.pat !== 'toll' && this.pat !== 'rage') s.glow = 0;
   }
 
   onHit(g: Game, dmg: number, fromX: number, crit: boolean, kind: HitKind) {
-    if (this.pat === 'dying' || this.pat === 'enter') return;
+    if (this.pat === 'dying' || this.pat === 'enter' || this.pat === 'rage') return;
     this.hp -= dmg;
     this.flashT = 8;
     g.damageNumber(this.x, this.y - this.hh - 8, dmg, crit ? '#ffe040' : '#ffffff');
     g.audio.play('bossHit');
     g.fx.burst(this.x + sign(fromX - this.x) * 12, this.y, 'spark', 1, 4);
     if (kind === 'whip') g.hitstop(4);
-    if (this.phase === 1 && this.hp <= this.maxHp / 2) {
+    if (this.phase === 1 && this.hp > 0 && this.hp <= this.maxHp / 2) {
+      // half dead, she rages: a scene (see 'rage'), then she calls her daughters
       this.phase = 2;
-      g.message('THE BELL-MOTHER SHRIEKS!', 140);
-      this.pick('summon');
+      for (const e of g.ents) if (e instanceof EnemyShot || e instanceof Shockwave) e.dead = true;
+      g.bossScene();
+      this.pick('rage');
     }
     if (this.hp <= 0) {
       this.hp = 0;

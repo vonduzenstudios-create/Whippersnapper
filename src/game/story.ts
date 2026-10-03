@@ -367,4 +367,26 @@ export const SCENES: Record<string, Line[]> = {
     { who: 'hero', face: 'surprised', text: '...MOTHER?' },
     { who: 'bellmother', face: 'angry', text: 'COME. LET ME HEAR HOW YOU RING.' },
   ],
+  // mid-fight scenes: a boss changing phase (`boss_<id>_phase2`) or rising again (`boss_<id>_revive`)
+  boss_wyrm_phase2: [
+    { who: 'wyrm', face: 'angry', text: 'YOU CRACK MY BONES, CHILD. BUT BONE IS ONLY KINDLING.' },
+    { who: 'hero', face: 'surprised', text: 'IT IS BURNING FROM THE INSIDE...' },
+    { who: 'wyrm', face: 'angry', text: 'THE PYRES THAT MADE ME NEVER WENT OUT. COME CLOSER. WARM YOURSELF.' },
+  ],
+  boss_hound_phase2: [
+    { who: 'hound', face: 'angry', text: 'TO ME, PACK! A KORDER BLEEDS IN OUR YARD!' },
+    { who: 'hero', face: 'neutral', text: 'CALL AS MANY AS YOU LIKE. I BROUGHT ENOUGH CHAIN.' },
+    { who: 'hound', face: 'angry', text: 'THEN WE WILL SEE WHOSE NECK IT ENDS UP AROUND.' },
+  ],
+  boss_hound_revive: [
+    { who: 'hero', face: 'surprised', text: 'NO... I WATCHED IT DIE.' },
+    { who: 'hound', face: 'angry', text: 'I TOLD YOU, KORDER. NOTHING STAYS DEAD HERE.' },
+    { who: 'hound', face: 'angry', text: 'YOUR ORDER BURNED US ONCE. WE CAME BACK FROM THAT TOO.' },
+  ],
+  boss_bellmother_phase2: [
+    { who: 'bellmother', face: 'angry', text: 'YOU MADE MY BELL CRACK! DO YOU KNOW HOW LONG IT TOOK TO TUNE?' },
+    { who: 'hero', face: 'angry', text: 'TELL ME WHERE SHE WENT.' },
+    { who: 'bellmother', face: 'smile', text: 'YOU WILL HAVE TO RING A GREAT DEAL LOUDER THAN THAT TO HEAR HER ANSWER.' },
+    { who: 'bellmother', face: 'angry', text: 'DAUGHTERS! COME AND HEAR THE NEW ONE RING!' },
+  ],
 };

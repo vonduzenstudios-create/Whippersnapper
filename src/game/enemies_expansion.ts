@@ -4,7 +4,7 @@
 // Like the older enemies, they read speed/ranges/abilities through num()/can() so
 // enemy-editor variants work.
 import { Sprite } from '../gfx/view';
-import { Ent, DmgType } from './ent';
+import { Ent, DmgType, HitKind } from './ent';
 import type { Game } from './game';
 import { Enemy } from './enemies';
 import { groundAt, moveBody } from '../world/room';
@@ -59,22 +59,29 @@ export function floorBelow(g: Game, x: number, y: number, maxTiles = 20) {
 }
 
 const RING_LIFE = 18; // frames a toll's ring of sound takes to spread to its full size
+const RING_ART = RING_RADII[RING_RADII.length - 1]; // the radius the ring art is drawn at
+export const TOLL_RADIUS = 72; // a Bell Wraith's own toll reaches this far
+/** Struck, a Bell Wraith's bell rings back out to this share of her whip's reach: strike from the very tip of it to stay clear. */
+export const REVERB_SHARE = 0.8;
 
 /**
- * The ring of sound around a tolling bell: it spreads out to RING_RADII's last radius in
- * RING_LIFE frames and hurts the hero once if it reaches her. Stand back from the bell.
+ * The ring of sound around a tolling bell: it spreads out to `maxR` in RING_LIFE frames and
+ * hurts the hero once if it reaches her. Stand back from the bell.
  */
 export class TollRing extends Ent {
   t = 0;
   hit = false;
-  constructor(g: Game, x: number, y: number, private dmg: number) {
+  constructor(g: Game, x: number, y: number, private dmg: number, private maxR = RING_ART) {
     super();
     this.x = x;
     this.y = y;
     this.sprite = new Sprite(g.sheets.ring, g.view.sprites, 14);
+    // the ring art is drawn at RING_ART: stretch it to this ring's size
+    const k = maxR / RING_ART, sh = g.sheets.ring;
+    this.sprite.mesh.scale.set(sh.cw * k, sh.ch * k, 1);
   }
   get radius() {
-    return RING_RADII[RING_RADII.length - 1] * Math.min(1, this.t / RING_LIFE);
+    return this.maxR * Math.min(1, this.t / RING_LIFE);
   }
   update(g: Game) {
     this.t++;
@@ -310,14 +317,28 @@ export class Wraith extends Enemy {
   state: 'drift' | 'ring' = 'drift';
   st = 0;
   cool: number;
+  reverbT = 0; // frames before a blow can make its bell ring back again
   constructor(g: Game, kind: string, x: number, y: number) {
     super(g, kind, x, y + 12, 7, 12);
     this.cool = (90 + Math.random() * 60) * this.num('cooldown');
+  }
+  /**
+   * Any blow sets its bell ringing: a quick, smaller ring of sound out to REVERB_SHARE of her
+   * whip's reach. Whip it from the tip and you're clear; any closer and the reverb hits you.
+   */
+  onHit(g: Game, dmg: number, fromX: number, crit: boolean, kind: HitKind) {
+    super.onHit(g, dmg, fromX, crit, kind);
+    if (this.dead || !this.can('reverb') || this.reverbT > 0) return;
+    this.reverbT = 20;
+    g.audio.play('handbell');
+    // her farthest strike reaches about whipLen + 18 px from the near edge of her body to its middle
+    g.spawn(new TollRing(g, this.x, this.y, Math.round(this.atk * 0.7), (g.hunter.whipLen + 18) * REVERB_SHARE));
   }
   update(g: Game) {
     this.baseUpdate(g);
     const p = g.player, s = this.sprite!, A = this.anims;
     this.st++;
+    if (this.reverbT > 0) this.reverbT--;
     const dx = p.x - this.x, dy = p.y - 4 - this.y;
     const d = Math.hypot(dx, dy) || 1;
     const sight = 240 * this.num('sight'), sp = this.num('speed');
@@ -348,7 +369,7 @@ export class Wraith extends Enemy {
         // DONG: the sound itself hurts up close, and the floor carries it on as shockwaves
         g.audio.play('dong');
         g.shake(3, 14);
-        g.spawn(new TollRing(g, this.x + this.facing * 6, this.y, this.atk));
+        g.spawn(new TollRing(g, this.x + this.facing * 6, this.y, this.atk, TOLL_RADIUS));
         const fy = floorBelow(g, this.x, this.y + this.hh);
         if (fy > 0) shockPair(g, this.x, fy, 2.0, this.atk);
         g.fx.burst(this.x + this.facing * 10, this.y - 2, 'spark', 1, 2);
@@ -465,23 +486,105 @@ export class Icicle extends Ent {
   }
 }
 
+const CRAWL_SPEED = 0.6; // px a frame it creeps along any surface
+const CRAWL_LIFT = 9; // its sprite's middle sits this far off the surface it clings to
+
+/**
+ * A Frost Crawler goes its own way and pays the hero no mind. It clings to whatever it walks
+ * on and follows it round every corner: up a wall, across the ceiling, down the far side,
+ * round and round a block. It only turns back at water and at the room's edges (doorways
+ * and holes out of the room). On a ceiling it lets go when she passes below.
+ *
+ * It tracks a "foot" point (fx, fy) half a pixel off its surface, `nx, ny` pointing into the
+ * surface and `tx, ty` the way it's walking along it.
+ */
 export class Crawler extends Enemy {
-  mode: 'floor' | 'ceil' | 'fall' = 'floor';
+  mode: 'cling' | 'fall' = 'cling';
+  fx: number;
+  fy: number;
+  nx = 0;
+  ny = 1;
+  tx: number;
+  ty = 0;
+  rot = 0; // the sprite's drawn angle, easing round corners
   iceX = NaN; // where it laid its last patch of ice
   icicleT = rand(ICICLE_EVERY[0], ICICLE_EVERY[1]); // frames to the next icicle
   constructor(g: Game, kind: string, x: number, bottom: number) {
     super(g, kind, x, bottom, 8, 6);
     this.feet = 9;
     this.facing = Math.random() < 0.5 ? -1 : 1;
+    this.tx = this.facing;
+    this.fx = x;
+    this.fy = bottom - 0.5;
     // placed right under a ceiling: cling to it
     const top = this.y - this.hh;
     if (g.room.solidPx(x, top - 6)) {
-      this.mode = 'ceil';
-      const ceil = (Math.floor((top - 6) / TILE) + 1) * TILE;
-      this.y = ceil + this.hh;
+      this.fy = (Math.floor((top - 6) / TILE) + 1) * TILE + 0.5;
+      this.nx = 0;
+      this.ny = -1;
+      this.rot = Math.PI;
+    } else if (!g.room.solidPx(x, bottom + 0.5)) this.mode = 'fall';
+    this.syncBody();
+  }
+  get onCeiling() {
+    return this.ny < 0;
+  }
+  /** Its hitbox: centered just off the surface, turned on its side on a wall. */
+  syncBody() {
+    this.x = this.fx - this.nx * 6;
+    this.y = this.fy - this.ny * 6;
+    this.hw = this.nx ? 6 : 8;
+    this.hh = this.nx ? 8 : 6;
+  }
+  /** A step to (x, y) would take it out of the room (a doorway or a hole), or into water. */
+  stopsAt(g: Game, x: number, y: number) {
+    const r = g.room;
+    return x < 2 || x > r.W - 2 || y < 2 || y > r.H - 2 || r.inWater(x, y);
+  }
+  turnBack() {
+    this.tx = -this.tx;
+    this.ty = -this.ty;
+  }
+  /** Creep `dist` px along its surface, following it round corners. */
+  crawl(g: Game, dist: number) {
+    const r = g.room;
+    for (let left = dist, turns = 0; left > 0 && turns < 4; ) {
+      const step = Math.min(1, left);
+      // a wall ahead (an inside corner): climb it
+      if (r.solidPx(this.fx + this.tx * step, this.fy + this.ty * step)) {
+        [this.nx, this.ny, this.tx, this.ty] = [this.tx, this.ty, -this.nx, -this.ny];
+        turns++;
+        continue;
+      }
+      const nx = this.fx + this.tx * step, ny = this.fy + this.ty * step;
+      if (this.stopsAt(g, nx, ny)) {
+        this.turnBack();
+        turns++;
+        continue;
+      }
+      this.fx = nx;
+      this.fy = ny;
+      left -= step;
+      // the surface ran out under it (an outside corner): wrap round the edge onto its side
+      if (!r.solidPx(this.fx + this.nx, this.fy + this.ny)) {
+        const [ox, oy] = [this.nx, this.ny];
+        [this.nx, this.ny, this.tx, this.ty] = [-this.tx, -this.ty, ox, oy];
+        const wx = this.fx + this.tx, wy = this.fy + this.ty;
+        if (this.stopsAt(g, wx, wy)) {
+          // wrapping would take it out of the room: back up and turn round instead
+          [this.nx, this.ny, this.tx, this.ty] = [ox, oy, this.nx, this.ny];
+          this.fx -= this.tx * step;
+          this.fy -= this.ty * step;
+          this.turnBack();
+        } else {
+          this.fx = wx;
+          this.fy = wy;
+        }
+        turns++;
+      }
     }
   }
-  /** Lay a patch of ice trail at surface y `surfY` every ICE_STEP px it walks. */
+  /** Lay a patch of ice trail at surface y `surfY` every ICE_STEP px it walks (floors and ceilings only). */
   layIce(g: Game, surfY: number, ceil: boolean) {
     if (!this.can('trail') || Math.abs(this.x - this.iceX) < ICE_STEP) return;
     this.iceX = this.x;
@@ -497,52 +600,50 @@ export class Crawler extends Enemy {
   update(g: Game) {
     this.baseUpdate(g);
     const p = g.player, s = this.sprite!, A = this.anims;
-    const sp = this.num('speed');
-    if (this.mode === 'ceil') {
-      if (this.stun <= 0) {
-        const ahead = this.x + this.facing * (this.hw + 2);
-        const wall = g.room.solidPx(ahead, this.y);
-        const ceilAhead = g.room.solidPx(ahead, this.y - this.hh - 4);
-        if (wall || !ceilAhead) this.facing = -this.facing;
-        this.vx = this.facing * 0.5 * sp;
-        this.x += this.vx;
-      } else this.x += this.vx;
-      if (this.can('drop') && p.alive && Math.abs(p.x - this.x) < 18 && p.y > this.y && p.y - this.y < 200 * this.num('sight')) {
-        this.mode = 'fall';
-        this.vy = 0;
-        this.vx = 0;
-        g.audio.play('bone');
-      }
-      this.layIce(g, this.y - this.hh, true);
-      this.dripIcicle(g);
-      s.anim('crawl', this.t / 60, 8);
-      s.mesh.rotation.z = Math.PI; // upside down on the ceiling
-      s.place(this.x, this.y - this.hh + 9, this.facing > 0);
-      return;
-    }
-    s.mesh.rotation.z = 0;
     if (this.mode === 'fall') {
       this.iceX = NaN; // a fresh trail where it lands
+      this.hw = 8;
+      this.hh = 6;
       const r = this.physics(g);
       s.setFrame(A.drop[0]);
       if (r.landed || this.onGround) {
-        this.mode = 'floor';
+        this.mode = 'cling';
+        this.fx = this.x;
+        this.fy = this.bottom - 0.5;
+        [this.nx, this.ny, this.tx, this.ty] = [0, 1, this.facing, 0];
+        this.rot = 0;
+        this.vx = 0;
         g.fx.burst(this.x, this.bottom - 2, 'puff', 2, 4, { life: 18, fade: true });
         g.shake(1, 6);
       }
+      s.mesh.rotation.z = 0;
       this.place();
       return;
     }
-    if (this.stun <= 0) {
-      const near = Math.abs(p.x - this.x) < 140 * this.num('sight') && Math.abs(p.bottom - this.bottom) < 32;
-      if (near && this.t % 30 === 0) this.faceToward(p.x);
-      this.patrolTurn(g, (near ? 0.95 : 0.5) * sp);
+    if (this.stun <= 0) this.crawl(g, CRAWL_SPEED * this.num('speed'));
+    this.syncBody();
+    this.vx = this.tx * CRAWL_SPEED; // (for anything that reads which way it's going)
+    if (this.onCeiling && this.can('drop') && p.alive && Math.abs(p.x - this.x) < 18 && p.y > this.y && p.y - this.y < 200 * this.num('sight')) {
+      this.mode = 'fall';
+      this.vy = 0;
+      this.vx = 0;
+      this.facing = this.tx < 0 ? -1 : 1;
+      g.audio.play('bone');
     }
-    this.physics(g);
-    // it leaves a trail of ice where it walks (not on water, and not off a ledge)
-    if (this.onGround && !g.room.inWater(this.x, this.bottom - 2)) this.layIce(g, this.bottom, false);
+    // its ice trail on floors (not in water) and ceilings; walls stay bare
+    if (this.ny > 0 && !g.room.inWater(this.x, this.fy - 2)) this.layIce(g, Math.round(this.fy), false);
+    else if (this.ny < 0) this.layIce(g, Math.round(this.fy), true);
     this.dripIcicle(g);
+    // the sprite stands on the surface: turned so its feet point into it, easing round corners
+    const want = Math.atan2(this.nx, this.ny); // 0 on a floor, pi on a ceiling, +-pi/2 on a wall
+    this.rot += Math.atan2(Math.sin(want - this.rot), Math.cos(want - this.rot)) * 0.35;
+    this.rot = Math.atan2(Math.sin(this.rot), Math.cos(this.rot)); // kept in -pi..pi as it circles
+    const c = Math.cos(this.rot), sn = Math.sin(this.rot);
+    // its local "right" on screen is (cos, -sin) in game coordinates (three.js is y-up)
+    const flip = this.tx * c - this.ty * sn < 0;
+    this.facing = flip ? -1 : 1;
     s.anim('crawl', this.t / 60, 10);
-    this.place();
+    s.mesh.rotation.z = this.rot;
+    s.place(this.fx - sn * CRAWL_LIFT, this.fy - c * CRAWL_LIFT, flip);
   }
 }

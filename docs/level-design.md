@@ -91,13 +91,14 @@ Entities:
 | `T` | signpost or lore stone (arg = a `HINTS` or `LORE` key in `game/story.ts`) |
 | `W` | boss marker (the room's `boss` id picks the boss; Gnarlfang ignores the marker and starts across from you) |
 | `z b k s w d` | enemies: zombie, bat, knight, skeleton, wisp, drowned (optional arg = an enemy-editor variant id of that enemy) |
-| `g y r c` | expansion enemies: wild dog, harpy, bell wraith, frost crawler (a crawler placed right under a ceiling clings to it) |
+| `g y r c` | expansion enemies: wild dog, harpy, bell wraith, frost crawler (a crawler crawls round walls and ceilings on its own; placed right under a ceiling it starts there) |
 | `t` | Rustling Tome (Library). Place it on a `K` (bookcase) tile: the tome sleeps inside it until you pass |
 | `a` | Restless Chair (Library): looks like a prop chair until you come close |
 | `l` | Bone Librarian (Library): put it on the floor in front of a bookcase; it shelves books with its back turned until you come close |
 | `n` | chair (scenery). Faces a table within 3 tiles on its row |
 | `M` | Pell, the merchant (the Reader's Nook): introduces himself the first time, then UP opens his shop |
 | `v` | Devourer: a mouth on tentacles (a stronger Hookjaw) whose tongue drags you into its jaws (see player-mechanics.md) |
+| `f` | Grave Moth: a flying enemy (grubs left on the surface also hatch them, three at a time). It bursts on touch and poisons you |
 | `p` | Gallows Spider: place it anywhere under a ceiling; it finds the ceiling above and hangs from it. Leave it a clear drop below |
 
 In a boss room, items (`i`) are the reward: they stay hidden until the boss dies, then float down into place.

@@ -25,6 +25,10 @@ const HOOK_LINKS = 10;
 const TONGUE_SEGS = 22;
 const CHOP_WIND = 24; // frames a normal chop is raised before it falls
 const QUICK_WIND = 8; // ...and after the hook drags her in (counted from when she arrives)
+const CLOSE = 30; // it walks up to this far from her...
+const CHOP_REACH = 40; // ...and swings at anything this close (more than CLOSE, so it never stalls between the two)
+const HOOK_MIN = 48; // the hook is only thrown from farther away than this
+const SWAT_KNOCK = [3.4, -4]; // a cleaver hit (or a Devourer's slap) throws her back this fast: out to hook range again
 
 /** The thrown hook and its chain. It isn't hostile itself: it yanks the hero instead of hurting her. */
 export class HookChain extends Ent {
@@ -128,7 +132,7 @@ export class HookChain extends Ent {
 }
 
 /** Hookjaw states, plus the Devourer's (jaws open, biting, knocked back). */
-type HookState = 'walk' | 'wind' | 'throw' | 'chop' | 'rest' | 'jaws' | 'bite' | 'reel';
+type HookState = 'walk' | 'wind' | 'throw' | 'chop' | 'rest' | 'jaws' | 'bite' | 'reel' | 'whirl';
 
 export class Hookjaw extends Enemy {
   state: HookState = 'walk';
@@ -137,9 +141,19 @@ export class Hookjaw extends Enemy {
   hook: HookChain | null = null;
   quick = false; // this chop follows a hook: it falls soon after she arrives
   tongue = false; // its "hook" is a tongue (the Devourer)
+  melee: HookState = 'chop'; // its close-up attack (the Devourer whirls instead)
+  swung = false; // its last attack was a close-up swing, so it hooks again sooner
   constructor(g: Game, kind: string, x: number, bottom: number, hw = 8, hh = 18) {
     super(g, kind, x, bottom, hw, hh);
     this.heavy = true; // no flinching: stop the hook instead
+  }
+  /** A close-up hit landed: throw her back out to hook range (`mul` scales the throw). */
+  swat(g: Game, mul: number) {
+    const p = g.player;
+    if (p.state !== 'hurt' || g.hunter.noKnock) return;
+    const dir = p.x < this.x ? -1 : 1;
+    p.vx = dir * SWAT_KNOCK[0] * mul;
+    p.vy = SWAT_KNOCK[1];
   }
   set(st: HookState) {
     this.state = st;
@@ -173,16 +187,16 @@ export class Hookjaw extends Enemy {
       case 'walk': {
         if (sees && this.st % 30 === 1) this.faceToward(p.x);
         // lumber toward the hero, but never off a ledge
-        const want = sees && adx > 36 ? 0.45 * this.num('speed') : 0;
+        const want = sees && adx > CLOSE ? 0.45 * this.num('speed') : 0;
         const ahead = this.x + this.facing * (this.hw + 4);
         const blocked = g.room.solidPx(ahead, this.y) || (this.onGround && !groundAt(g.room, ahead, this.bottom));
         this.vx = blocked ? 0 : this.facing * want;
         if (this.vx) s.anim('walk', this.t / 60, 5);
         else s.setFrame(A.walk[0]);
-        if (sees && this.can('chop') && adx < 34 && dy < 30) {
+        if (sees && this.can('chop') && adx < CHOP_REACH && dy < 30) {
           this.faceToward(p.x);
-          this.set('chop');
-        } else if (sees && this.can('hook') && this.cool <= 0 && adx > 48 && adx < HOOK_RANGE - 10) {
+          this.set(this.melee);
+        } else if (sees && this.can('hook') && this.cool <= 0 && adx > HOOK_MIN && adx < HOOK_RANGE - 10) {
           this.faceToward(p.x);
           this.set('wind');
         }
@@ -228,11 +242,15 @@ export class Hookjaw extends Enemy {
         }
         if (this.st >= WIND && this.st < WIND + 6) {
           const blade = { x: this.x + this.facing * 20, y: this.y - 2, hw: 14, hh: 16 };
-          if (p.alive && overlap(blade, p)) p.takeDamage(this.atk + 4, this.x, false, true, 'melee', blade.y);
+          if (p.alive && overlap(blade, p) && p.invuln <= 0) {
+            p.takeDamage(this.atk + 4, this.x, false, true, 'melee', blade.y);
+            this.swat(g, 1);
+          }
         }
         if (this.st > WIND + 22) {
           this.quick = false;
           this.set('rest');
+          this.swung = true;
         }
         break;
       }
@@ -240,7 +258,9 @@ export class Hookjaw extends Enemy {
         this.vx = 0;
         s.setFrame(A.walk[0]);
         if (this.st > 30) {
-          this.cool = 110 * this.num('cooldown');
+          // after a swing it reaches for the hook again soon: that's what the knockback was for
+          this.cool = (this.swung ? 40 : 110) * this.num('cooldown');
+          this.swung = false;
           this.set('walk');
         }
         break;
@@ -260,18 +280,22 @@ export class Hookjaw extends Enemy {
 
 const BITE_DX = 16; // her center sits this far in front of the Devourer's while it has her head
 const BITE_EVERY = 24; // frames between bites (0.4 s)
+const WHIRL_WIND = 18; // frames it coils its tentacles before the whirl (the warning)...
+const WHIRL_SPIN = 26; // ...and spins, slapping anything within reach on either side
 
 /**
  * A stronger Hookjaw: a great round mouth on legs. Its "hook" is its barbed tongue, which drags
- * the hero into its open body instead of under a cleaver, and it clamps down over her head: she's held in place, bitten every 0.4 s, and can't
+ * the hero into its open body, and it clamps down over her head: she's held in place, bitten every 0.4 s, and can't
  * attack until she mashes LEFT/RIGHT/JUMP free (`mash` presses). Tearing free knocks it
- * reeling back, open to a few hits.
+ * reeling back, open to a few hits. Up close it whirls its tentacles round and slaps her
+ * far away, out to tongue range again.
  */
 export class Devourer extends Hookjaw implements Holder {
   constructor(g: Game, kind: string, x: number, bottom: number) {
     super(g, kind, x, bottom, 10, 22);
     this.feet = 22;
     this.tongue = true;
+    this.melee = 'whirl';
   }
   /** The tongue leaves from the front of its mouth. */
   hookFrom(): [number, number] {
@@ -296,6 +320,29 @@ export class Devourer extends Hookjaw implements Holder {
   special(g: Game) {
     const p = g.player, A = this.anims, s = this.sprite!;
     switch (this.state) {
+      case 'whirl': {
+        this.vx = 0;
+        if (this.st < WHIRL_WIND) {
+          // tentacles drawn in tight, quivering: the warning
+          s.setFrame(A.coil[0]);
+          if (this.st === 1) g.audio.play('squelch');
+          break;
+        }
+        const k = this.st - WHIRL_WIND;
+        s.setFrame(A.whirl[Math.floor(k / 3) % A.whirl.length]);
+        if (k % 8 === 0) g.audio.play('whip');
+        if (k % 3 === 0) g.fx.burst(this.x + rand(-26, 26), this.bottom - 4, 'dust', 1, 3, { vy: -0.6 });
+        const reach = { x: this.x, y: this.y, hw: CHOP_REACH - 6, hh: 20 }; // as far as it whirls for (her half-width is 6)
+        if (p.alive && p.invuln <= 0 && overlap(reach, p)) {
+          p.takeDamage(this.atk, this.x, false, true, 'melee', this.y);
+          this.swat(g, 1.25);
+        }
+        if (k >= WHIRL_SPIN) {
+          this.swung = true;
+          this.set('rest');
+        }
+        break;
+      }
       case 'jaws':
         // jaws hinged open to the chest, waiting for her
         this.vx = 0;
@@ -469,7 +516,8 @@ export class Eel extends Enemy {
 /** The Gloomcaster's hex: slow, curves after the hero, slows her on a hit and breaks a ward bubble. */
 export class HexBolt extends Ent {
   t = 0;
-  constructor(g: Game, x: number, y: number, public vx: number, public vy: number, private dmg: number, private homing: boolean) {
+  /** `disarm`: a hit also seals her whip in a bubble ('hard': if it pops by itself, the whip drops). */
+  constructor(g: Game, x: number, y: number, public vx: number, public vy: number, private dmg: number, private homing: boolean, private disarm: '' | 'soft' | 'hard' = '') {
     super();
     this.x = x;
     this.y = y;
@@ -508,7 +556,10 @@ export class HexBolt extends Ent {
     if (p.alive && p.invuln <= 0 && overlap(this, { x: p.x, y: p.y, hw: p.hw - 1, hh: p.hh - 2 })) {
       this.dead = true;
       if (p.wardT > 0) p.popWard(); // hexes shatter the Ashglass Ward instead of being blocked
-      else if (p.takeDamage(this.dmg, this.x, false, true, 'magic', this.y) === false && p.state === 'hurt') p.hex(200);
+      else if (p.takeDamage(this.dmg, this.x, false, true, 'magic', this.y) === false && p.state === 'hurt') {
+        p.hex(200);
+        if (this.disarm) p.disarm(this.disarm === 'hard');
+      }
       g.fx.burst(this.x, this.y, 'star', 8, 5, { speed: 1.8, life: 30, fade: true, tint: [1.2, 0.6, 1.6] });
     }
   }
@@ -582,7 +633,8 @@ export class Caster extends Enemy {
         if (this.st === 36) {
           const hx = this.x + this.facing * 9, hy = this.y - 19;
           const a = Math.atan2(p.y - 6 - hy, p.x - hx);
-          g.spawn(new HexBolt(g, hx, hy, Math.cos(a) * 1.7, Math.sin(a) * 1.7, this.atk, this.can('homing')));
+          const disarm = !this.can('disarm') ? '' : this.can('hardcore') ? 'hard' : 'soft';
+          g.spawn(new HexBolt(g, hx, hy, Math.cos(a) * 1.7, Math.sin(a) * 1.7, this.atk, this.can('homing'), disarm));
           g.audio.play('spit');
         }
         if (this.st >= 50) {
@@ -704,8 +756,12 @@ export class Ooze extends Enemy {
 
 // ---------------------------------------------------------------- grave grub
 
+const GRUB_STRANDED = 110; // frames it flops about on the surface before it digs back in (or cocoons)
+const GRUB_COCOON = 100; // frames its cocoon takes to hatch
+const SWARM = 3; // moths in a hatching
+
 export class Grub extends Enemy {
-  state: 'under' | 'tremble' | 'burst' | 'stranded' | 'dig' = 'under';
+  state: 'under' | 'tremble' | 'burst' | 'stranded' | 'dig' | 'cocoon' = 'under';
   st = 0;
   cool = 30;
   constructor(g: Game, kind: string, x: number, bottom: number) {
@@ -717,15 +773,29 @@ export class Grub extends Enemy {
     this.state = st;
     this.st = 0;
   }
+  /** The cocoon splits: a swarm of Grave Moths bursts out, and the grub is gone (no XP for that). */
+  hatch(g: Game) {
+    this.dead = true;
+    g.audio.play('crumble');
+    g.fx.burst(this.x, this.bottom - 10, 'mote', 10, 10, { speed: 1.4, life: 30, fade: true, tint: [0.9, 1.4, 0.6], glow: 0.6 });
+    g.fx.burst(this.x, this.bottom - 8, 'dust', 4, 6, { vy: -0.6 });
+    for (let i = 0; i < SWARM; i++) {
+      const m = new Moth(g, 'moth', this.x + (i - 1) * 6, this.bottom - 14);
+      m.vx = (i - 1) * 1.6;
+      m.vy = -2 - Math.random();
+      g.spawn(m);
+    }
+  }
   /** Underground it can't hurt you and can't be hit. */
   hide(under: boolean) {
     this.hostile = !under;
     this.whipTarget = !under;
   }
   onHit(g: Game, dmg: number, fromX: number, crit: boolean, kind: HitKind) {
-    // stranded on the surface, it's soft and helpless
-    super.onHit(g, this.state === 'stranded' ? Math.round(dmg * 1.5) : dmg, fromX, crit, kind);
-    if (this.state === 'stranded') this.vx = 0;
+    // stranded on the surface (or wrapped in its cocoon), it's soft and helpless
+    const soft = this.state === 'stranded' || this.state === 'cocoon';
+    super.onHit(g, soft ? Math.round(dmg * 1.5) : dmg, fromX, crit, kind);
+    if (soft) this.vx = 0;
   }
   update(g: Game) {
     this.baseUpdate(g);
@@ -778,11 +848,28 @@ export class Grub extends Enemy {
         this.vx = this.can('burrow') ? 0 : this.facing * 0.3;
         if (!this.can('burrow')) this.patrolTurn(g, 0.3 * this.num('speed'));
         s.anim('wriggle', this.t / 60, 5);
-        if (this.can('burrow') && this.st > 110) {
-          this.set('dig');
-          g.audio.play('burrow');
+        if (this.st > GRUB_STRANDED) {
+          if (this.can('evolve')) {
+            // left alone too long, it spins a cocoon: kill it before it hatches
+            this.set('cocoon');
+            this.hostile = false;
+            g.audio.play('squelch');
+          } else if (this.can('burrow')) {
+            this.set('dig');
+            g.audio.play('burrow');
+          }
         }
         break;
+      case 'cocoon': {
+        // it swells and splits, shaking harder and harder, then three moths burst out
+        this.vx = 0;
+        const k = Math.min(2, Math.floor((this.st / GRUB_COCOON) * 3));
+        s.setFrame(A.cocoon[k]);
+        if (this.st > GRUB_COCOON / 2) shakeX = this.st % (k === 2 ? 3 : 6) < 2 ? -1 : 1;
+        if (this.st % 20 === 0) g.audio.play('squelch');
+        if (this.st >= GRUB_COCOON) this.hatch(g);
+        break;
+      }
       case 'dig':
         this.vx = 0;
         s.setFrame(this.st < 14 ? A.dig[0] : A.mound[0]);
@@ -796,6 +883,80 @@ export class Grub extends Enemy {
     }
     this.physics(g);
     this.sprite!.place(this.x + shakeX, this.bottom, this.facing < 0);
+  }
+}
+
+// ---------------------------------------------------------------- grave moth
+
+const MOTH_POISON = 300; // frames of poison a moth's powder leaves on her (5 s)...
+const MOTH_DIVE = 28; // frames a dive lasts
+
+/**
+ * A Grave Moth, hatched from a grub left on the surface too long (they come in threes). It
+ * flutters at the hero in jittery zigzags, now and then darting straight at her. When it
+ * touches her it bursts into a cloud of powder: a little damage, and a poison that eats
+ * her HP for a while (see Player.poison). A single hit kills one.
+ */
+export class Moth extends Enemy {
+  state: 'flutter' | 'dive' = 'flutter';
+  st = 0;
+  cool = rand(50, 110);
+  jitter = 0; // the current zigzag, flipped every few frames
+  constructor(g: Game, kind: string, x: number, y: number) {
+    super(g, kind, x, y + 6, 6, 6);
+    this.feet = 6;
+    this.hostile = false; // it hurts by bursting (below), not by plain contact
+    this.lunges = ['dive'];
+  }
+  update(g: Game) {
+    this.baseUpdate(g);
+    const p = g.player, s = this.sprite!, A = this.anims, r = g.room;
+    this.st++;
+    const dx = p.x - this.x, dy = p.y - 6 - this.y, d = Math.hypot(dx, dy) || 1;
+    const sp = this.num('speed'), sees = p.alive && d < 260 * this.num('sight');
+    if (this.state === 'flutter') {
+      // erratic: steer toward her, with a sideways zigzag that flips at random
+      if (this.st % 8 === 0) this.jitter = rand(-1.6, 1.6);
+      const ax = sees ? (dx / d) * 0.09 : 0, ay = sees ? (dy / d) * 0.09 : 0.02;
+      this.vx = clamp(this.vx + ax + (-dy / d) * this.jitter * 0.08 + rand(-0.12, 0.12), -1.4 * sp, 1.4 * sp);
+      this.vy = clamp(this.vy + ay + (dx / d) * this.jitter * 0.08 + rand(-0.15, 0.15), -1.3 * sp, 1.3 * sp);
+      s.anim('fly', this.t / 60, 14);
+      if (sees && this.stun <= 0 && --this.cool <= 0 && d < 90) {
+        this.state = 'dive';
+        this.st = 0;
+        this.vx = (dx / d) * 2.8 * sp;
+        this.vy = (dy / d) * 2.8 * sp;
+        g.audio.play('flutter');
+      }
+    } else {
+      s.setFrame(A.dive[0]);
+      if (this.st > MOTH_DIVE) {
+        this.state = 'flutter';
+        this.st = 0;
+        this.cool = rand(70, 130) * this.num('cooldown');
+      }
+    }
+    if (this.stun > 0) this.vy -= 0.05; // knocked about by a hit, but it stays aloft
+    // it bounces off walls, and stays inside the room
+    const nx = this.x + this.vx, ny = this.y + this.vy;
+    if (r.solidPx(nx + Math.sign(this.vx) * this.hw, this.y) || nx < 8 || nx > r.W - 8) this.vx = -this.vx;
+    else this.x = nx;
+    if (r.solidPx(this.x, ny + Math.sign(this.vy) * this.hh) || ny < 8 || ny > r.H - 8) this.vy = -this.vy;
+    else this.y = ny;
+    this.facing = this.vx < 0 ? -1 : 1;
+    s.place(this.x, this.y, this.facing < 0);
+    if (this.t % 10 === 0) g.fx.burst(this.x, this.y + 2, 'mote', 1, 2, { vy: 0.3, life: 20, fade: true, tint: [0.9, 1.3, 0.6] });
+    // it touches her: it bursts into poison powder
+    if (p.alive && p.invuln <= 0 && overlap(this, p)) this.burst(g);
+  }
+  burst(g: Game) {
+    const p = g.player;
+    this.dead = true;
+    g.audio.play('powder');
+    g.fx.burst(this.x, this.y, 'smoke', 6, 10, { vy: -0.3, fps: 8, life: 40, tint: [0.7, 1.2, 0.5] });
+    g.fx.burst(this.x, this.y, 'mote', 10, 8, { speed: 1.2, life: 36, fade: true, tint: [0.9, 1.5, 0.5], glow: 0.6 });
+    const killed = p.takeDamage(this.atk, this.x, false, true, this.state === 'dive' ? 'melee' : 'touch', this.y);
+    if (!killed && !p.justBlocked && this.can('poison')) p.poison(MOTH_POISON * this.num('poisonTime'), Math.max(1, Math.round(this.atk * 0.25)));
   }
 }
 
@@ -927,8 +1088,15 @@ export class Gravehand extends Enemy implements Holder {
     s.opacity = 1;
     switch (this.state) {
       case 'under':
+        if (this.cool > 0) {
+          // resting after an attack: it lies still deep down, with no furrow to give it away
+          s.visible = false;
+          this.senseT = -1;
+          this.spd = 0;
+          break;
+        }
         this.stalk(g);
-        if (this.cool <= 0 && onIt && p.holdT <= 0 && p.freeT <= 0 && Math.abs(p.x - this.x) < 6) {
+        if (onIt && p.holdT <= 0 && p.freeT <= 0 && Math.abs(p.x - this.x) < 6) {
           this.set('warn');
           g.audio.play('burrow');
         }

@@ -138,9 +138,12 @@ export class Wyrm extends Ent implements Boss {
           g.audio.play('roar');
           g.shake(4, 40);
           this.jaw = 1.2;
-        } else if (this.pt < 330) this.moveToward(W - 240 + Math.sin(this.pt * 0.1) * 20, 250, 1.5, 0.1);
-        else if (this.pt === 330) g.bossTalk();
-        else this.nextPattern();
+        } else if (this.pt < 330) {
+          this.moveToward(W - 240 + Math.sin(this.pt * 0.1) * 20, 250, 1.5, 0.1);
+          // the freeze frame catches it mid-roar, jaws wide
+          if (this.pt <= 302) this.jaw = 1.2;
+          if (this.pt === 302) g.bossTalk();
+        } else this.nextPattern();
         break;
       }
       case 'lunge': {
@@ -292,7 +295,7 @@ export class Wyrm extends Ent implements Boss {
           this.jaw = 1.3;
           this.flashT = 30;
           for (const e of g.ents) if (e instanceof EnemyShot) e.dead = true;
-          g.message('THE WYRM SHRIEKS IN AGONY!', 140);
+          g.bossScene(); // its change of phase plays as a scene: see 'ignite' for the end of it
         }
         // writhe in place for a moment, then bolt
         if (this.pt < 50) {
@@ -325,10 +328,12 @@ export class Wyrm extends Ent implements Boss {
           g.audio.play('fire');
           g.shake(6, 70);
           this.jaw = 1.3;
-          g.message('THE WYRM IGNITES!', 120);
           for (const s of this.segs) g.fx.burst(s.x, s.y, 'fire', 2, 8, { sheet: 'fire', life: 30 });
         } else if (this.pt < 140) {
+          // burning, it rears over her, jaws wide: the freeze frame and its taunt
           this.dir = Math.PI / 2 + Math.sin(this.pt * 0.2) * 0.2;
+          if (this.pt > 100) this.jaw = 1.2;
+          if (this.pt === 104) g.bossTalk('boss_wyrm_phase2');
         } else {
           this.dir = -Math.PI / 2;
           this.hy -= 3;

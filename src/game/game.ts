@@ -4,7 +4,7 @@ import { Input } from '../core/input';
 import { AudioEngine } from '../audio/audio';
 import { Music } from '../audio/music';
 import { HERO, HERO_M, buildHeroSheet, buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildWyrmSheet, buildLibrarianSheet } from '../gfx/art_chars';
-import { buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet, buildHookjawSheet, buildDevourerSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet } from '../gfx/art_beasts';
+import { buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet, buildHookjawSheet, buildDevourerSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet, buildMothSheet } from '../gfx/art_beasts';
 import { buildHoundSheet, buildCinderHoundSheet, buildBellMotherSheet } from '../gfx/art_bosses';
 import { buildItemSheet, buildCandleSheet, buildFxSheet, buildFireSheet, buildRelicFxSheet, buildRingSheet } from '../gfx/art_items';
 import { paintTiles } from '../gfx/tiles';
@@ -16,7 +16,7 @@ import { Ent, HitKind, Boss } from './ent';
 import { BOSSES } from './bosses';
 import { FX } from './fx';
 import { Hunter } from './stats';
-import { Candle, Pickup, RingAnchor, Altar, EnemyShot, Lever, Sign, Merchant } from './objects';
+import { Candle, Pickup, RingAnchor, Altar, EnemyShot, Lever, Sign, Merchant, WhipDrop } from './objects';
 import { Avalanche, LEASH } from './avalanche';
 import { Cutscene } from './cutscene';
 import { spawnEnemy } from './spawn';
@@ -56,6 +56,7 @@ export interface Sheets {
   chair: Sheet;
   librarian: Sheet;
   spider: Sheet;
+  moth: Sheet;
   hound: Sheet;
   houndCinder: Sheet;
   bellmother: Sheet;
@@ -74,6 +75,8 @@ export interface Sheets {
 const START_ROOM = 'ridge';
 /** Frames for one full tide cycle in tidal rooms (low, rise, high, fall). */
 const TIDE_PERIOD = 900;
+/** Frames a boss's freeze frame holds on its pose before the talking starts. */
+const FREEZE = 45;
 
 export class Game {
   view = new View();
@@ -118,8 +121,14 @@ export class Game {
   dialog: string[] = [];
   /** The conversation on screen (state 'talk'): its lines, the current one, how much of it has typed out, and what to do after. */
   talkState: { lines: Line[]; i: number; shown: number; done?: () => void } | null = null;
-  /** A boss is showing itself off before the fight: the hero waits, the camera watches the boss, letterbox bars. */
+  /**
+   * A boss scene is playing (its entrance, or a change of phase mid-fight): the hero waits
+   * and can't be hurt, the camera watches the boss, letterbox bars. See bossScene/bossTalk.
+   */
   bossShow = false;
+  /** Frames left of a boss's freeze frame (everything holds still on its pose), then `freezeScene` plays. */
+  freezeT = 0;
+  freezeScene = '';
   hint = '';
   fade = 0; // 0..1 black overlay
   fadeFlash = 0;
@@ -172,6 +181,7 @@ export class Game {
       chair: buildSheet(buildChairSheet()),
       librarian: buildSheet(buildLibrarianSheet()),
       spider: buildSheet(buildSpiderSheet()),
+      moth: buildSheet(buildMothSheet()),
       hound: buildSheet(buildHoundSheet()),
       houndCinder: buildSheet(buildCinderHoundSheet()), // Gnarlfang's second form
       bellmother: buildSheet(buildBellMotherSheet()),
@@ -338,6 +348,13 @@ export class Game {
   }
 
   loadRoom(def: RoomDef, px: number, pbottom: number, keepVel?: { vx: number; vy: number }) {
+    if (this.player) {
+      // her whip was still away from her (a Gloomcaster's hex): walking out settles it, while
+      // a new game or a reload simply hands it back, along with a clean bill of health
+      if (this.state === 'transition') this.player.whipEnt?.leaveRoom(this);
+      else this.player.poisonT = 0;
+      this.player.whipEnt = null;
+    }
     for (const e of this.ents) e.destroy();
     this.ents = [];
     this.rings = [];
@@ -348,6 +365,7 @@ export class Game {
       this.bossShow = false;
       this.input.script = null;
     }
+    this.freezeT = 0;
     this.fx.clear();
     this.dmgNums = [];
     this.view.clearWorld();
@@ -424,6 +442,9 @@ export class Game {
         }
       }
     }
+    // her whip, lying where a hardcore hex dropped it
+    const lost = this.hunter.lostWhip;
+    if (lost && lost.room === def.id) this.ents.push(new WhipDrop(this, lost.x, lost.y, true));
     // player
     if (!this.player) this.player = new Player(this);
     const p = this.player;
@@ -613,12 +634,36 @@ export class Game {
     this.hint = '';
     this.input.flush();
   }
-  /** Called by a boss at the end of its entrance: its pre-fight exchange, then the fight starts. */
-  bossTalk() {
+  /**
+   * A boss starts a scene mid-fight (its change of phase, or rising from the dead): the hero
+   * stops where she is and can't be hurt, and the camera turns to the boss. The boss plays
+   * out the change, strikes a pose and ends the scene with bossTalk(scene).
+   */
+  bossScene() {
+    this.bossShow = true;
+    this.input.script = {};
+    this.player.invuln = Math.max(this.player.invuln, 99999);
+    this.msg.t = 0;
+  }
+  /**
+   * Called by a boss once it strikes its pose, at the end of its entrance or of a bossScene:
+   * a freeze frame, then the exchange (`scene`, its pre-fight `boss_<id>` by default), then
+   * the hero gets her controls back.
+   */
+  bossTalk(scene = `boss_${this.room.def.boss}`) {
     this.banner.t = 0; // its name has had its moment
-    this.talk(`boss_${this.room.def.boss}`, () => {
+    this.freezeT = FREEZE;
+    this.freezeScene = scene;
+    this.flashWhite = 8;
+    this.audio.play('sting');
+  }
+  /** The freeze frame is over: the talking, then back to the fight. */
+  endFreeze() {
+    this.talk(this.freezeScene, () => {
       this.bossShow = false;
       this.input.script = null;
+      const p = this.player;
+      if (p.invuln > 60) p.invuln = 60; // a moment's grace to get her bearings
     });
   }
   shake(amt: number, frames: number) {
@@ -875,6 +920,13 @@ export class Game {
         return;
       }
     }
+    if (this.freezeT > 0) {
+      // a boss's freeze frame: everything holds still on its pose (only the camera settles)
+      if (this.flashWhite > 0) this.flashWhite--;
+      this.updateCamera();
+      if (--this.freezeT === 0) this.endFreeze();
+      return;
+    }
     if (this.hitstopT > 0) {
       this.hitstopT--;
       return;
@@ -981,8 +1033,7 @@ export class Game {
     this.boss = info.make(this, w ? w.x * TILE + 8 : r.W / 2, w ? (w.y + 1) * TILE : r.H - 2 * TILE);
     this.ents.push(this.boss);
     // the hero stops and watches it make its entrance (see bossTalk for the end of it)
-    this.bossShow = true;
-    this.input.script = {};
+    this.bossScene();
   }
 
   updateCamera() {

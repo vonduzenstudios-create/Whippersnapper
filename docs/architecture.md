@@ -32,7 +32,7 @@ src/
   game/enemies.ts   Enemy base + Zombie, Bat, Knight, Skeleton, Wisp, Drowned
   game/enemies_expansion.ts  Dog, Harpy, Wraith, Crawler, and the floor Shockwave
   game/enemies_library.ts  the Rustling Tome (sleeps in a bookcase, tears loose, flaps and dives), the Restless Chair and the prop chair, the Bone Librarian (a Skeleton subclass that throws books)
-  game/enemies_extra.ts  experimental (not placed yet): Hookjaw + HookChain, Eel, Caster + HexBolt, Ooze, Grub, Gravehand
+  game/enemies_extra.ts  experimental (not placed yet): Hookjaw + HookChain, Devourer, Eel, Caster + HexBolt, Ooze, Grub, Moth, Gravehand
   game/enemies_spider.ts  the Gallows Spider (silk thread, web spit, falls when the thread is cut)
   game/test_chamber.ts  enemy test chambers (#test=<id>, #test=boss:<id>, #lab): the room, spawn spots, respawn, keys
   game/spawn.ts     spawnEnemy(): room letter → enemy (its own file to avoid an import loop)
@@ -40,7 +40,7 @@ src/
   game/boss.ts      Wyrm: trail-following segments, pattern state machine, multi-hitbox
   game/hound.ts     Gnarlfang (Hound Pit boss)
   game/bellmother.ts  the Bell-Mother (Great Belfry boss)
-  game/objects.ts   Candle, Pickup, RingAnchor, Altar, Sign (signposts + lore stones), HolyFlask/HolyFire, CrossProj, KnifeProj, EnemyShot
+  game/objects.ts   Candle, Pickup, RingAnchor, Altar, Sign (signposts + lore stones), HolyFlask/HolyFire, CrossProj, KnifeProj, EnemyShot, ShieldDrop, WhipBubble/WhipReturn/WhipDrop (the hexed whip), Lever, Merchant
   game/fx.ts        pooled sprite particles
   game/stats.ts     Hunter (persistent stats/inventory/flags, save/load)
   game/data.ts      ITEMS, ENEMY stat table (+ enemy_edits.json), ENEMY_TUNING behavior knobs, SUB_COST, xpForLevel
@@ -133,7 +133,7 @@ World flags in use: `crypt_drained` (Flooded Crypt lever), `pass_buried` (the av
 ## Dialogue, boss entrances and the shop (0.14.0)
 
 - `Game.talk(scene, done?)` shows a conversation (a `SCENES` key in story.ts, or a list of `Line`s: speaker, face, text) in state `'talk'`. `UI.updateTalk` types each line out (`TALK_SPEED`), CONFIRM finishes it or moves on, CANCEL skips the rest; then `done` runs. `SPEAKERS` gives each speaker a name plate and a side: the hero stands on the left, everyone else on the right (mirrored). Portraits are frames `<speaker>_<face>` in the portraits sheet; the hero's are `vesna_*` / `anzel_*`, and a missing face falls back to `_neutral`.
-- Boss entrances: `Game.startBoss` sets `bossShow` and `input.script = {}`, so the hero stands still and the camera follows the boss with letterbox bars (`drawHUD` shows only the bars and the banner). Each boss's `enter` pattern shows itself off, then calls `Game.bossTalk()` (scene `boss_<id>`), whose `done` hands the controls back. Leaving the room mid-entrance (`loadRoom`) also hands them back.
+- Boss entrances: `Game.startBoss` calls `bossScene()` (`bossShow`, `input.script = {}`, long invulnerability), so the hero stands still and the camera follows the boss with letterbox bars (`drawHUD` shows only the bars and the banner). Each boss's `enter` pattern shows itself off, then calls `Game.bossTalk()` (scene `boss_<id>`): a freeze frame (`freezeT`), then the talk, whose `done` hands the controls back. Mid-fight phase scenes use the same two calls (0.16.0, see player-mechanics.md, Boss scenes). Leaving the room mid-entrance (`loadRoom`) also hands them back.
 - Shop: room entity `M` is `Merchant` (objects.ts), Pell. Coming within 80 px the first time plays `pell_meet` and sets the `met_pell` flag; after that, UP by him plays `pell_again`. Both end in `UI.openShop()` (state `'shop'`). Stock is `SHOP` in data.ts; `Hunter.bought` counts what's been bought, so stock doesn't come back.
 - Gold and soul shards: `dropGold` (objects.ts) runs on every kill before the drop table: `GOLD_CHANCE` (55%, luck-scaled) for about half to all of the enemy's XP in gold (a pile sprite past 10), and `SHARD_CHANCE` (1.5%) for a soul shard. Candles drop 1–4 gold 12% of the time. `Hunter.gold` / `Hunter.shards`; shards aren't used yet.
 - Relic toggles: `Hunter.grapple` etc. are getters: found (`_grapple`...) and not listed in `relicOff`. Old saves' `grapple: true` goes through the setters. The RELICS page calls `toggleRelic(id)`.

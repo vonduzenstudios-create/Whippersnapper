@@ -138,11 +138,22 @@ Update this file when you verify something or finish a listed item.
   - RELICS page: switching the Raven Mantle off made `doubleJump` false while `_doubleJump` stayed true, and both were saved; an old-style save (`grapple: true`) loaded through the setter.
   - Gravehand: the strike started 2.0–2.2 s after it sensed the hero, walking or standing, with the gap held for the first 90 frames. Crawler on a ceiling: 4 icicles in 420 frames, each leaving floor ice.
   - Knight: the jab frames fit the new 92-wide sheet.
+- 0.16.0 (2026-10-02), checked with typecheck, build and scripted runs in the browser pane (frames stepped with `game.tick()`):
+  - Boss scenes: all three entrances ran to a freeze frame and their talk (Wyrm at entrance frame 302 mid-roar, Gnarlfang 260 mid-howl, Bell-Mother 280 on her bell). Half HP started each phase scene and its talk (`boss_wyrm_phase2` at `ignite` 104, `boss_hound_phase2` at `howl` 60 with both dogs out, `boss_bellmother_phase2` at `rage` 110). Gnarlfang's fake death left the hero free until frame 150, then the scene ran to `boss_hound_revive` with the cinder form at full HP. After each talk the controls came back with 40–60 frames of grace. Screenshots: the banner sat below the Wyrm during its lap; the dialogue box moved to the top for Gnarlfang and the Wyrm's entrance, so neither was covered.
+  - Frost Crawler: it circled the test chamber's floating slab several times (underside, left wall, top, right wall), with its feet on each surface.
+  - Hookjaw with the hero standing still: hook, chop, thrown back to ~105 px, hook again, over and over; it never stalled.
+  - Devourer with the hero standing still: the whirl slapped her 132–146 px, then the tongue pulled her back in. Whirl frames seen (no cleaver).
+  - Bell Wraith reverb (leather whip, ring 59 px): a hit with her body 61 or 66 px away didn't hurt her, 57 or 45 px did.
+  - Gloomcaster: a hex disarmed her (whip in the bubble, slowed). Whip attacks did nothing. Softcore: the bubble popped after ~3.7 s and the whip flew back. Hardcore: it dropped to the floor, stayed there after leaving the room and coming back, and walking over it gave it back.
+  - Grave Grub: stranded 110 frames, cocoon, three moths after 100 more. A moth burst on her: 4 damage, then poison of 2 HP every 30 frames; at 3 HP it stopped at 1.
+  - Gravehand: invisible and still for its whole rest after a mash-free, visible again once rested. Soul shard floated to her from 90 px away in under a second. Shield: a touch hit with the shield lowered left it alone; a magic hit with it raised dropped it.
 - 0.15.0 (2026-10-02), checked with typecheck and scripted runs in `#test=crawler`:
   - Ice: walking speed went from 1.65 to 0.82 px/frame on the first iced frame; she froze 119 frames after first touching ice; 90 frames off ice brought `chill` and `iceT` back to 0. Blue tint seen.
   - Spikes: 500 damage at 999 max HP, back to `lastSafe`, `crippleT` 600. Walking 0.16 px/frame (10%), jump ignored during the first 5 s and working after. Red tint seen.
 
 ## Not verified yet
+
+- 0.16.0 by hand: how the scenes pace in real play (the Wyrm's retreat can keep the controls locked for a few seconds), the new `sting`, `flutter` and `powder` sounds, how the crawler looks easing round corners at full speed, and whether the moths' zigzag and poison (20 HP over 5 s at default) are fair. The new banter is first-draft writing. Crawlers wrapping into narrow one-tile gaps weren't tried. A hardcore whip dropped over a pit lands on the nearest floor beside it, but falls straight there through any blocks in between.
 
 - 0.15.0 by hand: how the ice and cripple feel in real play (in the air, slows are half as strong, which wasn't measured), and spikes in rooms where `lastSafe` sits right beside the pit.
 
