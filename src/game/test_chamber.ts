@@ -28,23 +28,39 @@ export const LAB_ID = 'lab';
 const RESPAWN = 120; // frames after the last tested enemy dies before a new one appears
 
 /**
- * 3 x 2 cells. Left: a deep pool (eels, drowned, the Undertow Pearl). Middle: a pillar
- * to jump off and a spike trench that only a glide (or the grapple rings) gets you across.
- * Right: the arena, with a stone slab overhead (spiders, crawlers and bats hang under it),
- * a reading table (chairs) and a bookcase (tomes).
+ * 4 x 2 cells, wide open (0.32.0). The hero and the enemy start on a broad platform in the
+ * middle, under a stone slab (spiders, crawlers and bats hang from it), with a bookcase
+ * (tomes) and a reading table (chairs). Stairs run down both sides of the platform to a
+ * lower floor: on the left a small pool (eels, drowned, the Undertow Pearl), on the right
+ * one-way platforms climbing to the top of the room. Grapple rings hang over both stairs.
  */
+// tile rows and columns of the layout
+const LOW = 21; // top of the lower floor
+const TOP = 13; // top of the central platform
+const PLAT0 = 36, PLAT1 = 59; // the platform's first and last column
+const STAIR = 2 * (LOW - TOP); // columns each flight takes (a ramp rises one tile every two)
+const POOL1 = 12; // the pool's last column (it starts at the left wall)
+
 export function buildLabRoom(): RoomDef {
-  const b = new RB(3, 2).shell(); // 72 x 28 tiles, floor rows 26-27
-  b.fill(24, 18, 47, 8); // raised floor right of the pool (top at row 18)
-  b.fill(1, 19, 23, 7, '~'); // the pool, its surface just below that floor
-  b.fill(22, 11, 4, 1, '=').fill(25, 14, 4, 1, '='); // ledges up to the pillar
-  b.fill(29, 8, 4, 10); // the pillar (top at row 8)
-  b.fill(38, 18, 14, 1, '.').fill(38, 19, 14, 1, '^'); // spike trench
-  b.e(42, 14, 'O').e(48, 14, 'O'); // grapple rings over the trench
-  b.fill(55, 9, 12, 2); // the slab over the arena (underside at row 11)
-  b.fill(60, 17, 3, 1, 'D'); // reading table
-  b.fill(67, 14, 3, 4, 'K'); // bookcase
-  b.e(54, 17, 'P');
+  const b = new RB(4, 2).shell(); // 96 x 28 tiles, floor rows 26-27
+  b.fill(1, LOW, 94, 26 - LOW); // the lower floor
+  b.fill(1, LOW, POOL1, 1, '.').fill(1, LOW + 1, POOL1, 26 - LOW - 1, '~'); // the pool, its surface a tile below the floor
+  b.fill(PLAT0, TOP, PLAT1 - PLAT0 + 1, LOW - TOP); // the central platform
+  // the two flights: '/' climbs to the right up to the platform, '\\' comes down from it
+  for (let k = 0; k < LOW - TOP; k++) {
+    const row = LOW - 1 - k; // the k-th step up from the lower floor
+    const l = PLAT0 - STAIR + 2 * k, r = PLAT1 + STAIR - 1 - 2 * k;
+    b.fill(l, row, 2, 1, '/').fill(l, row + 1, 2, LOW - row - 1);
+    b.fill(r - 1, row, 2, 1, '\\').fill(r - 1, row + 1, 2, LOW - row - 1);
+  }
+  b.fill(44, 5, 8, 2); // the slab over the middle (underside at row 7)
+  b.fill(PLAT0, TOP - 4, 2, 4, 'K'); // bookcase at the top of the left stairs
+  b.fill(56, TOP - 1, 3, 1, 'D'); // reading table
+  // one-way platforms over the lower right floor, each step 3-4 tiles up
+  b.fill(78, 17, 5, 1, '=').fill(86, 14, 5, 1, '=').fill(79, 10, 5, 1, '=').fill(88, 7, 5, 1, '=');
+  b.fill(68, 9, 4, 1, '=');
+  b.e(26, 7, 'O').e(70, 4, 'O'); // grapple rings over the stairs
+  b.e(42, TOP - 1, 'P');
   return b.build(LAB_ID, 'Test Chamber', 'lab', 'flooded', 40, 40);
 }
 
@@ -53,24 +69,25 @@ function spawnSpot(base: string): [number, number] {
   const T = TILE;
   switch (base) {
     case 'eel':
-      return [12 * T, 24 * T]; // in the pool
+      return [6 * T, 24 * T]; // in the pool
     case 'drowned':
-      return [14 * T, 26 * T]; // on the pool floor, lurking
+      return [8 * T, 26 * T]; // on the pool floor, lurking
     case 'tome':
-      return [68 * T + 8, 16 * T]; // asleep in the bookcase
+      return [PLAT0 * T + 16, (TOP - 2) * T]; // asleep in the bookcase
     case 'crawler':
-      return [61 * T + 8, 11 * T + 12]; // clinging under the slab
+      return [48 * T, 7 * T + 12]; // clinging under the slab
     case 'spider':
     case 'bat':
-      return [61 * T + 8, 12 * T]; // they find the slab above on their own
+      return [48 * T, 8 * T]; // they find the slab above on their own
     case 'chair':
-      return [58 * T + 8, 18 * T]; // beside the table, facing it
+      return [54 * T + 8, TOP * T]; // beside the table, facing it
     default:
-      return [63 * T + 8, 18 * T];
+      return [52 * T + 8, TOP * T];
   }
 }
-/** Water enemies start the hero at the pool's edge instead of in the arena. */
+/** Water enemies start the hero on the pool's shore, down the left stairs, instead of on the platform. */
 const NEAR_POOL = ['eel', 'drowned'];
+const SHORE: [number, number] = [16 * TILE + 8, LOW * TILE];
 
 /** A hunter with every relic and sub-weapon, every shield and the Rootstone, and plenty of HP. */
 function testHunter(hero: Hunter['hero']) {
@@ -190,8 +207,8 @@ function enterChamber(g: Game) {
   const def = chamberDef(g);
   const base = ENEMY[lab.kind]?.base || lab.kind;
   const p = def.ents.find((e) => e.t === 'P')!;
-  const x = NEAR_POOL.includes(base) ? 27 * TILE : p.x * TILE + 8;
-  g.loadRoom(def, x, (p.y + 1) * TILE);
+  const [x, feet] = NEAR_POOL.includes(base) ? SHORE : [p.x * TILE + 8, (p.y + 1) * TILE];
+  g.loadRoom(def, x, feet);
   lab.mine = [];
   lab.respawnT = 0;
   if (lab.kind) spawnOne(g);

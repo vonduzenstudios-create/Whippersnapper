@@ -103,6 +103,14 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 
 The same number is in `package.json`. Newest version first.
 
+### 0.32.0 (2026-10-03)
+
+**A roomier enemy test chamber.** The old chamber felt cramped, so it is now 4 x 2 cells and wide open.
+
+- The hero and the tested enemy start on a broad platform in the middle, under a stone slab (spiders, crawlers and bats hang from it), with the bookcase and the reading table.
+- Stairs run down both sides of the platform to a lower floor: a small pool on the left (eels and the Drowned start there, and so does the hero when testing them), one-way platforms climbing to the top of the room on the right. Grapple rings hang over both stairs.
+- The spike trench is gone, and so is the old editor-saved chamber in `room_edits.json` (it overrode the code).
+
 ### 0.31.0 (2026-10-03)
 
 **Ten mini-bosses**: big enemies with a handful of telegraphed attacks each. They are in the enemy editor and under TEST ENEMY, but no room places them yet (map letters `0`-`9`).
