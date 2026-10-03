@@ -464,8 +464,10 @@ function bellMother(p: PixelCanvas, flap: number, pose: MPose) {
   const E = (x: number, y: number, rx: number, ry: number, c: RGBA) => p.ellipse(X(x, y), y, rx, ry, c);
   const D = (x: number, y: number, c: RGBA) => p.set(X(x, y), y, c);
 
-  // ── wings, both behind her; the far one darker and higher
-  const wing = (dim: number, dx: number, dy: number) => {
+  // ── wings: one out to each side of her. The far one (to her front, screen right) is the
+  // near one mirrored about her spine, darker, and drawn first so her body covers its root
+  const wing = (dim: number, dx: number, dy: number, far = false) => {
+    const before = far ? p.clone() : null;
     const sx = X(56, 31) + dx, sy = 31 + dy;
     const up = pose === 'cast' ? 1.25 : flap;
     const [tipX, tipY, midX, midY] = pose === 'dive'
@@ -489,8 +491,20 @@ function bellMother(p: PixelCanvas, flap: number, pose: MPose) {
     p.line(midX, midY - 4, tipX, tipY, bone, 1.4);
     p.circle(midX, midY - 4, 1.8, shade(P.bone, dim));
     for (let k = 0; k < 3; k++) p.line(midX, midY - 4, midX - 2 + k * 2, midY - 9 + Math.abs(k - 1), shade(P.bone, dim));
+    if (before) {
+      // flip what was just drawn about the shoulder line, so this wing reaches out the other way
+      const axis = Math.round(X(59, 31)) * 2;
+      const drawn: [number, number, RGBA][] = [];
+      for (let y = 0; y < p.h; y++)
+        for (let x = 0; x < p.w; x++) {
+          const c = p.get(x, y), o = before.get(x, y);
+          if (c[3] && (c[0] !== o[0] || c[1] !== o[1] || c[2] !== o[2] || c[3] !== o[3])) drawn.push([x, y, c]);
+        }
+      p.data.set(before.data);
+      for (const [x, y, c] of drawn) p.set(axis - x, y, c);
+    }
   };
-  wing(0.55, -6, -3);
+  wing(0.6, 0, -2, true);
   wing(1, 0, 0);
 
   // ── lank black hair down her back
@@ -619,7 +633,7 @@ export function buildBellMotherSheet(): SheetBuilder {
     p.outline(hex('#08040a'));
     return p;
   };
-  b.add('fly', draw(1), draw(0.3), draw(-0.8), draw(0));
+  b.add('fly', draw(1), draw(0.55), draw(-0.2), draw(-0.9), draw(-0.35), draw(0.45)); // a full beat: up, down, back up
   b.add('dive', draw(0, 'dive'));
   b.add('cast', draw(1.25, 'cast'));
   return b;

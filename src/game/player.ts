@@ -137,6 +137,11 @@ export class Player implements Body {
   chain: { x: number; y: number; px: number; py: number }[] = [];
   whipVisible = false;
   ring: { x: number; y: number } | null = null;
+  /**
+   * Riding something that carries her (the Leviathan's harpoon ring): she hangs from the
+   * point it gives and goes where it goes. JUMP lets go (`release` is told).
+   */
+  mount: { x: number; y: number; release?: () => void } | null = null;
   ropeLen = 0;
   theta = 0;
   dropT = 0;
@@ -257,8 +262,29 @@ export class Player implements Body {
     if (offRing) this.popOut();
   }
 
+  /** One frame of hanging from a mount: no physics of her own, JUMP lets go. */
+  updateMount() {
+    const m = this.mount!, inp = this.g.input;
+    this.animT++;
+    if (this.invuln > 0) this.invuln--;
+    this.x = m.x;
+    this.y = m.y + HAND_DY;
+    this.vx = this.vy = 0;
+    this.onGround = false;
+    this.ring = null;
+    if (this.state !== 'normal') this.set('normal');
+    if (inp.pressed('jump') || !this.alive) {
+      this.mount = null;
+      this.vy = JUMP_V * 0.85;
+      this.djumped = false;
+      m.release?.();
+      this.popOut();
+    }
+  }
+
   update() {
     const g = this.g, inp = g.input, room = g.room;
+    if (this.mount) return this.updateMount();
     this.t++;
     this.animT++;
     if (this.invuln > 0) this.invuln--;
@@ -1603,7 +1629,8 @@ export class Player implements Body {
     s.mesh.rotation.z = spinning ? -this.facing * this.spin * Math.PI * 2 : 0;
     switch (this.state) {
       case 'normal':
-        if (spinning) s.setFrame(A.tuck[0]);
+        if (this.mount) s.setFrame(A.hang[0]);
+        else if (spinning) s.setFrame(A.tuck[0]);
         else if (this.crouch) s.setFrame(A.crouch[0]);
         else if (!this.onGround) s.setFrame(this.vy < 0 ? A.jump[0] : A.fall[Math.floor(this.animT / 8) % 2]);
         else if (this.landT > 0) s.setFrame(A.land[0]);

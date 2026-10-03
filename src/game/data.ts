@@ -54,6 +54,7 @@ export const ITEMS: Record<string, ItemDef> = {
   acc_garnet: { id: 'acc_garnet', name: 'Garnet Brooch', slot: 'acc', icon: 'ring', desc: 'A ward against harm. CON+4', con: 4 },
   acc_rootstone: { id: 'acc_rootstone', name: 'Rootstone', slot: 'acc', icon: 'rootstone', desc: 'A grave-stone shard grown through with roots. Hits no longer knock you back.', noKnock: true },
   // sold only in Pell's shop (the Reader's Nook)
+  acc_shard: { id: 'acc_shard', name: 'Mirror Shard', slot: 'acc', icon: 'ring', desc: 'A sliver of the Mirror Heart. It shows you a moment early. STR+4 LCK+4', str: 4, lck: 4 },
   acc_lens: { id: 'acc_lens', name: 'Reading Lens', slot: 'acc', icon: 'ring', desc: 'A monocle some reader left on a desk. Things hidden come easier. LCK+5 CON+1', lck: 5, con: 1 },
   potion: { id: 'potion', name: 'Potion', slot: 'use', icon: 'potion', desc: 'Restores 40 HP.', heal: 40 },
   elixir: { id: 'elixir', name: 'Elixir', slot: 'use', icon: 'potion', desc: 'Restores all HP.', heal: 9999 },
@@ -124,6 +125,11 @@ export interface EnemyStats {
   base?: string;
   /** Palette swap: original sprite color '#rrggbb' → new color. */
   colors?: Record<string, string>;
+  /**
+   * A quick recolor for variants written in code (CODE_VARIANTS): turn every color's hue by
+   * `h` degrees and scale its saturation and lightness. Ignored when `colors` is set.
+   */
+  shift?: { h: number; s: number; l: number };
   tune?: Tune;
 }
 
@@ -204,6 +210,9 @@ export const ENEMY_TUNING: Record<string, TuneField[]> = {
   librarian: [SPEED, SIGHT, COOL,
     { key: 'throw', label: 'Throws books', kind: 'bool', help: 'Half in an arc, half straight at you' },
     { key: 'hop', label: 'Hops away', kind: 'bool', help: 'Jumps back when you get close' }],
+  serpent: [SPEED, SIGHT, COOL,
+    { key: 'spit', label: 'Spits venom', kind: 'bool', help: 'Rears up and spits a glob of venom that poisons' },
+    { key: 'strike', label: 'Strikes', kind: 'bool', help: 'Coils, then darts along the floor at you' }],
   spider: [SPEED, SIGHT, COOL,
     { key: 'spit', label: 'Spits webs', kind: 'bool', help: 'Spits a web glob that slows you while it hangs on its thread' },
     { key: 'climb', label: 'Climbs back up', kind: 'bool', help: 'Climbs its thread back to the ceiling after a while. Off: it stays down' }],
@@ -213,7 +222,7 @@ export const BASE_ENEMIES = Object.keys(ENEMY_TUNING);
 /** The room-entity letter for each base enemy. */
 export const ENEMY_LETTER: Record<string, string> = {
   zombie: 'z', bat: 'b', knight: 'k', skeleton: 's', wisp: 'w', drowned: 'd', dog: 'g', harpy: 'y', wraith: 'r', crawler: 'c',
-  hookjaw: 'h', eel: 'e', caster: 'm', ooze: 'o', grub: 'u', hand: 'x', tome: 't', chair: 'a', librarian: 'l', spider: 'p', devourer: 'v', moth: 'f',
+  hookjaw: 'h', eel: 'e', caster: 'm', ooze: 'o', grub: 'u', hand: 'x', tome: 't', chair: 'a', librarian: 'l', spider: 'p', devourer: 'v', moth: 'f', serpent: 'q',
 };
 
 /** Every knob of a base enemy at its normal value. */
@@ -335,20 +344,129 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
     desc: 'Lowers itself on a silk line to look you in the eye, then spits webs that bind your legs. Cut the thread with the whip and it drops to the floor.',
     drops: [{ item: 'heartS', chance: 24 }, { item: 'heartB', chance: 7 }, { item: 'potion', chance: 3 }],
   },
+  serpent: {
+    hp: 28, atk: 14, def: 1, xp: 14, name: 'Temple Asp', portrait: 'slither',
+    desc: 'The temple was built for them, and they never left. It coils before it strikes: step back or jump the dart. From further off it rears up and spits venom that eats at you for a while.',
+    drops: [{ item: 'heartS', chance: 24 }, { item: 'heartB', chance: 7 }, { item: 'potion', chance: 3 }],
+  },
   wyrm: {
     hp: 900, atk: 22, def: 4, xp: 600, name: 'Ossuary Wyrm', portrait: 'skull',
     desc: 'A serpent of fused bone that burrows through stone. The tail is armored. Aim for the skull.',
     drops: [],
   },
   hound: {
-    hp: 1100, atk: 22, def: 4, xp: 800, name: 'Gnarlfang', portrait: 'walk',
+    hp: 650, atk: 22, def: 4, xp: 800, name: 'Gnarlfang', portrait: 'walk',
     desc: 'The two-headed alpha of the kennels. It charges into walls and stuns itself. Strike while it reels. It does not stay dead: it rises again from its own ashes, burning.',
     drops: [],
   },
   bellmother: {
-    hp: 1000, atk: 22, def: 3, xp: 850, name: 'The Bell-Mother', portrait: 'fly',
-    desc: 'Matriarch of the harpies. Her toll shakes the belfry and sends shockwaves along the floor.',
+    hp: 300, atk: 22, def: 3, xp: 850, name: 'The Bell-Mother', portrait: 'fly',
+    desc: 'Matriarch of the harpies. Nothing reaches her while she sings. Listen to her phrase, ring it back on the three bells, and her voice breaks.',
     drops: [],
+  },
+  leviathan: {
+    hp: 600, atk: 22, def: 3, xp: 900, name: 'The Sump Leviathan', portrait: 'swim',
+    desc: 'A blind eel grown vast in the black water under the castle, armored everywhere but the belly. Open both sluice wheels to drain its pool. When it floods the cistern for good, catch the harpoon in its back and ride it onto the spikes.',
+    drops: [],
+  },
+  gorgon: {
+    hp: 300, atk: 23, def: 3, xp: 950, name: 'Ysolde, the Stone Bride', portrait: 'idle',
+    desc: 'Half woman, half serpent, crowned with asps. Her gaze is a beam: hide behind her petrified suitors while they last, or raise your shield just as it lands and send it back to her.',
+    drops: [],
+  },
+  colossus: {
+    hp: 600, atk: 26, def: 6, xp: 1200, name: 'The Hollow Colossus', portrait: 'idle',
+    desc: 'A suit of armor five times the height of a man, with nothing inside but furnace light. Cold, it only rings. Stoke the bellows, bait a glowing piece onto the anvil and forge it to pieces. Then go in after the heart.',
+    drops: [],
+  },
+  mirror: {
+    hp: 600, atk: 24, def: 3, xp: 1100, name: 'The Mirror Heart', portrait: 'idle',
+    desc: 'It wears your shape, cut from glass, and does what you did a moment ago. Stand where you want it to stand. Then it hides among the mirrors, and the world turns over.',
+    drops: [],
+  },
+  yeti: {
+    hp: 300, atk: 25, def: 4, xp: 1000, name: 'Old Rimehide', portrait: 'idle',
+    desc: 'The white beast of the summit, too thick-furred for the chain and too heavy for the frozen lake it dens on. Let its boulders crack a slab, then make it jump there.',
+    drops: [],
+  },
+  archivist: {
+    hp: 600, atk: 23, def: 3, xp: 1050, name: 'The Head Archivist', portrait: 'idle',
+    desc: 'He never left his lectern, and he writes what happens next. Blot your name out of his sentence while the ink is wet and the story happens to him instead.',
+    drops: [],
+  },
+};
+
+/**
+ * Variants written in code (the enemy editor's variants live in enemy_edits.json, and an
+ * entry there with the same id wins). Each reuses its base enemy's AI and art, recolored
+ * by `shift`, with its own stats and behavior knobs.
+ */
+export const CODE_VARIANTS: Record<string, EnemyStats> = {
+  dog_dire: {
+    base: 'dog', hp: 46, atk: 18, def: 2, xp: 22, name: 'Dire Wolf', portrait: 'run',
+    desc: 'What the kennel hounds were bred from. White as the drifts it hunts in, half again the weight of a dog, and it does not wait long before it springs.',
+    drops: [{ item: 'heartS', chance: 25 }, { item: 'meat', chance: 12 }, { item: 'heartB', chance: 8 }],
+    shift: { h: 200, s: 0.25, l: 1.9 }, tune: { speed: 1.25, sight: 1.4, cooldown: 0.7 },
+  },
+  harpy_rime: {
+    base: 'harpy', hp: 40, atk: 17, def: 1, xp: 20, name: 'Rime Harpy', portrait: 'fly',
+    desc: 'The summit flock. Frost has bleached their feathers, and their darts come faster.',
+    drops: [{ item: 'heartS', chance: 20 }, { item: 'heartB', chance: 12 }, { item: 'potion', chance: 4 }],
+    shift: { h: 190, s: 0.5, l: 1.5 }, tune: { speed: 1.15, cooldown: 0.75 },
+  },
+  ooze_magma: {
+    base: 'ooze', hp: 44, atk: 18, def: 1, xp: 12, name: 'Slag Ooze', portrait: 'big',
+    desc: 'Forge slag that never cooled. It creeps faster than the grave kind and every piece of it burns.',
+    drops: [{ item: 'heartS', chance: 18 }, { item: 'heartB', chance: 8 }],
+    shift: { h: -95, s: 1.6, l: 1.25 }, tune: { speed: 1.4 },
+  },
+  bat_cinder: {
+    base: 'bat', hp: 12, atk: 14, def: 0, xp: 6, name: 'Cinder Bat', portrait: 'fly',
+    desc: 'They roost in the flues of the Cinderworks, wings glowing like coals.',
+    drops: [{ item: 'heartS', chance: 30 }, { item: 'heartB', chance: 6 }],
+    shift: { h: 140, s: 1.6, l: 1.2 }, tune: { speed: 1.3 },
+  },
+  hookjaw_thrall: {
+    base: 'hookjaw', hp: 80, atk: 21, def: 5, xp: 34, name: 'Forge Thrall', portrait: 'walk',
+    desc: 'A gaoler set to work the bellows. Its hook is red hot and its patience is shorter.',
+    drops: [{ item: 'heartB', chance: 14 }, { item: 'meat', chance: 8 }, { item: 'potion', chance: 6 }],
+    shift: { h: -20, s: 1.5, l: 0.9 }, tune: { cooldown: 0.75 },
+  },
+  knight_slag: {
+    base: 'knight', hp: 95, atk: 23, def: 7, xp: 38, name: 'Slag Knight', portrait: 'walk',
+    desc: 'Armor cast in the Cinderworks and never taken off. Still warm.',
+    drops: [{ item: 'heartB', chance: 14 }, { item: 'potion', chance: 9 }, { item: 'elixir', chance: 2 }],
+    shift: { h: 150, s: 1.3, l: 0.85 }, tune: { speed: 1.1 },
+  },
+  knight_glass: {
+    base: 'knight', hp: 85, atk: 22, def: 6, xp: 36, name: 'Glass Sentinel', portrait: 'walk',
+    desc: 'A reflection of a castle guard that stepped out of its mirror. It turns faster than the men it copies.',
+    drops: [{ item: 'heartB', chance: 14 }, { item: 'potion', chance: 9 }, { item: 'elixir', chance: 2 }],
+    shift: { h: 45, s: 0.8, l: 1.35 }, tune: { speed: 1.2, cooldown: 0.8 },
+  },
+  wisp_prism: {
+    base: 'wisp', hp: 26, atk: 18, def: 0, xp: 15, name: 'Prism Wisp', portrait: 'float',
+    desc: 'Light that lost its way between two mirrors. Quicker than a grave-light, and it sheds no flame.',
+    drops: [{ item: 'heartS', chance: 15 }, { item: 'heartB', chance: 15 }, { item: 'potion', chance: 3 }],
+    shift: { h: 80, s: 1.2, l: 1.15 }, tune: { speed: 1.5, drip: false },
+  },
+  zombie_wretch: {
+    base: 'zombie', hp: 34, atk: 16, def: 1, xp: 10, name: 'Gaol Wretch', portrait: 'walk',
+    desc: 'Prisoners the Warden forgot. The cells could not hold them once they died.',
+    drops: [{ item: 'heartS', chance: 25 }, { item: 'heartB', chance: 8 }, { item: 'meat', chance: 5 }],
+    shift: { h: 160, s: 0.6, l: 0.85 }, tune: { speed: 1.3 },
+  },
+  drowned_deep: {
+    base: 'drowned', hp: 58, atk: 20, def: 3, xp: 26, name: 'Deep Drowned', portrait: 'walk',
+    desc: 'The oldest of the drowned, from the lowest water. Pale as a fish belly.',
+    drops: [{ item: 'heartB', chance: 12 }, { item: 'potion', chance: 7 }, { item: 'meat', chance: 5 }],
+    shift: { h: 60, s: 0.5, l: 1.4 }, tune: { cooldown: 0.8 },
+  },
+  skeleton_jade: {
+    base: 'skeleton', hp: 44, atk: 18, def: 3, xp: 20, name: 'Jade Votary', portrait: 'walk',
+    desc: 'Temple dead, their bones stained green by centuries of offerings. They throw far and often.',
+    drops: [{ item: 'heartS', chance: 22 }, { item: 'heartB', chance: 10 }, { item: 'potion', chance: 4 }],
+    shift: { h: 80, s: 3, l: 0.8 }, tune: { cooldown: 0.7 },
   },
 };
 
@@ -366,6 +484,7 @@ export function baseEnemies(): Record<string, EnemyStats> {
  */
 export function buildEnemies(edits: EnemyEdits): Record<string, EnemyStats> {
   const base = baseEnemies();
+  edits = { ...JSON.parse(JSON.stringify(CODE_VARIANTS)), ...edits };
   for (const [id, st] of Object.entries(base)) {
     st.base = id;
     if (edits[id]) base[id] = { ...st, ...edits[id], base: id };

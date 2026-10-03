@@ -10,6 +10,8 @@ import ENEMY_EDITS from './game/enemy_edits.json';
 import { buildSheet, sheetColors, recolorSheet, Sheet } from './gfx/view';
 import { buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildLibrarianSheet, buildWyrmSheet } from './gfx/art_chars';
 import { buildHoundSheet, buildBellMotherSheet } from './gfx/art_bosses';
+import { buildSerpentSheet } from './gfx/art_depths';
+import { buildLeviathanSheet, buildGorgonSheet, buildColossusSheet, buildYetiSheet, buildArchivistSheet } from './gfx/art_bosses2';
 import { TEST_EDITS_KEY } from './config';
 import {
   buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet,
@@ -39,12 +41,18 @@ const BASE_SHEETS: Record<string, Sheet> = {
   librarian: buildSheet(buildLibrarianSheet()),
   spider: buildSheet(buildSpiderSheet()),
   moth: buildSheet(buildMothSheet()),
+  serpent: buildSheet(buildSerpentSheet()),
 };
 /** The bosses: their stats and text can be edited here, but not their colors, and they have no variants. */
 const BOSS_SHEETS: Record<string, Sheet> = {
   wyrm: buildSheet(buildWyrmSheet()),
   hound: buildSheet(buildHoundSheet()),
   bellmother: buildSheet(buildBellMotherSheet()),
+  leviathan: buildSheet(buildLeviathanSheet()),
+  gorgon: buildSheet(buildGorgonSheet()),
+  colossus: buildSheet(buildColossusSheet()),
+  yeti: buildSheet(buildYetiSheet()),
+  archivist: buildSheet(buildArchivistSheet()),
 };
 const PALETTES: Record<string, { hex: string; count: number }[]> = {};
 for (const [k, s] of Object.entries(BASE_SHEETS)) PALETTES[k] = sheetColors(s);

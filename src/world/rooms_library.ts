@@ -210,7 +210,7 @@ export function buildLibraryRooms(): RoomDef[] {
   // tomes, and his chair has been waiting for him.
   {
     const b = new RB(2, 1);
-    b.shell().door('R', 0);
+    b.shell().door('R', 0).door('L', 0); // west door: the Archivist's Wing
     cases(b, [[1, 5, 4, 7], [32, 6, 4, 6], [38, 9, 4, 3]]);
     tables(b, [[18, 11, 8, 'a', 'n']]);
     tomes(b, [[2, 8], [3, 10], [33, 7], [34, 9], [33, 10], [39, 10]]);

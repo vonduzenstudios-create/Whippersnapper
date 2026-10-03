@@ -8,6 +8,7 @@ import { Dog, Harpy, Wraith, Crawler } from './enemies_expansion';
 import { Hookjaw, Devourer, Eel, Caster, Ooze, Grub, Gravehand, Moth } from './enemies_extra';
 import { Tome, Chair, Librarian } from './enemies_library';
 import { Spider } from './enemies_spider';
+import { Serpent } from './enemies_depths';
 
 /**
  * Spawn the enemy for room-entity letter `t`. `variant` (the entity's arg) is an
@@ -62,6 +63,8 @@ export function spawnEnemy(g: Game, t: string, x: number, bottom: number, varian
       return new Moth(g, kind, x, bottom - 8);
     case 'spider':
       return new Spider(g, kind, x, bottom);
+    case 'serpent':
+      return new Serpent(g, kind, x, bottom);
   }
   return null;
 }

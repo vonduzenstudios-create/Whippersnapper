@@ -453,7 +453,7 @@ export class Rockfall extends Ent {
   constructor(
     g: Game,
     count: number,
-    public kind: 'rock' | 'fireball' | 'bone' = 'rock',
+    public kind: 'rock' | 'fireball' | 'bone' | 'icicle' = 'rock',
     public dmg = 16,
     over = 70,
   ) {
@@ -490,7 +490,7 @@ export class EnemyShot extends Ent {
   grav: number;
   t = 0;
   frames: number[];
-  constructor(g: Game, x: number, y: number, vx: number, vy: number, kind: 'bone' | 'fireball' | 'bigfire' | 'feather' | 'rock' | 'book' | 'web', dmg: number, grav = 0) {
+  constructor(g: Game, x: number, y: number, vx: number, vy: number, kind: 'bone' | 'fireball' | 'bigfire' | 'feather' | 'rock' | 'book' | 'web' | 'icicle' | 'glass' | 'slime', dmg: number, grav = 0) {
     super();
     this.x = x;
     this.y = y;
@@ -518,6 +518,10 @@ export class EnemyShot extends Ent {
     if (this.kind === 'web') {
       g.fx.burst(this.x, this.y, 'web', 1, 0, { life: 14, fade: true });
       if (hurt) g.player.web(150);
+    } else if (this.kind === 'slime') {
+      // venom: a poison that eats at her for four seconds
+      g.fx.burst(this.x, this.y, 'slime', 3, 6, { life: 20, fade: true });
+      if (hurt) g.player.poison(240, 2);
     } else g.fx.burst(this.x, this.y, 'burst', 1);
   }
   update(g: Game) {
@@ -527,8 +531,8 @@ export class EnemyShot extends Ent {
     this.y += this.vy;
     this.sprite!.setFrame(this.frames[Math.floor(this.t / 5) % this.frames.length]);
     const fiery = this.kind === 'fireball' || this.kind === 'bigfire';
-    if (this.kind === 'feather') {
-      // darts point along their flight
+    if (this.kind === 'feather' || this.kind === 'glass') {
+      // darts and glass splinters point along their flight
       this.sprite!.place(this.x, this.y);
       this.sprite!.mesh.rotation.z = -Math.atan2(this.vy, this.vx);
     } else this.sprite!.place(this.x, this.y, this.vx < 0);
@@ -537,10 +541,11 @@ export class EnemyShot extends Ent {
     if (spins) this.sprite!.mesh.rotation.z += (this.kind === 'book' ? 0.2 : 0.3) * (Math.sign(this.vx) || 1);
     if (fiery && this.t % 4 === 0) g.fx.burst(this.x, this.y, 'ember', 1, 2, { life: 16, vy: -0.3 });
     if (this.t > 360 || this.y > g.room.H + 32 || this.x < -32 || this.x > g.room.W + 32) this.dead = true;
-    if ((this.kind === 'fireball' || this.kind === 'feather' || this.kind === 'rock' || this.kind === 'book' || this.kind === 'web') && g.room.solidPx(this.x, this.y)) {
+    if (this.kind !== 'bone' && this.kind !== 'bigfire' && g.room.solidPx(this.x, this.y)) {
       this.dead = true;
       if (this.kind === 'web') g.fx.burst(this.x, this.y, 'web', 1, 0, { life: 30, fade: true });
       else if (this.kind === 'book') g.fx.burst(this.x, this.y, 'page', 4, 4, { speed: 1.2, grav: 0.03, life: 40, rot: 0.2, fade: true });
+      else if (this.kind === 'icicle' || this.kind === 'glass') g.fx.burst(this.x, this.y, 'glass', 3, 4, { speed: 1.2, grav: 0.1, life: 24, fade: true });
       else g.fx.burst(this.x, this.y, fiery ? 'burst' : 'dust', 1);
     }
   }
@@ -897,5 +902,36 @@ export class Merchant extends Ent {
     s.place(this.x, this.bottom - 4 + Math.sin(this.t * 0.05) * 2, near && p.x < this.x);
     s.glow = 0.25;
     if (this.t % 18 === 0) g.fx.burst(this.x + rand(-6, 6), this.bottom - 6, 'mote', 1, 0, { vy: -0.4, life: 30, fade: true, glow: 0.5, tint: [0.8, 1, 1.3] });
+  }
+}
+
+// ---------------------------------------------------------------- warp (RoomDef.warp)
+
+/** A glowing breach the hero steps through with UP: it carries her to another room (the way out of the Colossus). */
+export class Warp extends Ent {
+  t = 0;
+  constructor(g: Game, private w: { x: number; y: number; to: string; tx: number; ty: number }) {
+    super();
+    this.x = w.x * TILE + 8;
+    this.y = (w.y + 1) * TILE - 24;
+    this.hw = 12;
+    this.hh = 24;
+    this.sprite = new Sprite(g.sheets.colossus, g.view.sprites, 7);
+  }
+  update(g: Game) {
+    this.t++;
+    const s = this.sprite!, p = g.player;
+    s.setFrame(g.sheets.colossus.anims.door[Math.floor(this.t / 10) % 2]);
+    s.place(this.x, this.y);
+    s.glow = 0.4 + Math.sin(this.t * 0.1) * 0.2;
+    if (this.t % 12 === 0) g.fx.burst(this.x + rand(-8, 8), this.y + rand(-16, 16), 'ember', 1, 3, { vy: -0.5, life: 30 });
+    if (!p.alive || !overlap(this, p)) return;
+    g.hint = `${g.input.label('up')}: LEAVE`;
+    const to = g.defs.find((d) => d.id === this.w.to);
+    if (to && g.input.pressed('up') && g.state === 'play') {
+      g.audio.play('fire');
+      g.trans = { t: 0, to, x: this.w.tx * TILE + 8, y: (this.w.ty + 1) * TILE - p.hh, vx: 0, vy: 0 };
+      g.state = 'transition';
+    }
   }
 }

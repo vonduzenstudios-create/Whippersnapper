@@ -82,6 +82,8 @@ export class Input {
   onFirstGesture: (() => void) | null = null;
   /** While set (cutscenes), these replace the player's held actions. Menu edges still read real input. */
   script: Partial<Record<Action, boolean>> | null = null;
+  /** LEFT and RIGHT are swapped (the Mirror Vault: see RoomDef.mirror and the Mirror Heart). Only real input is flipped, not a script. */
+  mirror = false;
 
   constructor() {
     this.bindKeys = JSON.parse(JSON.stringify(DEFAULT_KEYS));
@@ -189,6 +191,7 @@ export class Input {
       if (a === 'down' && this.stickY > 0.5) h = true;
       this.held[a] = h;
     }
+    if (this.mirror) [this.held.left, this.held.right] = [this.held.right, this.held.left];
     if (this.script) for (const a of ACTIONS) this.held[a] = !!this.script[a];
     const padHit = (i: number) => this.padNow[i] && !this.padPrev[i];
     const keyHit = (...c: string[]) => c.some((k) => this.keyHits.has(k));

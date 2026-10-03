@@ -653,6 +653,7 @@ export class UI {
       if (d.t > 40 && d.t % 4 < 2) continue;
       drawText(c, d.v, x, y, d.c, '#000', 'center');
     }
+    if (g.state === 'play' || g.state === 'talk') for (const o of g.overlays) o(c);
     if (g.state === 'title' || g.state === 'intro') return;
     if (g.cutscene) return this.drawCutscene();
     if (g.bossShow) {
@@ -999,7 +1000,7 @@ export class UI {
   /** A dialogue portrait, mirrored to face left when `flip`, darkened when someone else is speaking. */
   portrait(who: Line['who'], face: Face, x: number, y: number, flip: boolean, lit: boolean) {
     const g = this.g, c = this.ctx, sh = g.sheets.portraits;
-    const key = who === 'hero' ? g.hunter.hero : who;
+    const key = who === 'hero' ? g.hunter.hero : who === 'mirror' ? `mirror_${g.hunter.hero}` : who;
     const idx = sh.anims[`${key}_${face}`]?.[0] ?? sh.anims[`${key}_neutral`]?.[0];
     if (idx === undefined) return;
     const img = sh.tex.image as HTMLCanvasElement;

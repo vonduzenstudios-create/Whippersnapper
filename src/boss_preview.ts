@@ -1,6 +1,8 @@
 // /bosses.html: the expansion boss sprites, animated, with every frame listed (click one to play it).
 import { SheetBuilder } from './gfx/pixel';
 import { buildHoundSheet, buildCinderHoundSheet, buildBellMotherSheet } from './gfx/art_bosses';
+import { buildSerpentSheet, buildFigureSheet } from './gfx/art_depths';
+import { buildLeviathanSheet, buildGorgonSheet, buildColossusSheet, buildYetiSheet, buildArchivistSheet, buildPropSheet, buildTallPropSheet } from './gfx/art_bosses2';
 
 interface Option { name: string; note: string; sheet: SheetBuilder; anim: string }
 
@@ -19,6 +21,21 @@ const groups: { title: string; options: Option[] }[] = [
     ],
   },
 ];
+
+groups.push({
+  title: 'The newer bosses (redrawn in 0.19.0)',
+  options: [
+    { name: 'The Sump Leviathan', note: 'A blind giant eel: head, body segments and tail strung together by the boss.', sheet: buildLeviathanSheet(), anim: 'swim' },
+    { name: 'Ysolde, the Stone Bride', note: 'A gorgon in a tattered wedding veil, asps for hair, on a serpent\'s coils.', sheet: buildGorgonSheet(), anim: 'idle' },
+    { name: 'The Hollow Colossus', note: 'A giant suit of armor in pieces: torso, helm, gauntlets, legs and the furnace core.', sheet: buildColossusSheet(), anim: 'idle' },
+    { name: 'Arena props', note: 'Wheels, spike racks, bellows, the anvil, bells, anchors, crystals, vents, ice cracks.', sheet: buildPropSheet(), anim: 'wheel' },
+    { name: 'Tall props', note: 'A petrified suitor, a standing mirror, the furnace heart.', sheet: buildTallPropSheet(), anim: 'core' },
+    { name: 'Old Rimehide', note: 'The white beast of the summit: ram horns, a blue face.', sheet: buildYetiSheet(), anim: 'walk' },
+    { name: 'The Head Archivist', note: 'A skull in spectacles and a judge\'s robe, floating.', sheet: buildArchivistSheet(), anim: 'idle' },
+    { name: 'Storybook figures', note: 'Pirate (Adventure), duelist (Romance), golem (Horror), sleuth (Mystery).', sheet: buildFigureSheet(), anim: 'pirate' },
+    { name: 'Temple Asp', note: 'The Serpent Temple\'s own enemy.', sheet: buildSerpentSheet(), anim: 'slither' },
+  ],
+});
 
 const root = document.getElementById('root')!;
 const zoomInput = document.getElementById('zoom') as HTMLInputElement;

@@ -22,6 +22,8 @@ export class View {
   zoom = 1;
   shakeX = 0;
   shakeY = 0;
+  /** The camera rolled about its own axis, in radians: PI turns the whole view upside down (the Mirror Heart). */
+  roll = 0;
   world = new THREE.Group(); // per-room content (backdrop + tiles)
   sprites = new THREE.Group();
 
@@ -64,10 +66,12 @@ export class View {
   }
   /** Screen position of a world point (for the HUD). */
   sx(x: number) {
-    return (x - this.camX) / this.zoom;
+    const v = (x - this.camX) / this.zoom;
+    return this.roll > Math.PI / 2 ? VW - v : v;
   }
   sy(y: number) {
-    return (y - this.camY) / this.zoom;
+    const v = (y - this.camY) / this.zoom;
+    return this.roll > Math.PI / 2 ? VH - v : v;
   }
 
   /** Position the camera so that the z=0 plane maps 1:1 to screen pixels (times the zoom). */
@@ -76,6 +80,7 @@ export class View {
     const cx = (z === 1 ? Math.round(this.camX + this.shakeX) : this.camX + this.shakeX) + this.viewW / 2;
     const cy = (z === 1 ? Math.round(this.camY + this.shakeY) : this.camY + this.shakeY) + this.viewH / 2;
     this.camera.position.set(cx, -cy, CAM_DIST * z);
+    this.camera.up.set(Math.sin(this.roll), Math.cos(this.roll), 0);
     this.camera.lookAt(cx, -cy, 0);
   }
 
@@ -167,6 +172,40 @@ export function sheetColors(s: Sheet): { hex: string; count: number }[] {
     counts.set(h, (counts.get(h) || 0) + 1);
   }
   return [...counts].map(([hex, count]) => ({ hex, count })).sort((a, b) => b.count - a.count);
+}
+
+/**
+ * One '#rrggbb' color moved in HSL space: hue turned by `h` degrees, saturation and lightness
+ * scaled by `s` and `l`. With `glass`, it becomes a shade of violet glass instead (dark
+ * indigo to pale ice by its brightness): the Mirror Heart's look.
+ */
+export function shiftColor(hexIn: string, o: { h?: number; s?: number; l?: number; glass?: boolean }): string {
+  const n = parseInt(hexIn.slice(1), 16);
+  const r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h /= 6;
+  }
+  if (o.glass) {
+    h = 0.72 - l * 0.16;
+    s = 0.55;
+    l = Math.min(0.95, 0.12 + l * 1.05);
+  } else {
+    h = (((h + (o.h || 0) / 360) % 1) + 1) % 1;
+    s = Math.min(1, s * (o.s ?? 1));
+    l = Math.min(0.96, l * (o.l ?? 1));
+  }
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+  const ch = (t: number) => {
+    t = ((t % 1) + 1) % 1;
+    const v = t < 1 / 6 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p;
+    return Math.round(v * 255);
+  };
+  return toHex(ch(h + 1 / 3), ch(h), ch(h - 1 / 3));
 }
 
 /** A copy of a sheet with some colors swapped (map keys and values are '#rrggbb'). */

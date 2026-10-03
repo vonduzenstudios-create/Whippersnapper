@@ -2,6 +2,7 @@
 // expression, named `<speaker>_<face>` (e.g. 'vesna_angry'). Faces are drawn looking
 // slightly to the right; the dialogue box mirrors the ones that stand on the right.
 import { PixelCanvas, SheetBuilder, RGBA, hex, shade } from './pixel';
+import { depthPortraits, glassPortrait } from './art_depths';
 
 export type Face = 'neutral' | 'smile' | 'angry' | 'surprised' | 'sad';
 export const PORTRAIT = 64;
@@ -385,6 +386,9 @@ export function buildPortraitSheet(): SheetBuilder {
   put('wyrm_angry', wyrmFace(true));
   put('hound_neutral', houndFace(false));
   put('hound_angry', houndFace(true));
+  // the 0.18.0 bosses (art_depths.ts); the Mirror Heart is each twin's own bust, in glass
+  for (const [name, src] of Object.entries(depthPortraits())) put(name, src);
+  for (const who of ['vesna', 'anzel']) for (const f of ['neutral', 'smile', 'angry'] as Face[]) put(`mirror_${who}_${f}`, glassPortrait(bust(HUMANS[who][0], f, true)));
   return b;
 }
 

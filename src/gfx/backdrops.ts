@@ -637,6 +637,145 @@ export function buildBackdrop(room: Room, candleSheet: Sheet): Backdrop {
       }
       break;
     }
+    case 'graveyard': {
+      // the Lichyard: the burial ravine under the castle bridge. Night sky, bare trees, rows of
+      // leaning headstones and a low green mist
+      bg = new THREE.Color('#080a14');
+      fog = new THREE.Fog('#141c22', CAM_DIST + 200, CAM_DIST + 1100);
+      const sky = wallPlane(room, 1600, skyMaterial('#080a1c', '#263a3a', true));
+      (sky.material as THREE.ShaderMaterial).fog = false;
+      g.add(sky);
+      anim.push((t) => ((sky.material as THREE.ShaderMaterial).uniforms.t.value = t));
+      for (const [d, col, seed, yoff] of [[900, '#141c24', 13, 40], [560, '#0e1418', 17, 80]] as [number, string, number, number][]) {
+        const e = extent(room, d);
+        const tex = ridgeTex(hex(col), seed, 3);
+        const w = e.x1 - e.x0;
+        tex.repeat.set(w / 512, 1);
+        const m = plane(w, 220, new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, fog: true }));
+        m.position.set((e.x0 + e.x1) / 2, -(floorY - 110 + yoff), -d);
+        g.add(m);
+      }
+      for (let i = 0; i < room.W / 90; i++) {
+        const m = plane(64, 96, new THREE.MeshBasicMaterial({ map: treeTex(i + 31), transparent: true, alphaTest: 0.5 }));
+        m.position.set(i * 90 + hash2(i, 41) * 50, -(floorY - 46), -(110 + hash2(i, 42) * 120));
+        g.add(m);
+      }
+      const graveM = lambert({ map: stoneTex(hex('#5a625c'), hex('#262c28'), true, 33) });
+      for (let i = 0; i < room.W / 28; i++) {
+        const h = 14 + hash2(i, 43) * 16, d = 14 + hash2(i, 44) * 80;
+        const cross = hash2(i, 45) < 0.3;
+        const st = new THREE.Mesh(new THREE.BoxGeometry(cross ? 4 : 12, h, 4), graveM);
+        st.position.set(i * 28 + hash2(i, 46) * 18, -(floorY - h / 2), -d);
+        st.rotation.z = (hash2(i, 47) - 0.5) * 0.3;
+        g.add(st);
+        if (cross) {
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(14, 4, 4), graveM);
+          bar.position.set(st.position.x, -(floorY - h + 5), -d);
+          bar.rotation.z = st.rotation.z;
+          g.add(bar);
+        }
+      }
+      floorPlane(stoneTex(hex('#2a3024'), hex('#141810'), true, 34), 140);
+      const moon = new THREE.DirectionalLight('#8aa0b0', 1.1);
+      moon.position.set(-1, 1, 1);
+      g.add(moon);
+      g.add(new THREE.AmbientLight('#3a4a4a', 1.2));
+      g.add(motes(room, 50, '#8ae0a0', [10, 160]));
+      break;
+    }
+    case 'deeps':
+    case 'temple':
+    case 'gaol':
+    case 'forge':
+    case 'crystal': {
+      // the under-castle settings share one cavern, dressed differently
+      const C = {
+        deeps: { fog: '#06181c', far: 340, wall: '#22383c', mortar: '#0a1416', floor: '#1e3034', amb: '#2a5a5a', torch: '#60e0c0', mote: '#70e0d0' },
+        temple: { fog: '#12140a', far: 420, wall: '#5a5430', mortar: '#201c0c', floor: '#3e3a22', amb: '#5a5a30', torch: '#ffc050', mote: '#c0e070' },
+        gaol: { fog: '#0c0808', far: 320, wall: '#3a3434', mortar: '#141010', floor: '#2a2424', amb: '#3a2e2e', torch: '#ff7a30', mote: '#a08070' },
+        forge: { fog: '#1c0804', far: 420, wall: '#3a2420', mortar: '#7a2008', floor: '#2a1a16', amb: '#6a3020', torch: '#ff6a20', mote: '#ff9030' },
+        crystal: { fog: '#100a24', far: 460, wall: '#3a3060', mortar: '#140e2c', floor: '#4a4080', amb: '#5a4a9a', torch: '#b090ff', mote: '#c8b0ff' },
+      }[theme];
+      bg = new THREE.Color(C.fog);
+      fog = new THREE.Fog(C.fog, CAM_DIST + 90, CAM_DIST + C.far);
+      const seed = { deeps: 61, temple: 62, gaol: 63, forge: 64, crystal: 65 }[theme];
+      g.add(wallPlane(room, 100, lambert({ map: stoneTex(hex(C.wall), hex(C.mortar), theme !== 'temple' && theme !== 'crystal', seed, theme === 'gaol') }), 64));
+      if (!room.water) floorPlane(stoneTex(hex(C.floor), hex(C.mortar), true, seed + 10), 100);
+      const stoneM = lambert({ map: stoneTex(shade(hex(C.wall), 1.25), hex(C.mortar), false, seed + 20) });
+      g.add(new THREE.AmbientLight(C.amb, 1.0));
+      if (theme === 'temple' || theme === 'gaol') {
+        // rows of pillars; the temple's are thick and stepped, the gaol's carry chains
+        for (let x = 0; x < room.W + 192; x += 192) {
+          pillar(x, 55, 0, room.H, stoneM, theme === 'temple' ? 34 : 20);
+          if (theme === 'temple') for (let y = 0; y < room.H; y += 224) arch(x + 96, 55, 192, y + 34, stoneM, 16);
+        }
+        if (theme === 'gaol') for (let i = 0; i < room.W / 60; i++) chain(30 + i * 60 + hash2(i, 7) * 30, 20 + hash2(i, 8) * 50, 0, 50 + hash2(i, 4) * 110);
+      }
+      if (theme === 'temple') {
+        // serpent idols: a coiled body and a flat hooded head, eyes lit
+        const idolM = lambert({ color: '#4a8a5a', emissive: '#0a2a14' });
+        for (let x = 150; x < room.W; x += 330) {
+          for (let k = 0; k < 4; k++) {
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(20 - k * 3, 6, 5, 10), idolM);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.set(x, -(floorY - 6 - k * 11), -70);
+            g.add(ring);
+          }
+          const hood = new THREE.Mesh(new THREE.SphereGeometry(14, 6, 5), idolM);
+          hood.scale.set(1.3, 1, 0.5);
+          hood.position.set(x, -(floorY - 64), -70);
+          g.add(hood);
+          const eyes = plane(40, 20, glowMaterial('#ffd040', 0.6));
+          eyes.position.set(x, -(floorY - 66), -62);
+          g.add(eyes);
+          anim.push((t) => ((eyes.material as THREE.ShaderMaterial).uniforms.t.value = t + x));
+        }
+      }
+      if (theme === 'forge') {
+        // the glow of the furnaces below, hanging chains and a slow rain of embers
+        const glow = plane(room.W * 3, 260, glowMaterial('#ff4a10', 0.6));
+        glow.position.set(room.W / 2, -(room.H + 20), -120);
+        g.add(glow);
+        anim.push((t) => ((glow.material as THREE.ShaderMaterial).uniforms.t.value = t * 0.6));
+        const red = new THREE.PointLight('#ff5020', 1.6, 600, 0);
+        red.position.set(room.W / 2, -(room.H + 40), -60);
+        g.add(red);
+        lights.push({ l: red, base: 1.6, seed: 3 });
+        for (let i = 0; i < room.W / 90; i++) chain(40 + i * 90 + hash2(i, 9) * 40, 30 + hash2(i, 5) * 60, 0, 40 + hash2(i, 6) * 140);
+        for (let x = 0; x < room.W + 256; x += 256) pillar(x, 60, 0, room.H, stoneM, 30);
+      }
+      if (theme === 'crystal' || theme === 'deeps') {
+        // crystals (the vault) or pale stalagmites (the deeps) on floor and ceiling
+        const m = theme === 'crystal' ? lambert({ color: '#b8a0ff', emissive: '#3a2a8a' }) : lambert({ color: '#4a6a68' });
+        const n = Math.round(room.W / 40);
+        for (let i = 0; i < n; i++) {
+          const up = i % 2 === 0;
+          const h = 22 + hash2(i, 1) * 50, r = 4 + hash2(i, 2) * 8;
+          const c = new THREE.Mesh(new THREE.ConeGeometry(r, h, theme === 'crystal' ? 4 : 6), m);
+          const cy = Math.floor(hash2(i, 6) * room.def.h) * 224; // spread over every screen of a tall room
+          c.position.set(hash2(i, 3) * room.W, up ? -(cy + 192 - h / 2 + 2) : -(cy + TILE + h / 2 - 2), -(14 + hash2(i, 4) * 80));
+          if (!up) c.rotation.x = Math.PI;
+          c.rotation.z = (hash2(i, 5) - 0.5) * (theme === 'crystal' ? 0.8 : 0.2);
+          g.add(c);
+        }
+      }
+      if (theme === 'crystal') {
+        // tall mirrors along the back wall, each with a slow shimmer
+        for (let x = 96; x < room.W; x += 192)
+          for (let y = 100; y < room.H; y += 224) {
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(52, 92, 4), lambert({ color: '#8a6ad0' }));
+            frame.position.set(x, -y, -96);
+            g.add(frame);
+            const glass = plane(44, 84, glowMaterial('#a8d8ff', 0.5));
+            glass.position.set(x, -y, -93);
+            g.add(glass);
+            anim.push((t) => ((glass.material as THREE.ShaderMaterial).uniforms.t.value = t * 0.3 + x));
+          }
+      }
+      for (let x = 128; x < room.W; x += 256) for (let y = 120; y < room.H; y += 224) addTorch(x, y, 80, C.torch, 2.3, 240, theme !== 'crystal' && theme !== 'deeps');
+      g.add(motes(room, theme === 'forge' ? 70 : 40, C.mote, [10, 90]));
+      break;
+    }
     case 'hall':
     case 'stair':
     case 'shrine': {
@@ -1182,6 +1321,189 @@ export function buildBackdrop(room: Room, candleSheet: Sheet): Backdrop {
   }
 
   // tag torch sprites with a seed so they don't flicker in sync
+  // ---------------------------------------------------------------- boss arenas
+  // Each boss room gets set pieces of its own on top of its theme, in layers at different
+  // depths so they slide against each other as the camera moves (0.19.0).
+  const glowAt = (x: number, y: number, d: number, w: number, h: number, color: string, k: number, speed = 1) => {
+    const m = plane(w, h, glowMaterial(color, k));
+    m.position.set(x, -y, -d);
+    m.renderOrder = 1;
+    g.add(m);
+    anim.push((t) => ((m.material as THREE.ShaderMaterial).uniforms.t.value = t * speed + x * 0.01));
+    return m;
+  };
+  /** A flat translucent sheet (light shafts, veils, glass). */
+  const sheet = (x: number, y: number, d: number, w: number, h: number, color: string, opacity: number, rot = 0, add = true) => {
+    const m = plane(w, h, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false, side: THREE.DoubleSide }));
+    m.position.set(x, -y, -d);
+    m.rotation.z = rot;
+    g.add(m);
+    return m;
+  };
+  const W = room.W, H = room.H;
+  switch (room.def.id) {
+    case 'dp_cistern': {
+      // the Black Cistern: two great sluice pipes pouring from the back wall, an iron grating
+      // across the vault, and cold light falling through it in shafts
+      const ironM = lambert({ color: '#3a4448' });
+      for (const x of [W * 0.22, W * 0.78]) {
+        const pipe = new THREE.Mesh(new THREE.CylinderGeometry(34, 34, 60, 10), ironM);
+        pipe.rotation.x = Math.PI / 2;
+        pipe.position.set(x, -110, -84);
+        g.add(pipe);
+        const fall = sheet(x, 110 + (H - 110) / 2, 70, 44, H - 110, '#4ac0c0', 0.22);
+        anim.push((t) => ((fall.material as THREE.MeshBasicMaterial).opacity = 0.18 + Math.sin(t * 7 + x) * 0.05));
+        glowAt(x, H - 40, 60, 140, 80, '#60e0d0', 0.4, 2);
+      }
+      for (let x = 0; x < W + 64; x += 64) {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(6, 10, 220), ironM);
+        bar.position.set(x, -20, -110);
+        g.add(bar);
+      }
+      for (let i = 0; i < 6; i++) {
+        const sh = sheet(60 + i * 130, H / 2, 40 + i * 14, 26, H * 1.3, '#9ae0ff', 0.07, 0.22);
+        anim.push((t) => ((sh.material as THREE.MeshBasicMaterial).opacity = 0.05 + Math.sin(t * 0.6 + i) * 0.03));
+      }
+      for (let i = 0; i < 10; i++) chain(40 + i * 76, 24 + (i % 3) * 20, 0, 90 + ((i * 53) % 150));
+      break;
+    }
+    case 'tp_court': {
+      // the Bride's Court: a ruined wedding. A round window of gold glass, veils hung between
+      // the pillars, and rows of petrified guests receding into the dark
+      glowAt(W / 2, 120, 96, 220, 220, '#ffcf60', 0.55, 0.3);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(92, 7, 6, 28), lambert({ color: '#8a7a40' }));
+      ring.position.set(W / 2, -120, -94);
+      g.add(ring);
+      for (let k = 0; k < 6; k++) {
+        const spoke = new THREE.Mesh(new THREE.BoxGeometry(184, 4, 4), lambert({ color: '#8a7a40' }));
+        spoke.rotation.z = (k * Math.PI) / 6;
+        spoke.position.set(W / 2, -120, -93);
+        g.add(spoke);
+      }
+      for (let i = 0; i < 7; i++) {
+        const v = sheet(50 + i * 112, 150, 30 + (i % 3) * 22, 60, 220, '#e8e0d0', 0.1, (i % 2 ? 1 : -1) * 0.08, false);
+        anim.push((t) => (v.rotation.z = (i % 2 ? 1 : -1) * 0.08 + Math.sin(t * 0.7 + i) * 0.03));
+      }
+      const guestM = lambert({ color: '#7a8478' });
+      for (let i = 0; i < 26; i++) {
+        const d = 34 + hash2(i, 91) * 60;
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(5, 8, 30, 6), guestM);
+        body.position.set(hash2(i, 92) * W, -(floorY - 15), -d);
+        g.add(body);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(5, 6, 5), guestM);
+        head.position.set(body.position.x, -(floorY - 35), -d);
+        g.add(head);
+      }
+      break;
+    }
+    case 'ht_summit': {
+      // Rimecrown Summit: curtains of aurora over the lake, and the lake itself shining back
+      const cols = ['#40e0a0', '#60a0ff', '#a060ff'];
+      for (let i = 0; i < 6; i++) {
+        const a = sheet(i * 150, 90 + (i % 2) * 30, 300 + i * 60, 260, 200, cols[i % 3], 0.16, 0.12 * (i % 2 ? 1 : -1));
+        anim.push((t) => {
+          (a.material as THREE.MeshBasicMaterial).opacity = 0.1 + Math.sin(t * 0.5 + i * 1.3) * 0.07;
+          a.position.x = i * 150 + Math.sin(t * 0.2 + i) * 40;
+        });
+      }
+      const ice = new THREE.Mesh(new THREE.PlaneGeometry(W + 800, 300), waterSurfaceMaterial('#1a3a5a', '#bfe8ff'));
+      ice.rotation.x = -Math.PI / 2;
+      ice.position.set(W / 2, -(floorY + 1), -150);
+      g.add(ice);
+      anim.push((t) => ((ice.material as THREE.ShaderMaterial).uniforms.t.value = t * 0.2));
+      const iceM = lambert({ color: '#9ad8ff', emissive: '#1a4a78' });
+      for (let i = 0; i < 14; i++) {
+        const h = 40 + hash2(i, 71) * 90;
+        const c = new THREE.Mesh(new THREE.ConeGeometry(8 + hash2(i, 72) * 12, h, 5), iceM);
+        c.position.set(hash2(i, 73) * W, -(floorY - h / 2), -(60 + hash2(i, 74) * 160));
+        g.add(c);
+      }
+      break;
+    }
+    case 'fg_forge':
+    case 'fg_heart': {
+      // the Great Forge (and the inside of the Colossus): a furnace mouth filling the back
+      // wall, great cog wheels turning, and falls of molten metal
+      const inside = room.def.id === 'fg_heart';
+      glowAt(W * (inside ? 0.5 : 0.3), H - 150, 110, inside ? 380 : 320, 320, '#ff5a10', 0.75, 0.7);
+      glowAt(W * (inside ? 0.5 : 0.3), H - 130, 100, 160, 180, '#ffd060', 0.6, 1.5);
+      const cogM = lambert({ color: '#4a3a34' });
+      const cog = (x: number, y: number, r: number, d: number, speed: number) => {
+        const grp = new THREE.Group();
+        grp.add(new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.16, 5, 24), cogM));
+        for (let k = 0; k < 12; k++) {
+          const tooth = new THREE.Mesh(new THREE.BoxGeometry(r * 0.26, r * 0.3, r * 0.2), cogM);
+          const a = (k * Math.PI) / 6;
+          tooth.position.set(Math.cos(a) * r * 1.16, Math.sin(a) * r * 1.16, 0);
+          tooth.rotation.z = a + Math.PI / 2;
+          grp.add(tooth);
+        }
+        for (let k = 0; k < 3; k++) {
+          const sp = new THREE.Mesh(new THREE.BoxGeometry(r * 2, r * 0.12, r * 0.1), cogM);
+          sp.rotation.z = (k * Math.PI) / 3;
+          grp.add(sp);
+        }
+        grp.position.set(x, -y, -d);
+        g.add(grp);
+        anim.push((t) => (grp.rotation.z = t * speed));
+      };
+      cog(W * 0.12, 120, 70, 90, 0.25);
+      cog(W * 0.12 + 108, 190, 42, 86, -0.42);
+      cog(W * 0.9, 90, 56, 80, 0.3);
+      if (inside) cog(W * 0.5, 60, 90, 120, -0.15);
+      for (const x of inside ? [40, W - 40] : [W * 0.52, W * 0.94]) {
+        const fall = sheet(x, H / 2, 70, 14, H, '#ff9a20', 0.5);
+        anim.push((t) => ((fall.material as THREE.MeshBasicMaterial).opacity = 0.42 + Math.sin(t * 9 + x) * 0.1));
+        glowAt(x, H - 30, 60, 110, 70, '#ff7a20', 0.6, 3);
+      }
+      break;
+    }
+    case 'mv_heart': {
+      // the Mirror Heart's hall: sheets of glass hanging at many depths, each catching the
+      // light as the camera passes, shafts of violet light, and a slow snow of glitter
+      for (let i = 0; i < 22; i++) {
+        const d = 20 + hash2(i, 61) * 170, w = 30 + hash2(i, 62) * 70, h = 60 + hash2(i, 63) * 120;
+        const m = sheet(hash2(i, 64) * (W + 200) - 100, 40 + hash2(i, 65) * 130, d, w, h, i % 3 ? '#b8a0ff' : '#a0e0ff', 0.1, (hash2(i, 66) - 0.5) * 0.9);
+        anim.push((t, cx) => {
+          // a glint as it lines up with the middle of the view
+          const off = Math.abs(m.position.x - (cx + VW / 2)) / 220;
+          (m.material as THREE.MeshBasicMaterial).opacity = 0.06 + Math.max(0, 0.22 - off * 0.2) + Math.sin(t * 0.8 + i) * 0.02;
+          m.rotation.z += 0.0006 * (i % 2 ? 1 : -1);
+        });
+      }
+      for (let i = 0; i < 7; i++) {
+        const sh = sheet(40 + i * 120, H / 2, 26 + i * 10, 34, H * 1.5, '#c8a8ff', 0.08, -0.3);
+        anim.push((t) => ((sh.material as THREE.MeshBasicMaterial).opacity = 0.05 + Math.sin(t * 0.5 + i * 0.9) * 0.04));
+      }
+      glowAt(W / 2, H / 2, 150, W, H * 1.4, '#7a50ff', 0.35, 0.4);
+      g.add(motes(room, 90, '#ffffff', [6, 120], 1));
+      break;
+    }
+    case 'ar_forbidden': {
+      // the Forbidden Section: a tall lancet window behind the gallery, lamplight in shafts,
+      // and loose pages turning in the air at every depth
+      glowAt(W / 2, 110, 130, 150, 260, '#ffd890', 0.6, 0.3);
+      for (let k = -1; k <= 1; k++) sheet(W / 2 + k * 40, 110, 128, 6, 230, '#3a2a18', 0.9, 0, false);
+      for (let i = 0; i < 5; i++) {
+        const sh = sheet(W / 2 - 160 + i * 80, H / 2, 40 + i * 12, 30, H * 1.3, '#ffe0a0', 0.06, 0.18 - i * 0.09);
+        anim.push((t) => ((sh.material as THREE.MeshBasicMaterial).opacity = 0.04 + Math.sin(t * 0.4 + i) * 0.025));
+      }
+      for (let i = 0; i < 40; i++) {
+        const d = 10 + hash2(i, 81) * 150;
+        const pg = sheet(hash2(i, 82) * W, hash2(i, 83) * H, d, 9, 7, '#f0e8d0', 0.75, 0, false);
+        const sp = 0.3 + hash2(i, 84) * 0.6, ph = hash2(i, 85) * 6;
+        const x0 = pg.position.x, y0 = pg.position.y;
+        anim.push((t) => {
+          pg.position.x = x0 + Math.sin(t * sp + ph) * 30;
+          pg.position.y = y0 + Math.cos(t * sp * 0.7 + ph) * 18;
+          pg.rotation.z = Math.sin(t * sp * 2 + ph) * 0.8;
+          pg.scale.x = Math.cos(t * sp * 3 + ph); // turning over
+        });
+      }
+      break;
+    }
+  }
+
   lights.forEach((L) => (L.l.userData.seed = L.seed));
   const update = (t: number, cx: number, cy: number) => {
     for (const a of anim) a(t, cx, cy);

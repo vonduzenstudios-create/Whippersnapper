@@ -1,78 +1,106 @@
-// The Bell-Mother, matriarch of the harpies (boss of the Great Belfry).
-//   hover    - circles above the hunter
-//   swoop    - screeches from one side of the belfry, then dives across at your height
-//   feathers - three fans of feather darts from above
-//   toll     - rings the great bell: shockwaves roll in from both walls along the floor
-//              (twice, each bringing down a rain of masonry, below half HP)
-//   rage     - at half HP (a scene): she shrieks and rings the bell with her own body, twice
-//   summon   - below half HP: calls four harpies in from the edges of the screen
+// The Bell-Mother, matriarch of the harpies (boss of the Great Belfry). Since 0.19.0 the
+// fight is her song.
+//
+// She is wrapped in her own voice: while she sings nothing reaches her. Three small bells hang
+// in the belfry, each a different note.
+//   sing     she hangs under the great bell and sings a phrase: the bells light and sound in order
+//   hover / swoop / feathers / toll   then she comes for you, as she always did
+// Ring her phrase back on the bells (whip them, in the same order). Get it right and her
+// voice breaks: she drops to the floor, stunned, and that's the window. A wrong bell starts
+// you over and brings her straight down on you. She sings the phrase again every so often, so
+// you can listen twice. Each time she gets up the phrase is one note longer: 3, 4, 5.
 import { Sprite } from '../gfx/view';
-import { Ent, HitKind, Boss } from './ent';
 import type { Game } from './game';
-import { ENEMY } from './data';
-import { EnemyShot, Rockfall } from './objects';
-import { Harpy, Shockwave } from './enemies_expansion';
-import { clamp, rand, sign } from '../core/util';
+import type { DmgType, HitKind } from './ent';
+import { BossBase, Target, prop } from './boss_base';
+import { EnemyShot } from './objects';
+import { Shockwave } from './enemies_expansion';
+import { clamp, rand } from '../core/util';
 
-type Pat = 'enter' | 'hover' | 'swoop' | 'feathers' | 'toll' | 'summon' | 'rage' | 'dying';
+const PITCH = [0.75, 1, 1.26]; // the three bells' notes (low, middle, high)
+const NOTE_GAP = 38; // frames between the notes of her phrase
+const STUNNED = 330; // frames she lies stunned
+const RESING = 780; // frames until she sings the phrase again
 
-export class BellMother extends Ent implements Boss {
+export class BellMother extends BossBase {
   label = 'BELL-MOTHER';
-  hp: number;
-  maxHp: number;
-  atk: number;
-  phase = 1;
-  pat: Pat = 'enter';
-  pt = 0;
-  vx = 0;
-  vy = 0;
-  facing = -1;
-  flashT = 0;
-  deathT = 0;
-  done = false;
-  data: any = {};
-  last: Pat = 'hover';
-  get showBar() {
-    return this.pat !== 'enter' && !this.done;
-  }
-  get gone() {
-    return this.done;
-  }
-  constructor(private g: Game) {
-    super();
-    const st = ENEMY.bellmother;
-    this.hp = this.maxHp = st.hp;
-    this.atk = st.atk;
-    this.def = st.def;
-    this.touchDmg = st.atk;
-    this.hostile = true;
-    this.whipTarget = true;
-    this.hw = 20;
-    this.hh = 24;
-    this.x = g.room.W / 2;
+  bells: { s: Sprite; x: number; y: number; lit: number }[] = [];
+  song: number[] = [];
+  at = 0; // how many notes of the phrase the hunter has rung back
+  sinceSong = 0;
+  constructor(g: Game) {
+    super(g, 'bellmother', g.sheets.bellmother, 20, 24, 11);
+    const W = g.room.W;
+    this.x = W / 2;
     this.y = -80;
-    this.sprite = new Sprite(g.sheets.bellmother, g.view.sprites, 11);
+    for (let i = 0; i < 3; i++) {
+      const x = W / 2 + (i - 1) * 234, y = this.floorY - 84 - (i === 1 ? 26 : 0);
+      const s = prop(g, 'props', 'bell', x, y, 7, i);
+      this.props.push(s);
+      this.bells.push({ s, x, y, lit: 0 });
+    }
   }
-  get floorY() {
-    return this.g.room.H - 32;
+  get stunned() {
+    return this.pat === 'stunned';
   }
-  set(p: Pat) {
-    this.pat = p;
-    this.pt = 0;
-    this.data = {};
+  targets(): Target[] {
+    const out: Target[] = this.bells.map((b, i) => ({ id: 'bell' + i, x: b.x, y: b.y + 4, r: 16 }));
+    out.push({ id: 'body', x: this.x, y: this.y, r: 24 });
+    return out;
+  }
+  hurtZones(): Target[] {
+    return this.stunned || this.pat === 'fall' ? [] : [{ id: 'body', x: this.x, y: this.y, r: 18 }];
+  }
+  hitType(): DmgType {
+    return this.pat === 'swoop' ? 'melee' : 'touch';
+  }
+  ring(g: Game, i: number) {
+    this.bells[i].lit = 22;
+    g.audio.play('note', PITCH[i]);
+    g.fx.burst(this.bells[i].x, this.bells[i].y + 10, 'star', 3, 10, { life: 26, fade: true, glow: 1 });
+  }
+  /** A new phrase of `n` notes (never the same bell twice running, so each note is heard apart). */
+  compose(n: number) {
+    this.song = [];
+    for (let i = 0; i < n; i++) {
+      let k: number;
+      do k = Math.floor(Math.random() * 3);
+      while (k === this.song[i - 1]);
+      this.song.push(k);
+    }
+    this.at = 0;
+  }
+  onStrike(g: Game, t: Target, _fromX: number, kind: HitKind) {
+    if (t.id === 'body') {
+      if (!this.stunned) return this.clank(g, t.x, t.y);
+      if (this.strike(g, this.x, this.y, kind) && this.stunned) this.pick('rise');
+      return;
+    }
+    if (this.stunned || this.pat === 'fall' || this.pat === 'sing') return;
+    const i = Number(t.id.slice(4));
+    this.ring(g, i);
+    if (i === this.song[this.at]) {
+      if (++this.at < this.song.length) return;
+      // the whole phrase, rung back at her: her voice breaks
+      g.audio.play('glass');
+      g.audio.play('screech');
+      g.flashWhite = 8;
+      g.shake(5, 30);
+      this.clearShots(g);
+      this.windowDmg = 0;
+      g.message('HER VOICE BREAKS: STRIKE', 140);
+      this.pick('fall');
+    } else {
+      // a wrong note: start again, and she is on you at once
+      this.at = 0;
+      g.audio.play('screech');
+      g.message('A WRONG NOTE', 90);
+      if (this.pat === 'hover' || this.pat === 'feathers') this.pick('swoop');
+    }
   }
   next() {
-    const harpies = this.g.ents.filter((e) => e instanceof Harpy && !e.dead).length;
-    if (this.phase === 2 && harpies === 0 && this.last !== 'summon' && Math.random() < 0.35) return this.pick('summon');
-    const opts: Pat[] = ['swoop', 'feathers', 'toll', 'swoop', 'feathers'];
-    let n: Pat;
-    do n = opts[Math.floor(Math.random() * opts.length)];
-    while (n === this.last && Math.random() < 0.8);
-    this.pick(n);
-  }
-  pick(p: Pat) {
-    this.last = p;
-    this.set(p);
+    if (this.sinceSong > RESING) return this.pick('sing');
+    this.pick(this.choose(['swoop', 'feathers', 'toll', 'swoop']));
   }
   /** Steer toward a point with a little inertia (damped, so she settles instead of circling). */
   steer(tx: number, ty: number, max: number, acc = 0.12) {
@@ -85,11 +113,13 @@ export class BellMother extends Ent implements Boss {
   }
   update(g: Game) {
     this.pt++;
+    this.sinceSong++;
     if (this.flashT > 0) this.flashT--;
-    const p = g.player, A = g.sheets.bellmother.anims, s = this.sprite!;
-    const W = g.room.W;
-    const fast = this.phase === 2 ? 1.25 : 1;
-    let frame = A.fly[Math.floor(g.frame / 7) % 4];
+    const p = g.player, A = g.sheets.bellmother.anims, s = this.sprite!, d = this.data;
+    const W = g.room.W, fy = this.floorY;
+    const fast = this.phase === 2 ? 1.2 : 1;
+    let frame = A.fly[Math.floor(g.frame / 5) % A.fly.length];
+    s.mesh.rotation.z = 0;
     switch (this.pat) {
       case 'enter':
         this.y += (110 - this.y) * 0.03;
@@ -98,30 +128,41 @@ export class BellMother extends Ent implements Boss {
           g.shake(4, 60);
         }
         if (this.pt === 80) g.bossIntro();
-        if (this.pt > 100 && this.pt < 230) {
-          const a = (this.pt - 100) * 0.05;
-          this.steer(W / 2 + Math.sin(a) * (W / 2 - 90), 100 + Math.sin(a * 2) * 34, 3, 0.2);
-          this.facing = this.vx < 0 ? -1 : 1;
-        }
-        if (this.pt === 240) {
-          // a single toll of her bell
+        if (this.pt === 150) {
           g.audio.play('toll');
           g.shake(4, 50);
-          frame = A.cast[0];
         }
-        if (this.pt > 240 && this.pt <= 280) frame = A.cast[0]; // held for the freeze frame
-        if (this.pt === 280) g.bossTalk();
-        if (this.pt > 280) this.pick('hover');
+        if (this.pt > 150) frame = A.cast[0];
+        if (this.pt === 190) g.bossTalk();
+        if (this.pt > 190) {
+          this.compose(3);
+          this.pick('sing');
+          g.message('LISTEN, THEN RING IT BACK ON THE BELLS', 240);
+        }
         break;
+      case 'sing': {
+        // under the great bell, singing her phrase: each bell lights as its note sounds
+        this.steer(W / 2, 80, 2.4);
+        this.facing = p.x < this.x ? -1 : 1;
+        frame = A.cast[0];
+        s.glow = 0.35;
+        const k = (this.pt - 50) / NOTE_GAP;
+        if (this.pt >= 50 && Number.isInteger(k) && k < this.song.length) this.ring(g, this.song[k]);
+        if (this.pt > 50 + this.song.length * NOTE_GAP + 20) {
+          this.sinceSong = 0;
+          this.at = 0;
+          this.pick('hover');
+        }
+        break;
+      }
       case 'hover': {
-        const tx = clamp(p.x + Math.sin(this.pt * 0.02) * 140, 60, W - 60), ty = 100 + Math.sin(this.pt * 0.05) * 16;
+        const tx = clamp(p.x + Math.sin(this.pt * 0.02) * 140, 60, W - 60), ty = 110 + Math.sin(this.pt * 0.05) * 16;
         this.steer(tx, ty, 2 * fast);
         this.facing = p.x < this.x ? -1 : 1;
-        if (this.pt > (this.phase === 2 ? 70 : 100)) this.next();
+        if (this.pt > 110 / fast) this.next();
         break;
       }
       case 'swoop': {
-        const d = this.data;
         if (this.pt === 1) {
           d.side = p.x < W / 2 ? 1 : -1; // start on the side away from the hunter
           d.sx = d.side > 0 ? W - 60 : 60;
@@ -134,7 +175,7 @@ export class BellMother extends Ent implements Boss {
           if (this.pt === 60) {
             d.x0 = this.x;
             d.y0 = this.y;
-            d.low = clamp(p.y - 4, 140, this.floorY - 26); // dives to your height
+            d.low = clamp(p.y - 4, 140, fy - 26); // dives to your height
             d.len = 80 / fast;
           }
           const t = Math.min(1, (this.pt - 60) / d.len);
@@ -151,43 +192,73 @@ export class BellMother extends Ent implements Boss {
         this.steer(clamp(p.x, 80, W - 80), 80, 2.4);
         this.facing = p.x < this.x ? -1 : 1;
         frame = A.cast[0];
-        const every = this.phase === 2 ? 26 : 34;
-        if (this.pt % every === 0 && this.pt <= every * 3) {
+        const every = 40;
+        if (this.pt % every === 0 && this.pt <= every * 2) {
           const base = Math.atan2(p.y - this.y, p.x - this.x);
-          const n = this.phase === 2 ? 7 : 5;
-          for (let i = 0; i < n; i++) {
-            const a = base + (i - (n - 1) / 2) * 0.22;
-            g.spawn(new EnemyShot(g, this.x, this.y + 6, Math.cos(a) * 2.6, Math.sin(a) * 2.6, 'feather', 16));
+          for (let i = 0; i < 5; i++) {
+            const a = base + (i - 2) * 0.24;
+            g.spawn(new EnemyShot(g, this.x, this.y + 6, Math.cos(a) * 2.5, Math.sin(a) * 2.5, 'feather', 14));
           }
           g.audio.play('harpy');
         }
-        if (this.pt > every * 3 + 30) this.pick('hover');
+        if (this.pt > every * 2 + 30) this.pick('hover');
         break;
       }
-      case 'toll': {
+      case 'toll':
+        // the great bell: one shockwave rolls in from each wall
         this.steer(W / 2, 70, 3);
         frame = A.cast[0];
         s.glow = this.pt < 50 ? (this.pt / 50) * 0.6 : 0.2;
-        const rings = this.phase === 2 ? 2 : 1;
-        for (let k = 0; k < rings; k++) {
-          if (this.pt === 50 + k * 70) {
-            g.audio.play('toll');
-            g.shake(6, 50);
-            g.fadeFlash = 8;
-            g.spawn(new Shockwave(g, 28, this.floorY, 2.3 * fast, 18, 400));
-            g.spawn(new Shockwave(g, W - 28, this.floorY, -2.3 * fast, 18, 400));
-            if (this.phase === 2) g.spawn(new Rockfall(g, 10, 'rock', 16, 60));
-          }
+        if (this.pt === 50) {
+          g.audio.play('toll');
+          g.shake(6, 50);
+          g.spawn(new Shockwave(g, 28, fy, 2.3 * fast, 16, 400));
+          g.spawn(new Shockwave(g, W - 28, fy, -2.3 * fast, 16, 400));
         }
-        if (this.pt > 50 + rings * 70 + 30) this.pick('hover');
+        if (this.pt > 110) this.pick('hover');
         break;
-      }
+      case 'fall':
+        // her voice broken, she drops like a stone
+        this.vy = Math.min(this.vy + 0.35, 7);
+        this.y += this.vy;
+        frame = A.dive[0];
+        s.mesh.rotation.z = this.pt * 0.2;
+        if (this.y >= fy - 22) {
+          this.y = fy - 22;
+          this.vy = 0;
+          g.shake(5, 20);
+          g.audio.play('explode');
+          g.fx.burst(this.x, fy, 'smoke', 8, 20, { vy: -0.4, life: 40, fade: true });
+          this.pick('stunned');
+        }
+        break;
+      case 'stunned':
+        frame = A.dive[0];
+        s.mesh.rotation.z = this.facing * 1.4 + Math.sin(this.pt * 0.2) * 0.05;
+        if (this.pt % 20 === 0) g.fx.burst(this.x + rand(-16, 16), this.y - 20, 'star', 1, 4, { life: 24, fade: true });
+        if (this.pt > STUNNED) this.pick('rise');
+        break;
+      case 'rise':
+        // back up into the vault, and a longer phrase
+        this.steer(W / 2, 80, 3, 0.2);
+        if (this.pt === 1) {
+          if (this.hp <= this.maxHp / 2 && this.phase === 1) {
+            this.phase = 2;
+            g.bossScene();
+            return this.pick('rage');
+          }
+          g.audio.play('screech');
+        }
+        if (this.pt > 70) {
+          this.compose(Math.min(5, this.song.length + 1));
+          this.pick('sing');
+        }
+        break;
       case 'rage':
-        // her second wind (a scene): she rises to the middle of the belfry, shrieks, then
-        // throws herself against the great bell twice. It ends frozen on her, mid-toll
+        // her second wind (a scene): she rings the great bell with her own body
         this.steer(W / 2, 80, 2.5);
         this.facing = p.x < this.x ? -1 : 1;
-        frame = this.pt < 50 ? A.fly[Math.floor(g.frame / 5) % 4] : A.cast[0];
+        frame = this.pt < 50 ? A.fly[Math.floor(g.frame / 4) % A.fly.length] : A.cast[0];
         if (this.pt === 30) {
           g.audio.play('screech');
           g.shake(5, 40);
@@ -196,82 +267,36 @@ export class BellMother extends Ent implements Boss {
         if (this.pt === 60 || this.pt === 95) {
           g.audio.play('toll');
           g.shake(6, 40);
-          this.flashT = 10;
           g.fx.burst(this.x, this.y - 10, 'spark', 6, 16, { speed: 2, life: 26 });
         }
         s.glow = this.pt > 50 ? 0.5 : 0;
         if (this.pt === 110) g.bossTalk('boss_bellmother_phase2');
-        if (this.pt > 110) this.pick('summon');
-        break;
-      case 'summon':
-        this.steer(W / 2, 90, 2);
-        frame = A.cast[0];
-        if (this.pt === 20) g.audio.play('screech');
-        if (this.pt === 50) {
-          const v = g.view, top = v.camY + 40;
-          const l = Math.max(40, v.camX + 24), r = Math.min(W - 40, v.camX + v.viewW - 24);
-          for (const [x, y] of [[l, top], [r, top], [l + 40, top + 36], [r - 40, top + 36]]) {
-            g.spawn(new Harpy(g, 'harpy', x, y));
-            g.fx.burst(x, y, 'smoke', 4, 10, { vy: -0.4, fps: 8, life: 40 });
-          }
+        if (this.pt > 110) {
+          this.compose(Math.min(5, this.song.length + 1));
+          this.pick('sing');
         }
-        if (this.pt > 80) this.pick('hover');
         break;
-      case 'dying': {
-        this.deathT++;
-        this.y = Math.min(this.floorY - 20, this.y + 0.8);
+      case 'dying':
+        this.y = Math.min(fy - 20, this.y + 0.8);
         frame = A.dive[0];
         s.mesh.rotation.z = Math.sin(this.deathT * 0.3) * 0.2;
-        if (this.deathT % 7 === 0) {
-          g.fx.burst(this.x + rand(-24, 24), this.y + rand(-24, 24), 'burst', 2, 8, { fps: 10 });
-          g.fx.burst(this.x, this.y, 'smoke', 2, 16, { vy: 0.8, life: 40, fade: true }); // falling feathers
-          g.audio.play('explode');
-          g.shake(3, 8);
-        }
-        s.opacity = Math.max(0, 1 - this.deathT / 160);
-        if (this.deathT === 160) {
-          g.audio.play('toll');
-          g.flashWhite = 16;
-          s.visible = false;
-          this.done = true;
-          this.dead = true; // stops update(), or the death explosions would go on forever
-          g.onBossDefeated();
-          return;
-        }
+        if (this.deathT % 7 === 0) g.fx.burst(this.x, this.y, 'smoke', 2, 16, { vy: 0.8, life: 40, fade: true }); // falling feathers
+        if (this.deathT === 150) g.audio.play('toll');
+        if (this.dyingTick(g, 160, 24)) return;
         break;
-      }
     }
     this.x = clamp(this.x, 24, W - 24);
     s.setFrame(frame);
     s.place(this.x, this.y, this.facing < 0);
-    s.flash = this.flashT > 0 ? (this.flashT % 4 < 2 ? 0.9 : 0.4) : 0;
+    this.showFlash();
     if (this.phase === 2) s.tint(1.2, 0.9, 0.85);
-    if (this.pat !== 'toll' && this.pat !== 'rage') s.glow = 0;
-  }
-
-  onHit(g: Game, dmg: number, fromX: number, crit: boolean, kind: HitKind) {
-    if (this.pat === 'dying' || this.pat === 'enter' || this.pat === 'rage') return;
-    this.hp -= dmg;
-    this.flashT = 8;
-    g.damageNumber(this.x, this.y - this.hh - 8, dmg, crit ? '#ffe040' : '#ffffff');
-    g.audio.play('bossHit');
-    g.fx.burst(this.x + sign(fromX - this.x) * 12, this.y, 'spark', 1, 4);
-    if (kind === 'whip') g.hitstop(4);
-    if (this.phase === 1 && this.hp > 0 && this.hp <= this.maxHp / 2) {
-      // half dead, she rages: a scene (see 'rage'), then she calls her daughters
-      this.phase = 2;
-      for (const e of g.ents) if (e instanceof EnemyShot || e instanceof Shockwave) e.dead = true;
-      g.bossScene();
-      this.pick('rage');
-    }
-    if (this.hp <= 0) {
-      this.hp = 0;
-      this.set('dying');
-      this.hostile = false;
-      this.whipTarget = false;
-      g.music.stop(1.5);
-      g.audio.play('screech');
-      for (const e of g.ents) if (e instanceof EnemyShot || e instanceof Shockwave || e instanceof Harpy) e.dead = true;
-    }
+    if (this.pat !== 'toll' && this.pat !== 'rage' && this.pat !== 'sing') s.glow = 0;
+    // the bells: lit while they sound, and the ones already rung back glow faintly
+    const P = g.sheets.props.anims;
+    this.bells.forEach((b, i) => {
+      if (b.lit > 0) b.lit--;
+      b.s.setFrame((b.lit > 0 ? P.bellLit : P.bell)[i]);
+      b.s.place(b.x + (b.lit > 0 ? Math.sin(b.lit * 0.8) * 2 : 0), b.y);
+    });
   }
 }

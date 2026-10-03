@@ -68,6 +68,7 @@ export const HINTS: Record<string, (k: KeyName) => string> = {
   slide: (k) => `HOLD ${k('down')} + ${k('dash')}: SLIDE UNDER LOW GAPS`,
   tide: (k) => `THE WATER RISES AND FALLS. ${k('jump')} IN WATER: SWIM UP`,
   leap: () => 'AT THE SURFACE, JUMP TO LEAP OUT HIGH',
+  glide: (k) => `HOLD ${k('jump')} WHILE FALLING: GLIDE (DUSKWING SHROUD)`,
 };
 
 /** Lore stones ('T' entities whose arg is a key here). UP reads them; the first line is the title. */
@@ -261,6 +262,225 @@ export const LORE: Record<string, string[]> = {
     '',
     'IN FRESH INK: I FOUND THE PAGE.  - I.K.',
   ],
+  // ---------------------------------------------------------------- the 0.18.0 zones
+  lore_grate: [
+    'A RUSTED GRATE',
+    '',
+    'THE GRAVEDIGGERS CAME AND WENT THIS WAY,',
+    'DOWN TO THE LICHYARD UNDER THE BRIDGE.',
+    'THE BARS ARE LOOSE ENOUGH TO DROP THROUGH.',
+  ],
+  lore_descent: [
+    "A GRAVEDIGGER'S TALLY",
+    '',
+    'NINE BURIED THIS WEEK. ELEVEN DUG',
+    'THEMSELVES OUT. I HAVE STOPPED',
+    'CARVING THE STONES.',
+  ],
+  lore_lichyard: [
+    "ILSABET'S NOTE",
+    '',
+    '{NAME}, IF YOU FOLLOW ME DOWN HERE:',
+    'THE HANDS UNDER THE SOIL FEEL YOUR STEPS.',
+    'WHEN THE DIRT TREMBLES, JUMP.',
+    '',
+    'THREE ROADS LEAVE THIS YARD. I TOOK',
+    'THE WET ONE.',
+  ],
+  lore_mourners: [
+    "A PAUPER'S STONE",
+    '',
+    'HERE LIE THOSE WHO BUILT THE KEEP.',
+    'NO NAMES WERE KEPT. THE MOTHS REMEMBER.',
+  ],
+  lore_sexton: [
+    "THE SEXTON'S LAST ENTRY",
+    '',
+    'THE TEMPLE UNDER THE YARD IS OLDER THAN',
+    'THE CASTLE. WE BUILT OUR GRAVES ON ITS',
+    'ROOF AND CALLED IT HOLY GROUND.',
+    'SHE HAS BEEN PATIENT WITH US.',
+  ],
+  lore_sunken: [
+    'SCRATCHED INTO THE WALL',
+    '',
+    'EAST, THE DROWNED DEEPS: WADE THROUGH.',
+    'WEST, A CRACK ALONG THE FLOOR, UNDER',
+    'THE WATER. NO ONE CAN CRAWL IT AND HOLD',
+    'A BREATH. NOT WITHOUT THE PEARL.',
+  ],
+  lore_culvert: [
+    "A DROWNED MAN'S SLATE",
+    '',
+    'THE WATER HERE KEEPS ITS OWN HOURS.',
+    'IT IS NOT THE MOON THAT PULLS IT.',
+    'SOMETHING IN THE CISTERN BREATHES,',
+    'AND THE TIDE IS ITS BREATH.',
+  ],
+  lore_sump: [
+    'A PUMP-WARDEN\'S PLATE',
+    '',
+    'ALL CHANNELS DRAIN TO THE SUMP.',
+    'AT HIGH WATER, SWIM. AT LOW WATER, CLIMB.',
+    'THE NAVE LIES AT THE BOTTOM, AND',
+    'PAST THE NAVE, THE BLACK CISTERN.',
+  ],
+  lore_bell: [
+    "ILSABET'S NOTE",
+    '',
+    'ITS HIDE TURNS THE CHAIN. ITS BELLY DOES',
+    'NOT. TWO WHEELS ON THE WALLS LET THE',
+    'POOL OUT: OPEN BOTH AND IT LIES THERE',
+    'GASPING. IT WILL PUT THE WATER BACK.',
+    'DO IT AGAIN.',
+  ],
+  lore_nave: [
+    'A HYMN BOARD, HALF ROTTED',
+    '',
+    'THEY PRAYED HERE FOR DRY YEARS.',
+    'THE LAST HYMN POSTED IS FOR THE DROWNED.',
+  ],
+  lore_temple: [
+    'CARVED OVER THE ARCH',
+    '',
+    'SHE WAS PROMISED TO A KING OF THIS',
+    'MOUNTAIN. HE SAW HER FACE ON THE WEDDING',
+    'NIGHT AND STANDS IN HER COURT STILL.',
+    'DO NOT LOOK. NO ONE WHO LOOKED HAS LEFT.',
+  ],
+  lore_offering: [
+    "ILSABET'S NOTE",
+    '',
+    'HER GAZE IS A LIGHT YOU CAN SEE COMING.',
+    'HER STONE SUITORS STOP IT, UNTIL SHE',
+    'BREAKS THEM. A SHIELD HELD UP STOPS IT.',
+    'A SHIELD RAISED JUST AS IT LANDS SENDS',
+    'IT HOME.',
+  ],
+  lore_fang: [
+    'A LEVER PLATE',
+    '',
+    'THE PILGRIMS\' DOOR. IT OPENS ONLY',
+    'FROM THE TEMPLE SIDE.',
+  ],
+  lore_scales: [
+    'THE TREASURY WALL',
+    '',
+    'OFFERINGS FROM NINE HUNDRED YEARS OF',
+    'FRIGHTENED KINGS. SHE NEVER TOUCHED',
+    'ANY OF IT.',
+  ],
+  lore_gaol: [
+    "THE WARDEN'S STANDING ORDER",
+    '',
+    'NO PRISONER IS TO BE RELEASED.',
+    'NO PRISONER IS TO BE FED.',
+    'NO PRISONER IS TO BE COUNTED AGAIN.',
+  ],
+  lore_oubliette: [
+    'A LEVER PLATE',
+    '',
+    'GATE TO THE GRAND STAIRWELL.',
+    'KEEP SHUT WHILE THE PIT IS FED.',
+  ],
+  lore_parapet: [
+    "ILSABET'S NOTE",
+    '',
+    'THE KENNEL HOUNDS WERE BRED DOWN FROM',
+    'SOMETHING BIGGER. THE BIGGER ONES NEVER',
+    'LEFT THE HEIGHTS. THEY ARE WHITE NOW,',
+    'AND THEY DO NOT BARK.',
+  ],
+  lore_nook2: [
+    "A WATCHMAN'S LOG",
+    '',
+    'THE CHAIN DOES NOTHING TO IT. BRANN',
+    'LIVED BECAUSE THE LAKE DID NOT HOLD:',
+    'ITS OWN SNOW HAD CRACKED THE ICE, IT',
+    'JUMPED AT HIM, AND IT WENT THROUGH TO',
+    'THE CHEST. WE STRUCK IT THEN.',
+  ],
+  lore_span2: [
+    'THE FAR SIDE OF THE SPAN',
+    '',
+    'WHOEVER CARVED THIS CROSSED WITHOUT',
+    'A BRIDGE. THERE IS A FEATHER FROZEN',
+    'INTO THE STONE BESIDE IT.',
+  ],
+  lore_chute: [
+    'A WARNING, PAINTED RED',
+    '',
+    'AVALANCHE CHUTE. THE ONLY WAY DOWN',
+    'IS ALL THE WAY DOWN.',
+  ],
+  lore_slag: [
+    "A FOUNDRYMAN'S MARK",
+    '',
+    'THE CINDERWORKS FORGED THE ORDER\'S',
+    'CHAINS. THE LAST THING CAST HERE WAS',
+    'A SUIT OF ARMOR FOR A KNIGHT WHO DIED',
+    'BEFORE IT COOLED. IT WAS LIT ANYWAY.',
+  ],
+  lore_crucible: [
+    'THE CRUCIBLE',
+    '',
+    'THE WALKWAY MELTED LONG AGO.',
+    'NOTHING THAT WALKS HAS CROSSED SINCE.',
+  ],
+  lore_smelter: [
+    "ILSABET'S NOTE",
+    '',
+    'COLD, IT ONLY RINGS. JUMP ON THE BELLOWS',
+    'UNTIL ITS HANDS GLOW, STAND ON THE',
+    'ANVIL, AND STEP OFF WHEN THE FIST COMES',
+    'DOWN. THEN YOU ARE A SMITH. THE FIRE',
+    'INSIDE IS WHAT HOLDS THE BLACK DOOR SHUT.',
+  ],
+  lore_quench: [
+    'THE QUENCHING TROUGH',
+    '',
+    'DRY FOR A HUNDRED YEARS. THE GATE BELOW',
+    'ANSWERS TO THE FURNACE, NOT TO HANDS.',
+  ],
+  lore_threshold: [
+    'ETCHED IN THE GLASS',
+    '',
+    'EVERY HUNTER WHO CAME THIS FAR MET',
+    'THE SAME ENEMY. NONE OF THEM',
+    'DESCRIBED IT THE SAME WAY.',
+  ],
+  lore_inverted: [
+    'A PLATE, WRITTEN BACKWARDS',
+    '',
+    '.THGIR SI TFEL ,LLAH SIHT NI',
+    '',
+    'THE LEVER OVER THE SECOND TROUGH',
+    'OPENS THE WAY TO THE HEART.',
+  ],
+  lore_pool: [
+    "ILSABET'S NOTE",
+    '',
+    'IT DOES WHAT YOU DID, A BREATH LATE.',
+    'DO NOT STRIKE IT. STAND WHERE YOU WANT',
+    'IT TO STAND WHEN THE CRYSTAL COMES UP.',
+    'AFTER THAT, KEEP YOUR EYES ON ONE',
+    'MIRROR. I LOST COUNT. I WALKED AROUND.',
+  ],
+  lore_stacks: [
+    'A BRASS PLATE',
+    '',
+    'RESTRICTED STACKS. BY ORDER OF THE HEAD',
+    'ARCHIVIST, NO BOOK HERE MAY BE OPENED.',
+    'SOME OF THEM OPEN THEMSELVES.',
+  ],
+  lore_shelves: [
+    "A READER'S COMPLAINT",
+    '',
+    'HE WROTE THAT I TRIPPED, AND I TRIPPED.',
+    'I SMUDGED MY NAME WITH MY THUMB WHILE',
+    'THE INK WAS WET. HE TRIPPED INSTEAD.',
+    'I AM NOT RETURNING THE BOOK.',
+  ],
 };
 
 /** Dialog shown when a relic is picked up. */
@@ -318,7 +538,7 @@ export const RELIC_TEXT: Record<string, string[]> = {
 // ---------------------------------------------------------------- dialogue scenes
 
 /** Who can speak in a dialogue scene. 'hero' is whichever twin is playing. */
-export type Speaker = 'hero' | 'pell' | 'wyrm' | 'hound' | 'bellmother';
+export type Speaker = 'hero' | 'pell' | 'wyrm' | 'hound' | 'bellmother' | 'leviathan' | 'gorgon' | 'colossus' | 'mirror' | 'yeti' | 'archivist';
 /** A face for the speaker's portrait (see gfx/art_portraits.ts; missing ones fall back to neutral). */
 export type Face = 'neutral' | 'smile' | 'angry' | 'surprised' | 'sad';
 export interface Line {
@@ -333,6 +553,12 @@ export const SPEAKERS: Record<Speaker, { name: string; side: 'left' | 'right' }>
   wyrm: { name: 'THE OSSUARY WYRM', side: 'right' },
   hound: { name: 'GNARLFANG', side: 'right' },
   bellmother: { name: 'THE BELL-MOTHER', side: 'right' },
+  leviathan: { name: 'THE SUMP LEVIATHAN', side: 'right' },
+  gorgon: { name: 'YSOLDE', side: 'right' },
+  colossus: { name: 'THE HOLLOW COLOSSUS', side: 'right' },
+  mirror: { name: '{NAME}?', side: 'right' },
+  yeti: { name: 'OLD RIMEHIDE', side: 'right' },
+  archivist: { name: 'THE HEAD ARCHIVIST', side: 'right' },
 };
 
 /** Conversations, shown with Game.talk(). Boss scenes are named `boss_<id>`. */
@@ -370,7 +596,7 @@ export const SCENES: Record<string, Line[]> = {
     { who: 'hero', face: 'angry', text: 'THEN I WILL SILENCE THE BELL.' },
     { who: 'bellmother', face: 'neutral', text: 'THE LAST KORDER WHO CLIMBED MY TOWER LEFT HER BLOOD ON THE ROPES. SHE RANG BEAUTIFULLY.' },
     { who: 'hero', face: 'surprised', text: '...MOTHER?' },
-    { who: 'bellmother', face: 'angry', text: 'COME. LET ME HEAR HOW YOU RING.' },
+    { who: 'bellmother', face: 'angry', text: 'NOTHING TOUCHES ME WHILE I SING. COME. LEARN MY SONG, IF YOU HAVE THE EAR FOR IT.' },
   ],
   // mid-fight scenes: a boss changing phase (`boss_<id>_phase2`) or rising again (`boss_<id>_revive`)
   boss_wyrm_phase2: [
@@ -379,9 +605,8 @@ export const SCENES: Record<string, Line[]> = {
     { who: 'wyrm', face: 'angry', text: 'THE PYRES THAT MADE ME NEVER WENT OUT. COME CLOSER. WARM YOURSELF.' },
   ],
   boss_hound_phase2: [
-    { who: 'hound', face: 'angry', text: 'TO ME, PACK! A KORDER BLEEDS IN OUR YARD!' },
-    { who: 'hero', face: 'neutral', text: 'CALL AS MANY AS YOU LIKE. I BROUGHT ENOUGH CHAIN.' },
-    { who: 'hound', face: 'angry', text: 'THEN WE WILL SEE WHOSE NECK IT ENDS UP AROUND.' },
+    { who: 'hound', face: 'angry', text: 'YOU BLEED US, KORDER. GOOD. WE HUNT BETTER HUNGRY.' },
+    { who: 'hero', face: 'neutral', text: 'RUN AT ME AGAIN, THEN. THE WALLS HAVE BEEN KIND TO ME SO FAR.' },
   ],
   boss_hound_revive: [
     { who: 'hero', face: 'surprised', text: 'NO... I WATCHED IT DIE.' },
@@ -389,9 +614,75 @@ export const SCENES: Record<string, Line[]> = {
     { who: 'hound', face: 'angry', text: 'YOUR ORDER BURNED US ONCE. WE CAME BACK FROM THAT TOO.' },
   ],
   boss_bellmother_phase2: [
-    { who: 'bellmother', face: 'angry', text: 'YOU MADE MY BELL CRACK! DO YOU KNOW HOW LONG IT TOOK TO TUNE?' },
+    { who: 'bellmother', face: 'angry', text: 'YOU SANG IT BACK. NO ONE SINGS IT BACK!' },
     { who: 'hero', face: 'angry', text: 'TELL ME WHERE SHE WENT.' },
-    { who: 'bellmother', face: 'smile', text: 'YOU WILL HAVE TO RING A GREAT DEAL LOUDER THAN THAT TO HEAR HER ANSWER.' },
-    { who: 'bellmother', face: 'angry', text: 'DAUGHTERS! COME AND HEAR THE NEW ONE RING!' },
+    { who: 'bellmother', face: 'smile', text: 'A LONGER VERSE, THEN. LET US SEE HOW MUCH OF IT YOU CAN HOLD IN THAT LITTLE HEAD.' },
+  ],
+  // ---------------------------------------------------------------- the 0.18.0 bosses
+  boss_leviathan: [
+    { who: 'hero', face: 'surprised', text: 'THE WHOLE POOL IS MOVING...' },
+    { who: 'leviathan', face: 'angry', text: 'SMALL. WARM. THE LAST ONE SWAM. THIS ONE WILL NOT.' },
+    { who: 'hero', face: 'angry', text: 'THE LAST ONE? THEN YOU HAVE SEEN HER. MOVE, OR I DRAIN THIS PIT WITH YOU IN IT.' },
+  ],
+  boss_leviathan_phase2: [
+    { who: 'leviathan', face: 'angry', text: 'ENOUGH. THREE TIMES YOU EMPTIED MY HOUSE. THERE WILL BE NO FOURTH.' },
+    { who: 'hero', face: 'surprised', text: 'IT BROKE THE WHEELS...' },
+    { who: 'leviathan', face: 'angry', text: 'YOU CANNOT STOP ME NOW. THE WATER IS HERE TO STAY.' },
+    { who: 'hero', face: 'angry', text: 'THEN I WILL COME IN AFTER YOU. THAT IRON IN YOUR BACK HAS A RING ON IT.' },
+  ],
+  boss_gorgon: [
+    { who: 'gorgon', face: 'neutral', text: 'ANOTHER GUEST FOR MY WEDDING. YOU ARE VERY LATE. THE GROOM HAS BEEN STANDING NINE HUNDRED YEARS.' },
+    { who: 'hero', face: 'neutral', text: 'I AM LOOKING FOR A WOMAN WITH A CHAIN LIKE THIS ONE.' },
+    { who: 'gorgon', face: 'neutral', text: 'SHE WOULD NOT LOOK AT ME EITHER. SUCH RUDE CHILDREN, YOU KORDERS.' },
+    { who: 'gorgon', face: 'angry', text: 'LOOK AT ME. JUST ONCE. EVERYONE DOES, IN THE END.' },
+  ],
+  boss_gorgon_phase2: [
+    { who: 'gorgon', face: 'angry', text: 'MY OWN EYES. YOU TURNED MY OWN EYES ON ME.' },
+    { who: 'hero', face: 'neutral', text: 'NOW YOU KNOW WHAT YOUR GUESTS SAW.' },
+    { who: 'gorgon', face: 'angry', text: 'THEN LOOK LONGER, LITTLE KORDER. I WILL LOOK UNTIL THERE IS NOTHING LEFT TO HIDE BEHIND.' },
+  ],
+  boss_yeti: [
+    { who: 'hero', face: 'surprised', text: 'THE SNOW JUST STOOD UP. AND THE FLOOR IS... ICE. ALL OF IT.' },
+    { who: 'yeti', face: 'angry', text: 'MINE. MOUNTAIN MINE. LAKE MINE. LITTLE FIRE-THING GO DOWN, OR GO IN THE WATER.' },
+    { who: 'hero', face: 'angry', text: 'YOU ARE A GREAT DEAL HEAVIER THAN I AM.' },
+  ],
+  boss_yeti_phase2: [
+    { who: 'yeti', face: 'angry', text: 'COLD. COLD! LITTLE FIRE-THING PAY.' },
+  ],
+  boss_colossus: [
+    { who: 'colossus', face: 'neutral', text: 'WHO... GOES. THE FORGE IS SHUT. THE DOOR IS SHUT. I WAS MADE TO KEEP THEM SO.' },
+    { who: 'hero', face: 'neutral', text: 'THERE IS NO ONE INSIDE YOU. WHO GAVE THE ORDER?' },
+    { who: 'colossus', face: 'angry', text: 'THE ORDER REMAINS. THE ONE WHO GAVE IT DOES NOT MATTER. STAND AWAY FROM THE ANVIL.' },
+  ],
+  boss_colossus_inside: [
+    { who: 'hero', face: 'surprised', text: 'CHAINS. IT HANGS ITS OWN HEART ON CHAINS.' },
+    { who: 'colossus', face: 'angry', text: 'OUT. OUT. THE ORDER DOES NOT PERMIT... VISITORS.' },
+  ],
+  boss_colossus_phase2: [
+    { who: 'hero', face: 'surprised', text: 'ITS CHEST... THERE IS NOTHING IN THERE BUT FIRE.' },
+    { who: 'colossus', face: 'angry', text: 'THE FIRE IS THE ORDER. PUT IT OUT, AND THE DOOR FORGETS WHY IT IS CLOSED.' },
+    { who: 'hero', face: 'angry', text: 'THEN I AM GOING IN.' },
+  ],
+  boss_mirror: [
+    { who: 'hero', face: 'surprised', text: 'THAT IS... ME.' },
+    { who: 'mirror', face: 'smile', text: 'NOT YET. BUT I AM LEARNING. EVERYTHING YOU DO, I DO. A LITTLE LATE. FOR NOW.' },
+    { who: 'hero', face: 'angry', text: 'TAKE MY FACE OFF.' },
+    { who: 'mirror', face: 'smile', text: 'YOU CANNOT STRIKE A REFLECTION, {NAME}. YOU CAN ONLY CHOOSE WHERE IT STANDS.' },
+  ],
+  boss_mirror_phase2: [
+    { who: 'mirror', face: 'angry', text: 'YOU BROKE THE COPY. I WAS NEVER THE COPY.' },
+    { who: 'hero', face: 'surprised', text: 'THE FLOOR... THE WHOLE HALL IS TURNING OVER.' },
+    { who: 'mirror', face: 'smile', text: 'FIVE MIRRORS. I AM IN ONE. YOU ARE IN THE OTHER FOUR. STRIKE CAREFULLY.' },
+  ],
+  boss_archivist: [
+    { who: 'archivist', face: 'neutral', text: 'SILENCE IN THE FORBIDDEN SECTION. YOU HAVE NO CARD, NO APPOINTMENT, AND YOU ARE DRIPPING ON THE CARPET.' },
+    { who: 'hero', face: 'neutral', text: 'A WOMAN TORE A PAGE FROM YOUR LEDGER. WHAT WAS ON IT?' },
+    { who: 'archivist', face: 'angry', text: 'VANDALISM! IT RUNS IN THE FAMILY, I SEE. I NEED NOT LIFT A FINGER AGAINST YOU, CHILD. ONLY A PEN.' },
+    { who: 'archivist', face: 'angry', text: 'WHATEVER I WRITE IN THIS ROOM, HAPPENS. LET US BEGIN YOUR LAST CHAPTER.' },
+  ],
+  boss_archivist_phase2: [
+    { who: 'archivist', face: 'angry', text: 'YOU BLOTTED MY MANUSCRIPT! THREE CHAPTERS, RUINED!' },
+    { who: 'hero', face: 'neutral', text: 'YOUR INK DRIES SLOWLY, OLD MAN.' },
+    { who: 'archivist', face: 'angry', text: 'THEN I SHALL WRITE MYSELF INTO THE STORY, AND WATCH YOU CHOOSE THE WRONG NAME.' },
   ],
 };

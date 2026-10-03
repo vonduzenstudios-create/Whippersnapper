@@ -1,11 +1,13 @@
 import * as THREE from 'three';
-import { View, buildSheet, Sheet, makeTexture, disposeTree, recolorSheet } from '../gfx/view';
+import { View, buildSheet, Sheet, makeTexture, disposeTree, recolorSheet, sheetColors, shiftColor } from '../gfx/view';
 import { Input } from '../core/input';
 import { AudioEngine } from '../audio/audio';
 import { Music } from '../audio/music';
 import { HERO, HERO_M, buildHeroSheet, buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildWyrmSheet, buildLibrarianSheet } from '../gfx/art_chars';
 import { buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet, buildHookjawSheet, buildDevourerSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet, buildMothSheet } from '../gfx/art_beasts';
 import { buildHoundSheet, buildCinderHoundSheet, buildBellMotherSheet } from '../gfx/art_bosses';
+import { buildSerpentSheet, buildFigureSheet } from '../gfx/art_depths';
+import { buildLeviathanSheet, buildGorgonSheet, buildColossusSheet, buildYetiSheet, buildArchivistSheet, buildPropSheet, buildTallPropSheet } from '../gfx/art_bosses2';
 import { buildItemSheet, buildCandleSheet, buildFxSheet, buildFireSheet, buildRelicFxSheet, buildRingSheet } from '../gfx/art_items';
 import { paintTiles } from '../gfx/tiles';
 import { buildBackdrop, buildWaterFront, Backdrop, WaterFront } from '../gfx/backdrops';
@@ -16,7 +18,7 @@ import { Ent, HitKind, Boss } from './ent';
 import { BOSSES } from './bosses';
 import { FX } from './fx';
 import { Hunter } from './stats';
-import { Candle, Pickup, RingAnchor, Altar, EnemyShot, Lever, Sign, Merchant, WhipDrop } from './objects';
+import { Candle, Pickup, RingAnchor, Altar, EnemyShot, Lever, Sign, Merchant, WhipDrop, Warp } from './objects';
 import { Avalanche, LEASH } from './avalanche';
 import { Cutscene } from './cutscene';
 import { spawnEnemy } from './spawn';
@@ -60,6 +62,19 @@ export interface Sheets {
   hound: Sheet;
   houndCinder: Sheet;
   bellmother: Sheet;
+  serpent: Sheet;
+  leviathan: Sheet;
+  gorgon: Sheet;
+  colossus: Sheet;
+  yeti: Sheet;
+  archivist: Sheet;
+  /** The Mirror Heart as the bestiary shows it (in a fight it copies the twin you play: mirrorSheets). */
+  mirror: Sheet;
+  /** The storybook figures the Head Archivist writes into the room. */
+  figures: Sheet;
+  /** Arena props the boss fights are played with (48x48, centered), and the tall ones (56x96, bottom middle). */
+  props: Sheet;
+  tallprops: Sheet;
   items: Sheet;
   candle: Sheet;
   fx: Sheet;
@@ -83,8 +98,14 @@ export class Game {
   input = new Input();
   audio = new AudioEngine();
   music = new Music(this.audio);
+  /** A second, quiet music player: the save theme heard through a save room's door (see updateSaveAura). */
+  saveMusic = new Music(this.audio);
+  /** Doorways of the current room that lead into a save room (pixel positions), for the aura. */
+  saveDoors: { x: number; y: number }[] = [];
   sheets: Sheets;
   heroSheets: Record<HeroId, Sheet>;
+  /** Each twin's sprite sheet recolored as violet glass: what the Mirror Heart wears. */
+  mirrorSheets: Record<HeroId, Sheet>;
   /** The twin picked on the character select screen, used by the next newGame(). */
   heroChoice: HeroId = 'vesna';
   /** The difficulty picked after character select (index into DIFFICULTIES), used by the next newGame(). */
@@ -107,6 +128,10 @@ export class Game {
   waterFront: WaterFront | null = null;
   drainT = 0; // frames into the current drain animation (0 = not draining)
   tideLevel = -1; // tidal rooms: 0 = low tide .. 1 = high tide (-1 = just entered)
+  /** A boss has taken over this room's water (the Leviathan): the tide clock is ignored, see setWater. */
+  tideHold = false;
+  /** Extra things drawn on the HUD canvas in world space during play (a boss's written words). Cleared with the room. */
+  overlays: ((c: CanvasRenderingContext2D) => void)[] = [];
   tileCanvas: HTMLCanvasElement | null = null;
   tileTex: THREE.Texture | null = null;
   state: GState = 'title';
@@ -156,6 +181,8 @@ export class Game {
   constructor() {
     const t0 = performance.now();
     this.heroSheets = { vesna: buildSheet(buildHeroSheet(HERO)), anzel: buildSheet(buildHeroSheet(HERO_M)) };
+    const glass = (s: Sheet) => recolorSheet(s, Object.fromEntries(sheetColors(s).map((c) => [c.hex, shiftColor(c.hex, { glass: true })])));
+    this.mirrorSheets = { vesna: glass(this.heroSheets.vesna), anzel: glass(this.heroSheets.anzel) };
     this.sheets = {
       hero: this.heroSheets.vesna,
       zombie: buildSheet(buildZombieSheet()),
@@ -184,6 +211,16 @@ export class Game {
       hound: buildSheet(buildHoundSheet()),
       houndCinder: buildSheet(buildCinderHoundSheet()), // Gnarlfang's second form
       bellmother: buildSheet(buildBellMotherSheet()),
+      serpent: buildSheet(buildSerpentSheet()),
+      leviathan: buildSheet(buildLeviathanSheet()),
+      gorgon: buildSheet(buildGorgonSheet()),
+      colossus: buildSheet(buildColossusSheet()),
+      yeti: buildSheet(buildYetiSheet()),
+      archivist: buildSheet(buildArchivistSheet()),
+      mirror: this.mirrorSheets.vesna,
+      figures: buildSheet(buildFigureSheet()),
+      props: buildSheet(buildPropSheet()),
+      tallprops: buildSheet(buildTallPropSheet()),
       items: buildSheet(buildItemSheet()),
       candle: buildSheet(buildCandleSheet()),
       fx: buildSheet(buildFxSheet()),
@@ -313,7 +350,12 @@ export class Game {
     for (const [id, st] of Object.entries(ENEMY)) {
       const base = (this.sheets as any)[st.base || id] as Sheet | undefined;
       if (!base) continue;
-      this.enemySheets[id] = st.colors && Object.keys(st.colors).length ? recolorSheet(base, st.colors) : base;
+      if (st.colors && Object.keys(st.colors).length) this.enemySheets[id] = recolorSheet(base, st.colors);
+      else if (st.shift) {
+        // a code variant: every color of the base sheet, turned and scaled the same way
+        const sh = st.shift;
+        this.enemySheets[id] = recolorSheet(base, Object.fromEntries(sheetColors(base).map((c) => [c.hex, shiftColor(c.hex, sh)])));
+      } else this.enemySheets[id] = base;
     }
   }
   enemySheet(kind: string): Sheet {
@@ -365,6 +407,10 @@ export class Game {
       this.input.script = null;
     }
     this.freezeT = 0;
+    this.tideHold = false;
+    this.overlays = [];
+    this.view.roll = 0;
+    if (this.player) this.player.mount = null;
     this.fx.clear();
     this.dmgNums = [];
     this.view.clearWorld();
@@ -441,6 +487,7 @@ export class Game {
         }
       }
     }
+    if (def.warp && (!def.boss || this.hunter.beaten(def.boss))) this.ents.push(new Warp(this, def.warp));
     // her whip, lying where a hardcore hex dropped it
     const lost = this.hunter.lostWhip;
     if (lost && lost.room === def.id) this.ents.push(new WhipDrop(this, lost.x, lost.y, true));
@@ -472,6 +519,11 @@ export class Game {
       this.avalanche = av;
     }
     this.snapCamera();
+    // the Mirror Vault: in a `mirror` room LEFT is RIGHT
+    const wasMirror = this.input.mirror;
+    this.input.mirror = !!def.mirror;
+    if (def.mirror && !wasMirror) this.message('IN THIS HALL, LEFT IS RIGHT', 200);
+    this.findSaveDoors();
     // music: silence before a boss, the save theme at altars, otherwise the zone's song
     const song = ZONE_INFO[def.zone]?.music || '';
     if (bossAlive) this.music.stop(1.2);
@@ -484,6 +536,65 @@ export class Game {
       this.banner = { text: ZONE_INFO[def.zone]?.name || def.name, sub: '', t: 200 };
     }
     this.markVisited();
+  }
+
+  /**
+   * The doorways of this room that open straight into a save room. Near one, the save
+   * theme leaks through (updateSaveAura), so you can tell a rest is close, and likely
+   * something dangerous after it.
+   */
+  findSaveDoors() {
+    const r = this.room, def = r.def;
+    this.saveDoors = [];
+    if (def.save) return;
+    const seen = new Set<string>();
+    const check = (tx: number, ty: number, ox: number, oy: number) => {
+      if (r.solidAt(tx, ty)) return;
+      const to = this.roomAt(Math.floor((def.gx * SCREEN_COLS + tx + ox) / SCREEN_COLS), Math.floor((def.gy * SCREEN_ROWS + ty + oy) / SCREEN_ROWS));
+      if (!to?.save || to === def) return;
+      // one aura per doorway: group its tiles by the cell edge they sit on
+      const key = `${to.id}:${ox ? Math.floor(ty / SCREEN_ROWS) : Math.floor(tx / SCREEN_COLS)}:${ox},${oy}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      // the first open tile found is the doorway's top (or left) one: aim at its middle
+      this.saveDoors.push({ x: tx * TILE + (ox ? 8 : 32), y: ty * TILE + (ox ? 32 : 8) });
+    };
+    for (let y = 0; y < r.rows; y++) {
+      check(0, y, -1, 0);
+      check(r.cols - 1, y, 1, 0);
+    }
+    for (let x = 0; x < r.cols; x++) {
+      check(x, 0, 0, -1);
+      check(x, r.rows - 1, 0, 1);
+    }
+  }
+
+  /**
+   * The hint that a save room is next door: a slow drift of pale blue motes out of its
+   * doorway, and as the hero comes within about 10 tiles the area's song dips while the save
+   * theme fades in underneath it.
+   */
+  updateSaveAura() {
+    const p = this.player;
+    let near = 0;
+    for (const d of this.saveDoors) {
+      near = Math.max(near, clamp(1 - Math.hypot(p.x - d.x, p.y - d.y) / 170, 0, 1));
+      if (this.frame % 9 === 0) this.fx.burst(d.x + rand(-4, 4), d.y + rand(-26, 26), 'mote', 1, 2, { vx: rand(-0.3, 0.3), vy: -0.35, life: 70, fade: true, glow: 0.8, tint: [0.6, 0.85, 1.4] });
+      if (this.frame % 40 === 0) this.fx.burst(d.x, d.y + rand(-20, 20), 'star', 1, 3, { vy: -0.2, life: 50, fade: true, glow: 1, tint: [0.7, 0.9, 1.5] });
+    }
+    // no leak while a boss fight or its silence is on
+    if (this.boss || !this.music.current) near = 0;
+    if (near > 0.02) {
+      if (!this.saveMusic.current) {
+        this.saveMusic.vol = 0.0001;
+        this.saveMusic.play('save', 0.3);
+      }
+      this.saveMusic.setVolume(0.75 * near, 0.25);
+      this.music.setVolume(1 - 0.55 * near, 0.25);
+    } else {
+      if (this.saveMusic.current) this.saveMusic.stop(0.8);
+      this.music.setVolume(1, 0.3);
+    }
   }
 
   /**
@@ -742,6 +853,15 @@ export class Game {
     this.tideLevel = f;
   }
 
+  /** Put a tidal room's surface at pixel row y (a boss that runs its own water calls this every frame). */
+  setWater(y: number) {
+    const room = this.room;
+    room.water = room.tideRect(y);
+    this.waterFront?.setRect(room.water);
+    const tide = room.def.tide;
+    if (tide) this.tideLevel = clamp((tide.low * TILE + 4 - y) / ((tide.low - tide.high) * TILE), 0, 1);
+  }
+
   /** Lower the water a little each frame; when it's gone, open the gate. */
   updateDrain() {
     const w = this.room.water;
@@ -790,6 +910,7 @@ export class Game {
     this.audio.play('gate');
     if (info?.flag) this.setFlag(info.flag);
     this.spawnBossRewards();
+    if (this.room.def.warp) this.spawn(new Warp(this, this.room.def.warp)); // the way out opens
     this.music.play(ZONE_INFO[this.room.def.zone]?.music || 'save', 2);
     this.banner = { text: 'Victory', sub: `${info?.name || 'the beast'} is slain`, t: 200 };
     if (info?.after) this.message(info.after, 240);
@@ -833,6 +954,8 @@ export class Game {
   onPlayerDeath() {
     this.deathT = 1;
     this.music.stop(2);
+    this.saveMusic.stop(1);
+    this.input.mirror = false;
   }
 
   /** Debug tour (open the page with #tour): visits every map cell of every room. */
@@ -933,7 +1056,7 @@ export class Game {
     this.testTick?.();
     p.update();
     if (this.drainT > 0) this.updateDrain();
-    if (this.room.def.tide) this.updateTide();
+    if (this.room.def.tide && !this.tideHold) this.updateTide();
     for (let i = 0; i < this.ents.length; i++) {
       const e = this.ents[i];
       if (!e.dead) e.update(this);
@@ -981,6 +1104,7 @@ export class Game {
         this.ents[i].destroy();
         this.ents.splice(i, 1);
       }
+    this.updateSaveAura();
     this.fx.update();
     // boss trigger
     // boss trigger: once the hero is a few tiles inside the arena

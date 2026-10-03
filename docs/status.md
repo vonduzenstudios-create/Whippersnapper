@@ -4,6 +4,26 @@ Update this file when you verify something or finish a listed item.
 
 ## Verified
 
+- 0.19.0 (2026-10-03), the boss rework, by script in the browser pane with real three.js. `npm run typecheck`, `npm run check:rooms` and `npm run build` are clean.
+  - Each of the eight fights was driven to the boss's death by a script that plays its solution through the boss's own `targets()` / `onStrike()`: the Leviathan (three drains, the flood scene, mounting the ring, steering with scripted direction keys into all three racks), Ysolde (the shield pulsed with scripted input during the sweep: three reflections), Rimehide (standing still on one slab: boulders and leaps broke it under him), the Colossus (nine forge blows, the breach, the transition into `fg_heart`, three drops of the heart, flags `colossus_open`, `boss_colossus` and `deep_door`, both rewards, the warp back out), the Mirror Heart (three crystal bursts, the view rolling to PI and back to 0, three right mirrors), the Archivist (six blots), the Bell-Mother (phrases of 3, 4 and 5), Gnarlfang (both forms; the long daze at the post).
+  - The wrong-answer paths: a wrong mirror hurts and reshuffles, a wrong bell resets and brings a swoop, blotting ARCHIVIST rewrites the line to name the hunter twice, an unblotted tale of every kind plays out without an error, and returning to the Forge with `colossus_open` set goes straight to the breach at half HP.
+  - With real inputs (`game.input.script`): the attack button turned a sluice wheel three times from the ledge beside it, three jumps on a bellows raised the heat to 78, and an up-whip blotted a wet name.
+  - Looked at on screen: all five redrawn sheets and both prop sheets on `/bosses.html`, the Bell-Mother's wings (one each side), and each arena mid-fight (the gaze beam, a glowing gauntlet over the anvil, the Leviathan under the surface, the aurora, the mirror hall upright and upside down, a wet page, the furnace heart with its jets and vents, a lit bell).
+
+- 0.18.0 (2026-10-03), by script in the browser pane with real three.js:
+  - `npm run typecheck` and `npm run check:rooms` are clean for the 43 new rooms (no overlaps, every doorway open on both sides, every sign/item/enemy exists).
+  - Every new room loads and runs 240 frames without an error.
+  - All six bosses were driven from entrance to death (hits injected every 25 frames): every pattern ran, the half-HP scene played, the defeat flag was set and both rewards appeared. A second run with the hero vulnerable confirmed the petrify (Ysolde), the freeze (Rimehide) and the control swap (Mirror Heart), and that the swap is off again afterwards.
+  - Glide gates: on the Broken Span and the Crucible Walk a running double jump came down in the spikes about 10 tiles short; a glide crossed, with and without the double jump.
+  - The Pearl gate: the Sunken Stair's underwater tunnel was slid through with Pearl + Greaves, and not with either one alone.
+  - Pool exits (Weeping Culvert, Serpent Gate): the surface leap clears the bank when Jump is held.
+  - Doors: Courtyard grate down and back up, Mourners' Row grate, Black Door shut and open, the Gaol's lever gate, the Old Well, Spire, Study, Drain and Warden's Stair doors, the Stacks' slide gap (blocked without the slide), the Chute onto the Lodge's grate, and the three climbs through a ceiling hole.
+  - The save aura finds one doorway per neighboring save room and ducks the zone song to about half at the door.
+
+- Bell Matron art exchange revision (2026-10-03): `art_exchange/bellmatron_redesign.zip` contains an original clothed redesign with a low-cut feather bodice, curved feather fans and translation notes for the code-generated runtime. Six 112 × 96 cells, (56,48) anchor, 25 colors, PNG RGBA8/non-interlaced, binary alpha, perimeter clearance and four-neighbor #08040a boundaries verified from the saved PNG; native/enlarged pixel views reviewed. Not integrated or playtested.
+
+- Bell-Mother art exchange (2026-10-02): original six-frame Python-drawn redesign delivered in `art_exchange/bellmother_redesign.zip`; 112 × 96 cells, (56,48) anchor, 29 opaque colors, binary alpha, RGBA8 non-interlaced PNG, one-pixel four-neighbor outline and clear cell margins checked. Native-size and enlarged sheet reviewed. Exchange only; not integrated or playtested in the game.
+
 - 0.17.0 (2026-10-02), checked with typecheck, build and frame-stepped scripted runs in the browser pane:
   - Grapple (current tuning, scripted): chain 20–46 px, reeled smoothly (full range in ~36 frames hanging still, ~11–17 px per second mid-swing); grab reach 78 px with every whip (all whips 56 px since 0.17.0); swing passes through walls by design, and any exit from `hang` (letting go, a hit, a grab) pops her out of solid tiles; a `stuckT` safety net fired only at the test's own bad spawn points in 13,200 frames of random play over 55 rooms. JUMP hop: 5.2 px/frame up hanging still, 5.1 sideways / 3.0 up from a 3 px/frame swing. Sinew Coil: picked up in the Shrine (dialog, RELICS list); 24 frames to the 70% commit point, 39 to full (32 px); committed, letting go of ATTACK or Down slings at a flat 12 px/frame (~220 px rise); short of it, Down eases back and ATTACK is a plain release; Up lets the tension out with no sling; JUMP hops off; the commit sparkle and tingle fire once. **Level fit:** the Ringing Climb's high rings are out of reach of the current launches and the Wisp Gallery climb wasn't rechecked after the last tuning: the user is adjusting the ring rooms. **Not checked by hand:** how it all feels.
   - Spikes: 60 frames kneeling, then `crippleT` 180 counting down with speed recovering; a jump right after standing worked.
@@ -162,6 +182,12 @@ Update this file when you verify something or finish a listed item.
 
 ## Not verified yet
 
+- 0.19.0 has had no human play. The scripts prove each cycle can be completed, not that it is fun or fair. Open questions: whether the 26-frame reflect window on Ysolde's beam is findable by feel; whether baiting Rimehide onto a pre-cracked slab is readable (the script simply stood still); how hard it is to catch the Leviathan's ring with a real whip, and to steer it; whether three bellows jumps between slams is too much busywork; whether the shell game is trackable upside down at the third round's speed; whether a page can always be reached in time (some hang over a case two screens from where you stand); whether the Bell-Mother's notes are distinct enough by ear (nobody has heard them: the pane has no audio) or only by which bell lights. The scripted Colossus run forced the furnace heat instead of pumping it between slams.
+- The Archivist's `dark` tale and the Mirror Heart's flipped view have not been checked together with the pause menu or a death mid-effect beyond the room reload resetting them.
+
+- The 0.18.0 zones have had one human playtest, which led to the 0.19.0 boss rework (their bosses as described under 0.18.0 above no longer exist). Still unknown: enemy counts in every new room, and item balance (three relics and two top shields now drop from bosses). Nobody has heard the seven new songs or the save theme leaking through a door (the pane had no audio). The storybook figures are about a third taller than the hero. Scripted jumps did not cover every ledge chain in the new shafts (Sump, Coil Stair, Rimecrown Climb, Bellows, Chimney), which follow the 3 to 4 row rule on paper. The Leviathan fight without the Pearl is slow going in the water by design, but nobody has tried it.
+- The enemy editor shows code variants with their base enemy's colors (it doesn't apply `shift`).
+
 - 0.16.0 by hand: how the scenes pace in real play (the Wyrm's retreat can keep the controls locked for a few seconds), the new `sting`, `flutter` and `powder` sounds, how the crawler looks easing round corners at full speed, and whether the moths' zigzag and poison (20 HP over 5 s at default) are fair. The new banter is first-draft writing. Crawlers wrapping into narrow one-tile gaps weren't tried. A hardcore whip dropped over a pit lands on the nearest floor beside it, but falls straight there through any blocks in between.
 
 - 0.15.0 by hand: how the ice and cripple feel in real play (in the air, slows are half as strong, which wasn't measured), and spikes in rooms where `lastSafe` sits right beside the pit.
@@ -205,14 +231,15 @@ Update this file when you verify something or finish a listed item.
 - Room transitions are instant fades. The map has no room labels.
 
 - Signposts use the snowy signpost sprite everywhere.
-- The Undervault's Black Door is a gate that never opens (`deep_door`), waiting for the next area.
+- The Black Door now opens when the Hollow Colossus dies (`deep_door`).
 - Breakable walls need several strikes at different heights (a standing strike breaks one tile). That's the old behavior, but the Shrine floor needs a few downward strikes.
 - The Bell-Mother's wings are flat polygons and read a little stiff.
 
 ## Possible next steps
 
 - Playtest and tune (the avalanche chase, the expansion's enemies and both new bosses).
-- The area behind the Black Door.
+- Playtest and tune the 0.18.0 zones and bosses.
+- Sky-cell secrets for the Lichyard and the Frostbitten Parapet.
 - Options screen for screen scaling.
 - A short attract demo on the title screen.
 - More breakable-wall secrets.

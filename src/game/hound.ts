@@ -14,12 +14,15 @@ import { Ent, HitKind, Boss } from './ent';
 import type { Game } from './game';
 import { ENEMY } from './data';
 import { moveBody } from '../world/room';
-import { EnemyShot, Rockfall } from './objects';
-import { Dog, shockPair, Shockwave } from './enemies_expansion';
+import { EnemyShot } from './objects';
+import { shockPair, Shockwave } from './enemies_expansion';
 import { clamp, rand, sign } from '../core/util';
 import { GRAVITY, MAX_FALL } from '../config';
 
 type Pat = 'enter' | 'stalk' | 'bite' | 'charge' | 'stun' | 'leap' | 'howl' | 'spit' | 'fakeout' | 'rise' | 'dying';
+
+/** The middle of the stone post in the Hound Pit (see rooms_expansion.ts): a charge that ends against it dazes it twice as long. */
+const POST_X = 31 * 16;
 
 /** The second form's HP, as a fraction of the first form's. */
 const CINDER_HP = 0.8;
@@ -80,8 +83,6 @@ export class Hound extends Ent implements Boss {
   /** Pick the next attack. */
   next() {
     const g = this.g, p = g.player;
-    const dogs = g.ents.filter((e) => e instanceof Dog && !e.dead).length;
-    if (this.phase === 2 && dogs < 1 && Math.random() < 0.3) return this.set('howl');
     const opts: Pat[] = ['charge', 'leap', 'stalk', 'charge', 'leap'];
     if (this.form === 2) opts.push('spit', 'spit');
     let n = opts[Math.floor(Math.random() * opts.length)];
@@ -160,15 +161,18 @@ export class Hound extends Ent implements Boss {
             g.shake(7, 30);
             g.audio.play('explode');
             // the cinder form brings down burning debris instead of stone
-            g.spawn(new Rockfall(g, this.phase === 2 ? 16 : 11, this.form === 2 ? 'fireball' : 'rock', 16, this.phase === 2 ? 80 : 90));
+            // (0.19.0: no more rain of masonry.) Into the stone post it is dazed for much longer
+            const post = Math.abs(this.x - POST_X) < 70;
+            if (post) g.fx.burst(POST_X, this.bottom - 30, 'rock', 6, 14, { speed: 2.5, grav: 0.15, life: 40, rot: 0.3 });
             this.set('stun');
+            this.data.long = post;
           }
         }
         break;
       case 'stun':
         this.vx = 0;
         frame = A.stun[0];
-        if (this.pt > 80) this.next();
+        if (this.pt > (this.data.long ? 170 : 80)) this.next();
         break;
       case 'leap':
         if (this.pt < 18) {
@@ -206,18 +210,7 @@ export class Hound extends Ent implements Boss {
           g.audio.play('howl');
           g.shake(3, 50);
         }
-        if (this.pt === 50 || this.pt === 74) {
-          // a pair at a time, bounding in from the edges of the screen (from both sides, the
-          // second pair a little further in)
-          const floor = g.room.H - 32, v = g.view, W = g.room.W;
-          const inset = this.pt === 50 ? 20 : 56;
-          for (const x of [Math.max(40, v.camX + inset), Math.min(W - 40, v.camX + v.viewW - inset)]) {
-            const d = new Dog(g, 'dog', x, floor);
-            d.cool = 0;
-            g.spawn(d);
-            g.fx.burst(x, floor - 10, 'smoke', 4, 8, { vy: -0.5, fps: 8, life: 40 });
-          }
-        }
+        // (0.19.0: the howl no longer brings the pack. It is only its change of temper now.)
         if (this.pt === 60 && this.data.scene) g.bossTalk('boss_hound_phase2');
         if (this.pt > 90) this.next();
         break;
@@ -355,7 +348,7 @@ export class Hound extends Ent implements Boss {
       this.whipTarget = false;
       g.music.stop(1.5);
       g.audio.play('roar');
-      for (const e of g.ents) if (e instanceof EnemyShot || e instanceof Shockwave || e instanceof Dog) e.dead = true;
+      for (const e of g.ents) if (e instanceof EnemyShot || e instanceof Shockwave) e.dead = true;
     }
   }
 }

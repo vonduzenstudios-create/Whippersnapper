@@ -99,6 +99,7 @@ Entities:
 | `M` | Pell, the merchant (the Reader's Nook): introduces himself the first time, then UP opens his shop |
 | `v` | Devourer: a mouth on tentacles (a stronger Hookjaw) whose tongue drags you into its jaws (see player-mechanics.md) |
 | `f` | Grave Moth: a flying enemy (grubs left on the surface also hatch them, three at a time). It bursts on touch and poisons you |
+| `q` | Temple Asp (Serpent Temple): a ground snake that coils and darts, or rears up and spits poison |
 | `p` | Gallows Spider: place it anywhere under a ceiling; it finds the ceiling above and hangs from it. Leave it a clear drop below |
 
 In a boss room, items (`i`) are the reward: they stay hidden until the boss dies, then float down into place.
@@ -167,10 +168,47 @@ The Ashen Library (zone 'library', theme 'library'; 12 rooms in `src/world/rooms
   Upper Gallery hole up (through a grate) → Clerk's Mezzanine (0-2,-5) [Might Seed on a ledge only a double jump reaches] → Great Reading Room (3-6,-6..-5) [Life Max Up, Elixir]
   Grand Staircase top hole up ↔ Great Reading Room grate (the way back down)
 
+The Lichyard (zone 'lichyard'; 0.18.0, all of the rooms below are in `src/world/rooms_depths.ts`):
+  Ruined Courtyard grate (Down + Jump) -> Gravedigger's Descent (4, 3-4) -> The Lichyard (1-3,4) [open sky; Iron Heater, double jump]
+    -> Mourners' Row (-1..0,4) -> Sexton's Lodge (-2,4) [save]
+  Mourners' Row grate -> The Sunken Stair (0, 5-7): flooded bottom. East door -> Weeping Culvert. West, an underwater
+    one-tile tunnel -> Serpent Gate [Pearl + Greaves]. High west gate <- Fang Gallery (the temple's shortcut, lever on the temple side)
+
+The Drowned Deeps (zone 'deeps'):
+  Forgotten Drain west door -> Silt Channel (5-7,7) [tidal; Heart Max Up shelf] -> The Sump (4, 7-9) [tidal 38 -> 16]
+  Weeping Culvert (1-3,7) [pool, then a slide crawlspace] -> The Sump
+  The Sump -> The Diving Bell (5,8) [save]; bottom -> The Drowned Nave (1-3,9) [tidal; Ward Seed shelf] -> The Black Cistern (-1..0, 8-9) [boss Leviathan: Undertow Pearl]
+
+The Serpent Temple (zone 'temple'):
+  Serpent Gate (-2..-1,7) -> The Coil Stair (-3, 5-7) -> Hall of Scales (-6..-4,7) [ramps; Ossuary Pavise, Might Seed]
+  Coil Stair -> Offering Room (-2,6) [save] / The Bride's Court (-5..-4, 5-6) [boss Ysolde: Rootstone] / Fang Gallery (-2..-1,5) [lever temple_gate]
+
+The Warden's Gaol (zone 'gaol'):
+  Warden's Stair bottom-left door -> Gaol Gate (13-14,3) -> The Long Cells (10-12,3) -> The Oubliette (9, 3-4) [Throwing Knife; lever gaol_gate -> Grand Stairwell]
+  Long Cells grate -> Torturer's Gallery (10-11,4) [Life Max Up, double jump] -> Oubliette bottom
+
+Rimecrown Heights (zone 'heights'):
+  Windswept Spire east door -> Frostbitten Parapet (18-20,-5) [open sky] -> Rimecrown Climb (21, -6..-3)
+  Climb east doors, top to bottom: Howling Gallery (22-24,-6) [slide pocket: Might Seed] / Watchfire Nook (22,-5) [save] / The Broken Span (22-24,-4) [glide: Life Max Up]
+  Howling Gallery -> Rimecrown Summit (25-26, -6..-5) [boss Old Rimehide: Duskwing Shroud] -> Avalanche Chute (27, -5..1) -> Huntsman's Lodge roof
+
+The Cinderworks (zone 'forge'):
+  Old Well east door -> Slag Gate (20-21,5) -> The Bellows (22, 3-5) -> Crucible Walk (23-25,5) [22-tile slag lake: glide]
+    -> Smelter's Rest (26,5) [save] -> hole up -> The Chimney (26, 3-4) -> The Great Forge (24-25, 3-4) [boss Colossus]
+    -> through its chest -> Inside the Colossus (21, 3-4) [the Furnace Heart: Ashglass Ward, Ashen Aegis; sets deep_door] -> warp back to the Forge
+  Great Forge high west door -> Quench Shaft (23, 3-4) -> gate (opens with boss_colossus) -> The Bellows
+
+The Mirror Vault (zone 'vault'):
+  Undervault Black Door (flag deep_door) -> Threshold of Glass (17-18,5) -> grate -> Hall of Facets (16-18,6) -> The Inverted Gallery (14-15,6) [mirror room; lever vault_gate]
+    -> The Still Pool (13,6) [save] -> gate -> The Mirror Heart (11-12,6) [boss: Mirror Shard]
+
+The Archivist's Wing (zone 'archive', theme 'library'):
+  Archivist's Study west door -> The Restricted Stacks (-8..-6,-4) [slide under the fallen press] -> The Chained Shelves (-9, -4..-3) -> The Forbidden Section (-8..-7, -3..-2) [boss Head Archivist: Reading Lens]
+
 Old castle secret: Rampart Walk (3-4, 0-1) [sky], above the Ruined Courtyard. Double jump to the courtyard's high ledge, then jump up onto the walkway.
 ```
 
-57 code rooms plus the editor-made `flooded_cave`, 199 map cells (14 of them sky cells), counting the 12-room Library (48 cells). The Chain Grapple gates the Wyrm. After it, either boss can be fought first: the Kennels need nothing, the Belfry needs the grapple. Each boss drops one movement relic, and the Aqueduct, the Rookery, the Rampart and several pockets need one or both.
+101 code rooms plus the editor-made `flooded_cave`, 316 map cells (14 of them sky cells), counting the 12-room Library (48 cells) and the 43 rooms of 0.18.0. The Chain Grapple gates the Wyrm. After it, either boss can be fought first: the Kennels need nothing, the Belfry needs the grapple. Each boss drops one movement relic, and the Aqueduct, the Rookery, the Rampart and several pockets need one or both.
 
 Gates and rewards to come back for:
 
@@ -187,6 +225,15 @@ Gates and rewards to come back for:
 | Old Well top / Raven's Drop climb | double jump | shortcuts back up |
 | Rampart Walk | double jump | Heart Max Up |
 | Armory wall / Shrine floor | whip the cracked stones | hidden ways in |
+| Lichyard crypt roof | double jump | Iron Heater |
+| Sunken Stair west tunnel | Pearl + slide | the Serpent Temple |
+| Weeping Culvert crawlspace | slide | the Lichyard's way into the Deeps |
+| Silt Channel shelf / Drowned Nave shelf | high tide or double jump | Heart Max Up, Ward Seed |
+| Torturer's Gallery shelf | double jump | Life Max Up |
+| Howling Gallery pocket | slide | Might Seed |
+| The Broken Span | glide | Life Max Up |
+| Crucible Walk | glide | the Great Forge, and through it the Black Door |
+| Restricted Stacks | slide | the Head Archivist |
 | Sky cells (Pilgrim's Road, Cliffs, Drawbridge) | double jump | Might Seed, Ward Seed, Heart Max Up |
 | Ice Conduit shelf / Cistern tank | high tide (swim + leap) or double jump | Might Seed + potion, Ward Seed |
 
@@ -214,6 +261,21 @@ Gates and rewards to come back for:
 - Flooded Crypt: the lower-right door is a sunken gate. The lever in the bottom-left corner (underwater) sets `crypt_drained`. The water drains over about 4 seconds, then the gate opens. The Gallery of Wisps' left door is the other side of the same gate and shares the flag.
 - When a room loads, flags that are already set are applied before painting (`Room.drain()`, `Room.openGates()`).
 - The Gallery of Wisps can still be reached first by dropping through the Corridor of Bones grate. The locked gate then blocks the way into the crypt from that side.
+
+## The 0.18.0 zones: rules of thumb
+
+- **Order.** The Lichyard, the Gaol and the Deeps open early (the Deeps through the Forgotten Drain). The Pearl opens the Temple. The Heights need the Belfry behind you (the Spire), and their boss gives the glide, which opens the Cinderworks' boss, whose death opens the Mirror Vault. The Archivist's Wing needs only the slide.
+- **Glide gates** are `pit(b, x, 22)`: 22 floor tiles replaced by spikes. Scripted runs: a running double jump comes down about 10 tiles short, a glide clears it even without the double jump.
+- **The Pearl gate**: a block over the pool floor leaves one open row (the Sunken Stair's row 39) and covers the doorway column too, and the next room continues it (`fill(43, 8, 5, 3)` in the Serpent Gate). Without the Pearl, Down + Dash in water is a backdash.
+- **Pools with a bank** (Weeping Culvert, Serpent Gate): the bank's top is level with the water, so you get out with the surface leap (hold Jump with your head at the surface).
+- **The Black Cistern** is a tidal room only so that it has water; the Leviathan sets `Game.tideHold` and moves the surface itself (`setWater`). Its ledges come in three bands: rows 21/17 (out of the pool), 13/11 (clear of the full pool, the first wheels beside them), 9/6/5 (clear of the final flood at row 8).
+- **Rimecrown Summit's** floor row 26 is the ice (slabs at x 4-43); `boss_yeti.ts` removes and restores those tiles.
+- **The Great Forge** keeps x 60-360 of its floor clear for the bellows (x 88, 232) and the anvil (x 330). **Inside the Colossus** (`fg_heart`, map cell 21,3-4) has no doors: in through the breach, out through its `warp`.
+- **The Mirror Heart's hall** has no ledges (the copy only walks the floor).
+- **The Forbidden Section's bookcases** stand at tile columns 10, 19, 28 and 37 (4 wide, tops at row 20). `Archivist.pageSpot()` hangs his pages over them (x 192, 336, 480, 624).
+- **Mirror rooms**: `RoomDef.mirror` swaps LEFT and RIGHT while you're inside. Keep their jumps short.
+- **Ramps** in new rooms use `ramp(b, x, base, n, dir)` in rooms_depths.ts. A flight that rises to the left starts at its low (right) end.
+- Run `npm run check:rooms` after changing any room: it reports doorways that are open on one side only.
 
 ## Fragile spots
 

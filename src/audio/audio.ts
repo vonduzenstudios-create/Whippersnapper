@@ -469,6 +469,11 @@ const SFX: Record<string, Sfx> = {
   tingle: (a) => {
     [2637, 3136, 3951].forEach((f, i) => a.tone({ type: 'sine', f0: f, dur: 0.18, vol: 0.018, t: i * 0.035, out: a.reverbSend }));
   },
+  // one clear bell note at pitch p (1 = A4): the Bell-Mother's song bells, the forge's hammer ring
+  note: (a, p) => {
+    a.tone({ type: 'sine', f0: 440 * p, dur: 0.7, vol: 0.12, out: a.reverbSend });
+    a.tone({ type: 'triangle', f0: 880 * p, dur: 0.35, vol: 0.05 });
+  },
   chime: (a) => {
     [1568, 2093].forEach((f, i) => a.tone({ type: 'sine', f0: f, dur: 0.5, vol: 0.06, t: i * 0.12, out: a.reverbSend }));
   },

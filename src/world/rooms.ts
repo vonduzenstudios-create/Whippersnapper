@@ -8,12 +8,15 @@ import { SCREEN_COLS as SC, SCREEN_ROWS as SR } from '../config';
 import ROOM_EDITS from './room_edits.json';
 import { buildExpansionRooms } from './rooms_expansion';
 import { buildLibraryRooms } from './rooms_library';
+import { buildDepthRooms } from './rooms_depths';
 
 export const THEMES = [
   'outdoor', 'courtyard', 'hall', 'stair', 'catacomb', 'flooded', 'shrine', 'chasm', 'lair', 'snow', 'ice',
   'garden', 'rooftop', 'belfry', 'aqueduct', 'library',
+  'graveyard', 'deeps', 'temple', 'gaol', 'forge', 'crystal',
 ] as const;
-export const ZONES = ['pass', 'castle', 'catacombs', 'lair', 'undervault', 'kennels', 'belfry', 'aqueduct', 'library', 'lab'] as const;
+export const ZONES = ['pass', 'castle', 'catacombs', 'lair', 'undervault', 'kennels', 'belfry', 'aqueduct', 'library',
+  'lichyard', 'deeps', 'temple', 'gaol', 'forge', 'vault', 'heights', 'archive', 'lab'] as const;
 /** Theme: the backdrop and tile art. */
 export type Theme = (typeof THEMES)[number];
 /** Zone: the music, map color and area banner. */
@@ -30,6 +33,14 @@ export const ZONE_INFO: Record<Zone, { name: string; color: string; music: strin
   belfry: { name: 'The Belfry', color: '#6a4a2a', music: 'belfry' },
   aqueduct: { name: 'Rimeworks Aqueduct', color: '#2a5a6a', music: 'aqueduct' },
   library: { name: 'The Ashen Library', color: '#6a3a5a', music: 'library' },
+  lichyard: { name: 'The Lichyard', color: '#4a5a4a', music: 'lichyard' },
+  deeps: { name: 'The Drowned Deeps', color: '#1a4a5a', music: 'deeps' },
+  temple: { name: 'The Serpent Temple', color: '#5a6a2a', music: 'temple' },
+  gaol: { name: "The Warden's Gaol", color: '#5a4a4a', music: 'gaol' },
+  forge: { name: 'The Cinderworks', color: '#8a3a1a', music: 'forge' },
+  vault: { name: 'The Mirror Vault', color: '#6a4a9a', music: 'vault' },
+  heights: { name: 'Rimecrown Heights', color: '#7a9aba', music: 'heights' },
+  archive: { name: "The Archivist's Wing", color: '#7a3a4a', music: 'library' },
   lab: { name: 'Test Chamber', color: '#5a5a5a', music: 'undervault' }, // the #lab debug room only
 };
 
@@ -74,6 +85,14 @@ export interface RoomDef {
    * ledges a normal jump can't.
    */
   tide?: { low: number; high: number };
+  /**
+   * A glowing breach at tile (x, y) that carries the hero to tile (tx, ty) of room `to` (UP to
+   * step through). In a boss room it only appears once the boss is dead. Used to leave the
+   * inside of the Colossus.
+   */
+  warp?: { x: number; y: number; to: string; tx: number; ty: number };
+  /** The Mirror Vault's trick: while the hero is in this room, LEFT and RIGHT are swapped. */
+  mirror?: boolean;
 }
 
 /** Room builder: fill tiles, cut doors and holes, place entities, then build() a RoomDef. */
@@ -282,6 +301,8 @@ export function buildBaseRooms(): RoomDef[] {
     // high ledge over the left platform: 6 rows up, so only a double jump reaches it.
     // From there you can jump out of the open top onto the Rampart Walk above.
     b.fill(10, 2, 4, 1, '=');
+    b.hole('B', 1).fill(34, 12, 4, 1, '='); // a rusted grate (Down + Jump): the gravediggers' way down to the Lichyard
+    b.e(30, 11, 'T', 'lore_grate');
     b.e(8, 7, 'C').e(39, 7, 'C').e(16, 11, 'C').e(31, 11, 'C');
     b.e(23, 7, 'i', 'sub_holy').e(41, 7, 'i', 'acc_garnet');
     b.e(13, 11, 'z').e(33, 11, 'z').e(43, 11, 'z');
@@ -307,7 +328,7 @@ export function buildBaseRooms(): RoomDef[] {
   // 4 ── Grand Stairwell (1 x 4)
   {
     const b = new RB(1, 4);
-    b.shell().door('L', 2).door('R', 0).door('R', 2).hole('B', 0);
+    b.shell().door('L', 2).door('R', 0).door('R', 2).door('R', 3).hole('B', 0); // the lowest east door: the Gaol's Oubliette (its gate opens from inside)
     b.fill(14, 12, 9, 2); // armory landing
     b.fill(1, 40, 15, 2).fill(20, 40, 3, 2); // great-hall floor, gap at 16-19
     // climbing platforms (great hall floor → armory landing)
@@ -530,5 +551,6 @@ export function buildBaseRooms(): RoomDef[] {
   // ══ After the Wyrm: the Undervault and the regions beyond it (rooms_expansion.ts) ══
   R.push(...buildExpansionRooms());
   R.push(...buildLibraryRooms());
+  R.push(...buildDepthRooms());
   return R;
 }

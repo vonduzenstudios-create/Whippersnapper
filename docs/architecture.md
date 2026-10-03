@@ -138,3 +138,18 @@ World flags in use: `crypt_drained` (Flooded Crypt lever), `pass_buried` (the av
 - Shop: room entity `M` is `Merchant` (objects.ts), Pell. Coming within 80 px the first time plays `pell_meet` and sets the `met_pell` flag; after that, UP by him plays `pell_again`. Both end in `UI.openShop()` (state `'shop'`). Stock is `SHOP` in data.ts; `Hunter.bought` counts what's been bought, so stock doesn't come back.
 - Gold and soul shards: `dropGold` (objects.ts) runs on every kill before the drop table: `GOLD_CHANCE` (55%, luck-scaled) for about half to all of the enemy's XP in gold (a pile sprite past 10), and `SHARD_CHANCE` (1.5%) for a soul shard. Candles drop 1–4 gold 12% of the time. `Hunter.gold` / `Hunter.shards`; shards aren't used yet.
 - Relic toggles: `Hunter.grapple` etc. are getters: found (`_grapple`...) and not listed in `relicOff`. Old saves' `grapple: true` goes through the setters. The RELICS page calls `toggleRelic(id)`.
+
+## Added in 0.18.0
+
+- `world/rooms_depths.ts`: the eight new zones. `gfx/art_depths.ts`: their sprites and boss portraits. `game/boss_base.ts`, `bosses_west.ts`, `bosses_deep.ts`, `enemies_depths.ts`: the bosses and the Temple Asp. `tools/check_rooms.ts`: the map check (`npm run check:rooms`; `tools/check_rooms_ids.ts` lists the boss ids so the check needn't load three.js).
+- Themes `graveyard`, `deeps`, `temple`, `gaol`, `forge`, `crystal` (tile palettes in `tiles.ts`; the last five share one cavern backdrop in `backdrops.ts`, dressed per theme). Zones `lichyard`, `deeps`, `temple`, `gaol`, `forge`, `vault`, `heights`, `archive`.
+- `view.ts` `shiftColor()` moves a color in HSL space. `Game.buildEnemySheets` uses it for code variants (`EnemyStats.shift`), and for the glass copies of the hero sheets.
+- Two `Music` players: `Game.music` (the zone's song) and `Game.saveMusic` (the save theme near a save room's door). `Music.setVolume` eases a player's own gain.
+- Save aura: `Game.findSaveDoors()` runs in `loadRoom` and lists the doorways whose far side is a `save` room; `updateSaveAura()` runs each play frame.
+
+## Added in 0.19.0
+
+- One file per boss: `game/boss_leviathan.ts`, `boss_gorgon.ts`, `boss_yeti.ts`, `boss_colossus.ts` (the armor and the `FurnaceHeart` inside it), `boss_mirror.ts`, `boss_archivist.ts`, on `boss_base.ts` (`BossBase`, `Target`, `Beam`, `prop()`). `bosses_west.ts` and `bosses_deep.ts` are gone. `bellmother.ts` now extends `BossBase` too.
+- `gfx/art_bosses2.ts`: the redrawn boss sheets, `relief()` (edge lighting for flat shapes), and the `props` and `tallprops` sheets.
+- `backdrops.ts`: after the theme's switch, a second switch on `room.def.id` adds each boss arena's own layers.
+- One boss id can span two rooms: `BOSSES.colossus.make` returns the `Colossus` in `fg_forge` and the `FurnaceHeart` in `fg_heart`. The defeat flag is set only when the heart dies.

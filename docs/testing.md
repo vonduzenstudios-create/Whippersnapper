@@ -46,3 +46,9 @@ There is no committed test suite yet. Playwright tests are a listed next step.
 ## play-standalone.html
 
 An older single-file build that loads three.js from the jsDelivr CDN through an importmap. Treat it as a build artifact: regenerate it after changes only if the user still wants it, otherwise ignore it.
+
+## 0.18.0 checks
+
+- `npm run check:rooms` (add a room id to print that room as text): overlaps, one-sided doorways, missing sign/item/enemy ids, things placed over thin air.
+- Boss soak test, from the browser console: load the boss's room, `game.startBoss()`, then call `game.tick()` in a loop, skipping dialogue (`game.talkState.done()`), and call `game.boss.onHit(game, 30, x, false, 'whip')` every 25 frames. For the Colossus, call `boss.hitAt(piece.x, piece.y, 4)` first so it knows which piece was struck.
+- Gate tests use `game.input.script` (held actions) with relic flags set on `game.hunter` (`glide`, `swim`, `slide`, `doubleJump`).

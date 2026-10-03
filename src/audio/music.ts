@@ -519,7 +519,205 @@ function songLibrary(): Song {
   };
 }
 
+// ---------------------------------------------------------------- the 0.18.0 zones
+
+/** One bar's drum pattern repeated for `bars` bars, at volume `v`. */
+function drumLoop(pat: string, bars = 8, v = 1): Note[] {
+  let out: Note[] = [];
+  for (let b = 0; b < bars; b++) out = out.concat(drums(pat, b * 16).map((n) => ({ ...n, v: n.v * v })));
+  return out;
+}
+
+/** The Lichyard: a slow graveside waltz feel in E minor, a lone bell over low organ. */
+function songLichyard(): Song {
+  const C = ['Em', 'Em', 'CM', 'Bm', 'Em', 'Am', 'F#d', 'BM'];
+  const mel = `
+    e5 - - - - - g5 - b5 - - - - - a5 -
+    g5 - - - - - e5 - f#5 - - - - - . .
+    e5 - - - - - g5 - c6 - - - - - b5 -
+    a5 - - - - - f#5 - d5 - - - - - . .
+    b5 - - - - - e6 - d6 - - - - - b5 -
+    c6 - - - - - a5 - e5 - - - - - . .
+    f#5 - - - - - a5 - c6 - - - - - a5 -
+    b5 - - - - - - - d#5 - - - f#5 - - -`;
+  return {
+    name: 'lichyard',
+    bpm: 72,
+    steps: 128,
+    loop: true,
+    tracks: [
+      { inst: 'bell', vol: 0.11, notes: seq(mel, 0, 0.75), rev: 0.9 },
+      { inst: 'organ', vol: 0.07, notes: pads(C, 3, 0.5), rev: 0.8 },
+      { inst: 'choir', vol: 0.06, notes: pads(C, 4, 0.45), rev: 0.95 },
+      { inst: 'harpsi', vol: 0.05, notes: arp(C, [0, -1, 1, -1, 2, -1, 1, -1], 4, 0.4), rev: 0.6 },
+      { inst: 'bass', vol: 0.14, notes: bassLine(C, 'r - - - - - f - - - - - r - - -', 2, 0.55) },
+      { inst: 'drums', vol: 0.2, notes: drumLoop('t . . . . . . . . . . . . . . .', 8, 0.5) },
+    ],
+  };
+}
+
+/** The Drowned Deeps: slow rolling arpeggios like water, C# minor, a choir far off. */
+function songDeeps(): Song {
+  const C = ['C#m', 'AM', 'F#m', 'G#M', 'C#m', 'EM', 'F#m', 'G#7'];
+  const mel = `
+    g#4 - - - - - - - c#5 - - - e5 - - -
+    e5 - - - - - - - c#5 - - - a4 - - -
+    f#5 - - - - - - - a5 - - - g#5 - f#5 -
+    d#5 - - - - - - - . . . . g#4 - - -
+    c#5 - - - e5 - - - g#5 - - - - - - -
+    b5 - - - - - - - g#5 - - - e5 - - -
+    a5 - - - - - - - f#5 - - - c#5 - - -
+    d#5 - - - - - - - . . . . . . . .`;
+  return {
+    name: 'deeps',
+    bpm: 66,
+    steps: 128,
+    loop: true,
+    tracks: [
+      { inst: 'bell', vol: 0.1, notes: seq(mel, 0, 0.7), rev: 0.95 },
+      { inst: 'harpsi', vol: 0.06, notes: arp(C, [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0, 1, 2, 3, 2, 1], 3, 0.35, 2), rev: 0.85 },
+      { inst: 'choir', vol: 0.09, notes: pads(C, 3, 0.55), rev: 0.95 },
+      { inst: 'bass', vol: 0.14, notes: bassLine(C, 'r - - - - - - - - - - - f - - -', 1, 0.6) },
+    ],
+  };
+}
+
+/** The Serpent Temple: hand drums and a winding line on a raised-fourth scale in A. */
+function songTemple(): Song {
+  const C = ['Am', 'Am', 'A#M', 'Am', 'Dm', 'Am', 'A#M', 'EM'];
+  const mel = `
+    a4 - a#4 - c#5 - d5 - e5 - - - d5 - c#5 -
+    a#4 - a4 - - - . . e5 - f5 - e5 - - -
+    d5 - f5 - a5 - a#5 - a5 - - - f5 - d5 -
+    e5 - - - c#5 - a4 - - - . . a4 - c#5 -
+    d5 - - - f5 - a5 - g5 - f5 - e5 - d5 -
+    c#5 - e5 - a5 - - - g#5 - a5 - e5 - - -
+    f5 - d5 - a#4 - d5 - f5 - a#5 - a5 - f5 -
+    e5 - - - g#5 - b5 - e6 - - - . . . .`;
+  return {
+    name: 'temple',
+    bpm: 104,
+    steps: 128,
+    loop: true,
+    tracks: [
+      { inst: 'guitar', vol: 0.11, notes: seq(mel, 0, 0.8), rev: 0.5 },
+      { inst: 'harpsi', vol: 0.06, notes: arp(C, [0, 2, 1, 2, 0, 2, 1, 2], 3, 0.45), rev: 0.4 },
+      { inst: 'organ', vol: 0.05, notes: pads(C, 3, 0.5), rev: 0.7 },
+      { inst: 'bass', vol: 0.18, notes: bassLine(C, 'r . . r . . r . f . . r . . R .', 2, 0.7) },
+      { inst: 'drums', vol: 0.36, notes: drumLoop('t . h t . . t h t . h t . t t h', 8, 0.8) },
+    ],
+  };
+}
+
+/** The Warden's Gaol: a trudging march in C minor, chains for a hi-hat. */
+function songGaol(): Song {
+  const C = ['Cm', 'Cm', 'G#M', 'GM', 'Cm', 'Fm', 'Dd', 'G7'];
+  const mel = `
+    c5 - - - d#5 - - - g5 - - - f5 - d#5 -
+    d5 - - - - - - - c5 - - - . . . .
+    g#4 - - - c5 - - - d#5 - - - d5 - c5 -
+    b4 - - - - - - - d5 - - - g4 - - -
+    c5 - - - g5 - - - d#5 - - - c6 - - -
+    g#5 - - - f5 - - - c5 - - - f5 - - -
+    d5 - - - f5 - - - g#5 - - - f5 - d5 -
+    b4 - - - d5 - - - g5 - - - . . . .`;
+  return {
+    name: 'gaol',
+    bpm: 88,
+    steps: 128,
+    loop: true,
+    tracks: [
+      { inst: 'organ', vol: 0.09, notes: seq(mel, 0, 0.8), rev: 0.6 },
+      { inst: 'harpsi', vol: 0.05, notes: arp(C, [0, 1, 2, 1], 3, 0.45, 4), rev: 0.4 },
+      { inst: 'choir', vol: 0.05, notes: pads(C, 3, 0.5), rev: 0.9 },
+      { inst: 'bass', vol: 0.2, notes: bassLine(C, 'r - - - r - - - f - - - r - - -', 2, 0.75) },
+      { inst: 'drums', vol: 0.36, notes: drumLoop('k . h . s . h . k . h h s . h .', 8, 0.8) },
+    ],
+  };
+}
+
+/** The Cinderworks: hammer-blows on every beat, a driving riff in D minor. */
+function songForge(): Song {
+  const C = ['Dm', 'Dm', 'A#M', 'CM', 'Dm', 'Gm', 'A#M', 'AM'];
+  const mel = `
+    d5 - d5 - f5 - d5 - a5 - - - g5 - f5 -
+    e5 - d5 - - - . . a4 - d5 - f5 - - -
+    a#4 - d5 - f5 - a#5 - a5 - - - f5 - d5 -
+    e5 - g5 - c6 - - - a#5 - g5 - e5 - - -
+    d5 - f5 - a5 - d6 - c6 - a5 - f5 - a5 -
+    g5 - a#5 - d6 - - - a#5 - g5 - d5 - - -
+    f5 - d5 - a#4 - d5 - f5 - a#5 - d6 - a#5 -
+    a5 - - - c#6 - - - e6 - - - . . . .`;
+  return {
+    name: 'forge',
+    bpm: 132,
+    steps: 128,
+    loop: true,
+    tracks: [
+      { inst: 'guitar', vol: 0.13, notes: seq(mel, 0, 0.85), rev: 0.3 },
+      { inst: 'harpsi', vol: 0.06, notes: arp(C, [0, 1, 2, 3, 2, 1, 0, 1], 4, 0.45), rev: 0.3 },
+      { inst: 'organ', vol: 0.05, notes: pads(C, 3, 0.5) },
+      { inst: 'bass', vol: 0.22, notes: bassLine(C, 'r . r . R . r . r . r . f . R .', 2, 0.8) },
+      { inst: 'drums', vol: 0.45, notes: drumLoop('x . h . s . h . k k h . s . t t', 8, 0.9) },
+    ],
+  };
+}
+
+/** The Mirror Vault: a phrase and then the same phrase backwards, glassy bells in B minor. */
+function songVault(): Song {
+  const C = ['Bm', 'GM', 'Em', 'F#M', 'F#M', 'Em', 'GM', 'Bm'];
+  const fwd = ['b4 - - - d5 - - - f#5 - - - b5 - - -', 'a5 - - - g5 - - - d5 - - - b4 - - -', 'e5 - - - g5 - - - b5 - - - e6 - - -', 'c#6 - - - a#5 - - - f#5 - - - c#5 - - -'];
+  // the second half is the first played back to front, note for note
+  const back = fwd.map((bar) => bar.split(' ').filter((t) => t !== '-').reverse().join(' - - - ') + ' - - -').reverse();
+  return {
+    name: 'vault',
+    bpm: 80,
+    steps: 128,
+    loop: true,
+    tracks: [
+      { inst: 'bell', vol: 0.11, notes: seq([...fwd, ...back].join('\n'), 0, 0.75), rev: 0.95 },
+      { inst: 'harpsi', vol: 0.05, notes: arp(C, [0, 1, 2, 3, 3, 2, 1, 0], 5, 0.35), rev: 0.9 },
+      { inst: 'choir', vol: 0.08, notes: pads(C, 4, 0.5), rev: 0.95 },
+      { inst: 'bass', vol: 0.12, notes: bassLine(C, 'r - - - - - - - R - - - - - - -', 2, 0.5) },
+    ],
+  };
+}
+
+/** Rimecrown Heights: wide and windy, a horn-like line over a slow march in G minor. */
+function songHeights(): Song {
+  const C = ['Gm', 'D#M', 'A#M', 'FM', 'Gm', 'Cm', 'D#M', 'DM'];
+  const mel = `
+    g4 - - - - - d5 - - - - - g5 - - -
+    f5 - - - d#5 - - - a#4 - - - - - . .
+    d5 - - - - - f5 - - - - - a#5 - - -
+    a5 - - - - - f5 - c5 - - - - - . .
+    g5 - - - - - a#5 - - - - - d6 - - -
+    c6 - - - - - g5 - d#5 - - - - - g5 -
+    a#5 - - - g5 - - - d#5 - - - g5 - a#5 -
+    a5 - - - - - - - f#5 - - - d5 - - -`;
+  return {
+    name: 'heights',
+    bpm: 92,
+    steps: 128,
+    loop: true,
+    tracks: [
+      { inst: 'organ', vol: 0.1, notes: seq(mel, 0, 0.8), rev: 0.8 },
+      { inst: 'bell', vol: 0.06, notes: arp(C, [0, -1, -1, -1, 2, -1, -1, -1], 5, 0.5), rev: 0.9 },
+      { inst: 'choir', vol: 0.08, notes: pads(C, 3, 0.55), rev: 0.95 },
+      { inst: 'bass', vol: 0.17, notes: bassLine(C, 'r - - - f - - - r - - - f - - -', 2, 0.65) },
+      { inst: 'drums', vol: 0.3, notes: drumLoop('k . . . t . . . k . . t t . . .', 8, 0.7) },
+    ],
+  };
+}
+
 export const SONGS: Record<string, () => Song> = {
+  lichyard: songLichyard,
+  deeps: songDeeps,
+  temple: songTemple,
+  gaol: songGaol,
+  forge: songForge,
+  vault: songVault,
+  heights: songHeights,
   library: songLibrary,
   undervault: songUndervault,
   kennels: songKennels,
@@ -749,7 +947,17 @@ export class Music {
   private wet: GainNode | null = null;
   private byStep: Map<number, { tr: Track; n: Note }[]> = new Map();
   current = '';
+  /** This player's own volume (1 = full). See setVolume. */
+  vol = 1;
   constructor(private a: AudioEngine) {}
+
+  /** Ease this player's volume to `v` (0..1): used to duck the area's song near a save room. */
+  setVolume(v: number, ease = 0.4) {
+    if (Math.abs(v - this.vol) < 0.01) return;
+    this.vol = v;
+    const ctx = this.a.ctx;
+    if (ctx && this.gain) this.gain.gain.setTargetAtTime(Math.max(0.0001, v), ctx.currentTime, ease);
+  }
 
   play(name: string, fade = 0.6) {
     if (name === this.current) return;
@@ -768,7 +976,7 @@ export class Music {
     const ctx = a.ctx;
     this.gain = ctx.createGain();
     this.gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    this.gain.gain.exponentialRampToValueAtTime(1, ctx.currentTime + 0.25);
+    this.gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, this.vol), ctx.currentTime + 0.25);
     this.gain.connect(a.musicBus);
     this.wet = ctx.createGain();
     this.wet.gain.value = 1;

@@ -47,6 +47,18 @@ export function paletteFor(theme: Theme): TilePal {
       return { base: hex('#4a3e36'), mortar: hex('#1e1612'), hl: hex('#7a6a5a'), top: hex('#5a3a20'), top2: hex('#8a6038'), rough: false, plat: hex('#7a5a38'), platD: hex('#3a2a18') };
     case 'aqueduct': // frost-rimed masonry
       return { base: hex('#465668'), mortar: hex('#1a2230'), hl: hex('#86a0b8'), top: hex('#aecce4'), top2: hex('#e8f4ff'), rough: true, plat: hex('#9ab8d0'), platD: hex('#4a6a88') };
+    case 'graveyard': // lichen-grey cemetery stone under dead grass
+      return { base: hex('#4e5450'), mortar: hex('#1e2420'), hl: hex('#7e8a80'), top: hex('#4a5230'), top2: hex('#7a8048'), rough: true, plat: hex('#5a5048'), platD: hex('#2e2824') };
+    case 'deeps': // black-green stone slick with silt
+      return { base: hex('#2c4448'), mortar: hex('#0e1a1e'), hl: hex('#4e7a7c'), top: hex('#2a5a50'), top2: hex('#4a8a78'), rough: true, plat: hex('#6a8a80'), platD: hex('#2e4a44') };
+    case 'temple': // moss-eaten ochre blocks, jade trim
+      return { base: hex('#6a6238'), mortar: hex('#28240e'), hl: hex('#a09a5a'), top: hex('#2a6a4a'), top2: hex('#4aa878'), rough: false, plat: hex('#4a8a6a'), platD: hex('#1e4a34') };
+    case 'gaol': // rust-stained iron-grey
+      return { base: hex('#4a4444'), mortar: hex('#1c1616'), hl: hex('#7a6a64'), top: hex('#5a3020'), top2: hex('#8a4a30'), rough: true, plat: hex('#6a6470'), platD: hex('#2e2a34') };
+    case 'forge': // scorched black brick, glowing seams
+      return { base: hex('#3e2a26'), mortar: hex('#a03010'), hl: hex('#7a4a38'), top: hex('#c84a18'), top2: hex('#ffa040'), rough: false, plat: hex('#5a5a66'), platD: hex('#26262e') };
+    case 'crystal': // violet glass-veined stone
+      return { base: hex('#4a3e6e'), mortar: hex('#1a1432'), hl: hex('#9a8ae0'), top: hex('#7ad0e8'), top2: hex('#d8f4ff'), rough: false, plat: hex('#a890e8'), platD: hex('#5a48a0') };
     case 'library': // warm tan-gold sandstone, a green reading carpet, oak shelf boards
       return { base: hex('#6a5a3c'), mortar: hex('#241a0e'), hl: hex('#a89062'), top: hex('#1e5a46'), top2: hex('#3a8a68'), rough: false, plat: hex('#8a6434'), platD: hex('#4a3016') };
   }
@@ -54,7 +66,7 @@ export function paletteFor(theme: Theme): TilePal {
 
 const SNOWY: Theme[] = ['snow', 'ice', 'rooftop', 'aqueduct'];
 /** Themes whose floors get a carpet/trim stripe instead of grass tufts. */
-const TRIMMED: Theme[] = ['hall', 'stair', 'shrine', 'belfry', 'library'];
+const TRIMMED: Theme[] = ['hall', 'stair', 'shrine', 'belfry', 'library', 'temple', 'forge', 'crystal', 'gaol'];
 
 /** Book cover colors for the library's bookcases. */
 const BOOKS = ['#7a1e34', '#2e4a3a', '#3a3a68', '#8a5a2a', '#5a2a5a', '#6a6a3a', '#2a5a68', '#8a3a2a'].map((c) => hex(c));

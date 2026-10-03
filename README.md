@@ -69,13 +69,15 @@ src/
     audio.ts         Web Audio engine + synthesized sound effects
     music.ts         step sequencer, instruments, original compositions
   world/
-    rooms.ts         the 14 room layouts (built in code)
+    rooms.ts         the old castle's room layouts (built in code)
+    rooms_depths.ts  the eight 0.18.0 zones
     room.ts          tile collision
   game/
     game.ts          game loop, room loading, combat, camera
     player.ts        Vesna: movement, whip, dangle, grapple swing
     enemies.ts       zombie, bat, spear knight, bone thrower, wisp, drowned
     boss.ts          Ossuary Wyrm (two phases)
+    boss_base.ts, boss_<name>.ts   the newer bosses, one file each (0.19.0)
     objects.ts       candles, pickups, holy water, cross, projectiles, altars
     stats.ts / data.ts   RPG stats, items, equipment, save data
   ui/hud.ts          the status display (classic, or one of two blood-orb styles)
@@ -100,6 +102,51 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 - **MAJOR** stays at 0 while this is a tech demo.
 
 The same number is in `package.json`. Newest version first.
+
+### 0.19.0 (2026-10-03)
+
+Every boss but the Wyrm reworked, after the first playtest of 0.18.0 found them repetitive: long health bars, minion swarms, things raining from the sky, targets floating out of reach. Now each fight is a cycle you learn that opens a short window, and only blows landed in a window count (a boss's HP is a few segments, four blows each).
+
+| Boss | The fight |
+|---|---|
+| Sump Leviathan | Armored while its pool is full. Whip both sluice wheels open (three strokes each) to drain it and strike the belly. It refloods; the wheels are harder to reach each round. After three drains it smashes the wheels and floods the room for good: catch the ring on the harpoon in its back, ride it (lean with the direction keys, Jump lets go) and drive it onto the three spike racks. |
+| Ysolde | Her gaze is a visible beam that sweeps the court. Her petrified suitors stop it until her tail or the beam breaks them. A shield held up only blocks; a shield raised just as the beam lands sends it back, and she turns to stone. Three turnings. |
+| Old Rimehide | The den floor is a frozen lake in eight slabs, three cracks each. His snow boulders crack the slab they land on and his leaps crack the one he lands on. He shrugs off the chain until a slab breaks under him and he is stuck to the chest. Open water refreezes after 20 s. |
+| Hollow Colossus | You are the smith. Jump on the bellows to stoke the furnace, wait for a gauntlet to glow, bait its slam onto the anvil, and forge it apart with three blows. Both gauntlets, then the helm. Then its chest bursts open and you walk in: inside, whip the four chain anchors to drop the furnace heart, between a turning flame jet and floor vents. |
+| Mirror Heart | A glass copy does what you did 55 frames ago, mirrored. You can't strike it: stand on the pale mark so that it is standing in the crystal when it bursts. Then the whole view turns upside down and it hides in one of five mirrors that trade places. Strike the right one. |
+| Head Archivist | He writes what happens next on a page in the room. Whip your name out of the sentence while the ink is wet and it happens to him instead. Later he names himself too, and blotting the wrong name doubles it. |
+| Bell-Mother | Nothing reaches her while she sings. Listen to her phrase on the three bells, ring it back in order, and she falls. The phrase grows: 3, 4, 5 notes. Her wings are now one on each side, with a six-frame beat. |
+| Gnarlfang | A light touch: 650 HP instead of 1100, no pack summon, no rain of masonry, and a stone post in the pit that dazes him twice as long. |
+
+- **Redrawn sprites** for the Leviathan, Ysolde, Rimehide, the Colossus and the Archivist (`gfx/art_bosses2.ts`): larger, with edge lighting, texture and more poses. Two new prop sheets for the things the fights are played with.
+- **Arena set pieces**: each boss room has backdrop layers of its own (sluice falls and light shafts, a gold rose window and veils, aurora over the lake, turning cog wheels and molten falls, hanging glass that glints as you pass, a lancet window and pages turning in the air).
+- Engine: `Player.mount` (riding), `Game.setWater` / `tideHold` (a boss runs its room's water), `View.roll` (the upside-down view), `Game.overlays` (world-anchored drawing on the HUD canvas), `RoomDef.warp` (a door between rooms that aren't neighbors), a `note` sound with pitch.
+- New room: Inside the Colossus (`fg_heart`). The Ashglass Ward and Ashen Aegis are found there now.
+
+### 0.18.0 (2026-10-03)
+
+Eight new zones (43 rooms) and six new bosses, hung off the existing castle:
+
+| Zone | Way in | Boss | Reward |
+|---|---|---|---|
+| The Lichyard (graveyard hub, open sky) | the rusted grate in the Ruined Courtyard's floor | none | Iron Heater on the crypt roof |
+| The Drowned Deeps (tidal water) | the Forgotten Drain's new west door, or the Lichyard's Sunken Stair (slide) | the Sump Leviathan | Undertow Pearl |
+| The Serpent Temple | an underwater slide tunnel in the Sunken Stair (Pearl + Greaves) | Ysolde, the Stone Bride | Rootstone |
+| The Warden's Gaol | a new door at the foot of the Warden's Stair | none | Throwing Knife, a shortcut to the Grand Stairwell |
+| Rimecrown Heights (snow) | east of the Windswept Spire | Old Rimehide | Duskwing Shroud |
+| The Cinderworks (forge) | the Old Well's new east door, then a slag lake only a glide crosses | the Hollow Colossus | Ashglass Ward, Ashen Aegis, opens the Black Door |
+| The Mirror Vault (crystal) | the Black Door in the Undervault | the Mirror Heart | Mirror Shard (new accessory) |
+| The Archivist's Wing | west of the Archivist's Study (slide) | the Head Archivist | Reading Lens |
+
+- **The bosses.** The Leviathan hunts while its cistern's tide is up and lies stranded when it runs out. Ysolde's gaze turns you to stone unless you face away or raise your shield toward her. Rimehide throws snow boulders, shakes icicles down when it lands, and its breath freezes you. The Colossus is a suit of armor broken piece by piece: gauntlets, helm, then the furnace core. The Mirror Heart wears your own sprite in glass and swaps LEFT and RIGHT for five seconds at a time. The Head Archivist throws books from the walls and opens his four genre shelves: a pirate (Adventure), a duelist (Romance), a stitched golem (Horror) and a lantern sleuth (Mystery), all original figures.
+- **Every unplaced enemy now has a home**: Gravehands, Grubs and Moths in the Lichyard, Eels in the Deeps, Hookjaws and a Devourer in the Gaol, Gloomcasters in the Vault, Spiders in the Temple. One new enemy, the **Temple Asp** (letter `q`): it coils and darts, or rears up and spits poison.
+- **Eleven variants written in code** (`CODE_VARIANTS` in `game/data.ts`): Dire Wolf, Rime Harpy, Slag Ooze, Cinder Bat, Forge Thrall, Slag Knight, Glass Sentinel, Prism Wisp, Gaol Wretch, Deep Drowned, Jade Votary. Each reuses a base enemy with new stats and a hue shift.
+- **The three unused relics are now boss rewards and gates.** The glide crosses the Crucible Walk and the Broken Span (22 tiles of spikes). The Pearl lets you slide under water.
+- **The Inverted Gallery**: a room where LEFT is RIGHT (`RoomDef.mirror`), with the lever that opens the way to the Mirror Heart.
+- **Save rooms announce themselves.** Pale blue motes drift out of a save room's doorway, and within about 10 tiles the area's song dips while the save theme fades in under it.
+- Seven new songs (`lichyard`, `deeps`, `temple`, `gaol`, `forge`, `vault`, `heights`), six new settings (graveyard, deeps, temple, gaol, forge, crystal), 29 lore stones and 12 boss scenes.
+- New `npm run check:rooms`: finds overlapping rooms, doorways walled on the far side, and signs, items or enemies that don't exist.
+- Small changes to old rooms: new doorways in the Courtyard, Grand Stairwell, Warden's Stair, Old Well, Forgotten Drain, Windswept Spire, Huntsman's Lodge (roof hole and a grate over its floor hole), Archivist's Study, and a passage behind the Black Door.
 
 ### 0.17.1 (2026-10-02)
 

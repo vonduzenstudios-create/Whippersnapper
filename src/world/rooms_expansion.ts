@@ -36,7 +36,8 @@ export function buildExpansionRooms(): RoomDef[] {
     b.shell().door('L', 1).door('R', 0).hole('T', 1);
     b.fill(46, 12, 25, 2); // upper floor (east door)
     b.fill(62, 14, 9, 12); // its foundations
-    b.fill(60, 20, 2, 1).fill(61, 21, 1, 5, 'G'); // the Black Door: a gate that never opens (yet)
+    b.fill(60, 20, 2, 1).fill(61, 21, 1, 5, 'G'); // the Black Door: opens when the Hollow Colossus falls (flag deep_door)
+    b.fill(62, 22, 9, 4, '.').door('R', 1); // the passage behind it, into the Mirror Vault
     plats(b, [[26, 22, 6], [33, 18, 6], [39, 15, 6]]); // lower floor -> upper floor
     plats(b, [[38, 8, 6]]); // upper floor -> the hole
     underHole(b, 1);
@@ -50,7 +51,7 @@ export function buildExpansionRooms(): RoomDef[] {
   // doors to the Bellfoot Court (top left), the Kennel Gate (right) and the Servants' Gallery (left).
   {
     const b = new RB(1, 4);
-    b.shell().hole('B', 0).door('L', 0).door('R', 1).door('L', 2);
+    b.shell().hole('B', 0).door('L', 0).door('R', 1).door('L', 2).door('L', 3); // bottom left: the Warden's Gaol
     b.fill(1, 40, 5, 2); // Servants' Gallery landing (left, cell 2)
     b.fill(18, 26, 5, 2); // Kennel Gate landing (right, cell 1)
     b.fill(1, 12, 5, 2); // Bellfoot landing (left, cell 0)
@@ -159,6 +160,7 @@ export function buildExpansionRooms(): RoomDef[] {
     b.shell().door('L', 1).door('R', 1);
     b.fill(42, 22, 6, 3); // low tunnel to the east (into the doorway too): slide through row 25
     plats(b, [[5, 22, 7], [35, 22, 6], [18, 18, 12]]);
+    b.fill(30, 23, 2, 3); // a stone post: a charge that ends against it dazes Gnarlfang for twice as long
     b.e(24, 20, 'W');
     b.e(24, 17, 'i', 'relic_greaves');
     R.push(b.build('houndpit', 'The Hound Pit', 'kennels', 'garden', 24, 1, { boss: 'hound' }));
@@ -168,7 +170,8 @@ export function buildExpansionRooms(): RoomDef[] {
   // with a hole in the floor down to the Rime Stair (and the Aqueduct far below).
   {
     const b = new RB(2, 1);
-    b.shell().door('L', 0).hole('B', 1);
+    b.shell().door('L', 0).hole('B', 1).hole('T', 1); // the roof hole is the bottom of the Avalanche Chute
+    b.fill(34, 12, 4, 1, '='); // a grate over the floor hole, so a fall down the Chute stops here
     b.fill(0, 8, 5, 3); // the tunnel continues: only row 11 is open
     b.fill(18, 9, 4, 3);
     plats(b, [[10, 7, 5], [26, 7, 6]]);
@@ -251,7 +254,7 @@ export function buildExpansionRooms(): RoomDef[] {
   {
     const b = new RB(3, 1);
     b.fill(0, 0, 1, 8).fill(0, 12, 72, 2).door('L', 0); // the tower wall behind you
-    b.fill(71, 0, 1, 14);
+    b.fill(71, 0, 1, 14).door('R', 0); // east: the parapet up to Rimecrown Heights
     b.fill(14, 12, 6, 2, '.').fill(14, 13, 6, 1, '^'); // spiked gutter
     b.fill(34, 12, 6, 2, '.').fill(34, 13, 6, 1, '^');
     b.fill(24, 9, 6, 3); // gable
@@ -290,8 +293,9 @@ export function buildExpansionRooms(): RoomDef[] {
   // part climbs with normal jumps (Root Cellar <-> the bottom), the top needs a double jump.
   {
     const b = new RB(1, 5);
-    b.shell().hole('T', 0).door('L', 1).door('R', 3).door('L', 4);
+    b.shell().hole('T', 0).door('L', 1).door('R', 2).door('R', 3).door('L', 4);
     b.fill(1, 26, 6, 2); // Root Cellar landing
+    b.fill(18, 40, 5, 2); // Cinderworks landing (the Slag Gate door)
     b.fill(18, 54, 5, 2); // Cistern landing
     plats(b, [
       [8, 64, 6], [14, 60, 6], [12, 58, 5], // bottom -> Cistern landing (row 54)
@@ -395,7 +399,7 @@ export function buildExpansionRooms(): RoomDef[] {
   // floor to drop in. Broken stones stay broken, so after that you can climb back up.
   {
     const b = new RB(4, 1);
-    b.shell().door('R', 0).hole('T', 0);
+    b.shell().door('R', 0).door('L', 0).hole('T', 0); // west door: the Drowned Deeps
     plats(b, [[4, 8, 6]]);
     underHole(b, 0);
     b.fill(30, 10, 5, 2).fill(52, 9, 4, 3);
