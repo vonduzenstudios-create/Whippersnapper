@@ -7,6 +7,7 @@ npm install
 npm run dev        # Vite dev server
 npm run build      # production build to dist/ (does not run tsc)
 npm run typecheck  # tsc --noEmit
+npm run export:sprites  # Bell-Mother art to PNGs in art_exchange/bellmother/reference/ (tools/export_sprites.ts)
 ```
 
 On Windows PowerShell, use `npm.cmd` if script execution policy blocks `npm`.
