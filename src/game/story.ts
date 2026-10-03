@@ -661,6 +661,49 @@ export const SCENES: Record<string, Line[]> = {
   boss_yeti_phase2: [
     { who: 'yeti', face: 'angry', text: 'COLD. COLD! LITTLE FIRE-THING PAY.' },
   ],
+  // ---- the trial bosses (0.27.0)
+  boss_yeti2: [
+    { who: 'hero', face: 'surprised', text: 'A WATERFALL, FROZEN IN MID-AIR. AND SOMETHING BREATHING BEHIND IT.' },
+    { who: 'yeti', face: 'angry', text: 'WARM THING. WARM THING WALK ON RIMEHIDE WATER.' },
+    { who: 'hero', face: 'angry', text: 'THEN COME AND TAKE IT BACK. MIND THE THIN PLACES.' },
+  ],
+  boss_yeti2_phase2: [
+    { who: 'yeti', face: 'angry', text: 'ENOUGH TRICKS. RIMEHIDE BREAK WARM THING WITH THE MOUNTAIN.' },
+  ],
+  boss_leviathan2: [
+    { who: 'hero', face: 'surprised', text: 'A LOCK, DOWN HERE. SOMEONE BUILT THIS TO KEEP SOMETHING IN.' },
+    { who: 'leviathan', face: 'angry', text: 'SMALL. WARM. IT WALKS ON MY ROOF AND RATTLES MY GATE.' },
+    { who: 'hero', face: 'angry', text: 'THEN COME UP AND SEE WHO IS KNOCKING.' },
+  ],
+  boss_leviathan2_phase2: [
+    { who: 'leviathan', face: 'angry', text: 'NO MORE WALLS. NO MORE GATES. THE WELL IS MINE TO THE TOP.' },
+    { who: 'hero', face: 'surprised', text: 'THE WATER IS CLIMBING. SO AM I.' },
+  ],
+  boss_gorgon2: [
+    { who: 'gorgon', face: 'neutral', text: 'YOU CAME DOWN THE STEPS. THE GUESTS ALL CAME DOWN THE STEPS. NONE OF THEM WENT UP AGAIN.' },
+    { who: 'hero', face: 'neutral', text: 'YOU KEEP A GREAT MANY MIRRORS FOR SOMEONE WHO HIDES HER FACE.' },
+    { who: 'gorgon', face: 'angry', text: 'THEY WERE A WEDDING GIFT. LOOK INTO ONE, LITTLE KORDER. OR LOOK AT ME.' },
+  ],
+  boss_gorgon2_phase2: [
+    { who: 'gorgon', face: 'angry', text: 'NINE HUNDRED YEARS UNDER THIS VEIL. I AM DONE WITH BEING LOOKED AT SIDEWAYS.' },
+    { who: 'hero', face: 'surprised', text: 'BOTH WAYS AT ONCE...' },
+  ],
+  boss_colossus2: [
+    { who: 'colossus', face: 'neutral', text: 'THE FOUNDRY IS SHUT. THE FIRES ARE BANKED. WHO... WALKS MY FLOOR.' },
+    { who: 'hero', face: 'neutral', text: 'SOMEONE WHO NOTICED THE LADLE IS STILL FULL.' },
+    { who: 'colossus', face: 'angry', text: 'THE ORDER WAS: NO ONE. I HAVE KEPT IT LONGER THAN THE ONE WHO GAVE IT LIVED.' },
+  ],
+  boss_colossus2_phase2: [
+    { who: 'hero', face: 'surprised', text: 'THE ARMOR WAS EMPTY. IT WAS ONLY EVER THE FIRE.' },
+    { who: 'colossus', face: 'angry', text: 'THE PLATE WAS THE ORDER. I AM WHAT KEPT IT. BURN, LITTLE VISITOR.' },
+  ],
+  boss_yeti3: [
+    { who: 'hero', face: 'surprised', text: 'THESE ARE RIBS. I AM STANDING INSIDE SOMETHING HE ATE.' },
+    { who: 'yeti', face: 'angry', text: 'OLD ONE WAS BIG. RIMEHIDE STILL HUNGRY. WARM THING IS SMALL. STILL MEAT.' },
+  ],
+  boss_yeti3_phase2: [
+    { who: 'yeti', face: 'angry', text: 'BONES BITE RIMEHIDE? THEN RIMEHIDE BITE WITH BONES.' },
+  ],
   boss_colossus: [
     { who: 'colossus', face: 'neutral', text: 'WHO... GOES. THE FORGE IS SHUT. THE DOOR IS SHUT. I WAS MADE TO KEEP THEM SO.' },
     { who: 'hero', face: 'neutral', text: 'THERE IS NO ONE INSIDE YOU. WHO GAVE THE ORDER?' },

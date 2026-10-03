@@ -9,8 +9,8 @@ import { Rig, Build, Cell, Pose, STAND, V, DEG, keyed, bake, wave, pose, bust } 
 export const CASTELLAN_CELL: Cell = { w: 184, h: 140, ax: 84, ay: 128 };
 const BUILD: Build = { k: 1.5, torso: 12, hipR: 4.6, chestR: 6.2, neck: 2, headR: 4.4, arm: [8.5, 8, 2.6, 2], leg: [9.5, 9.5, 3.2, 2.4], foot: 4.2, shoulder: 1.6, hipW: 1.2 };
 
-const STEEL = ramp('#0e1020', '#1e2440', '#343e66', '#56648e', '#8494b8', '#c4d0e6');
-const BRASS = ramp('#2a1608', '#5c3410', '#96621c', '#c89638', '#f0cc68', '#fff2b8');
+const STEEL = ramp('#0a0c18', '#141a30', '#222a4a', '#364268', '#52608a', '#8a9ac0');
+const BRASS = ramp('#241206', '#4c2a0c', '#7c4e16', '#aa7a28', '#d4a848', '#f6dc90');
 const WOOD = ramp('#1c0e08', '#3c2010', '#5e3a1c', '#84582c');
 const DIAL = ramp('#4a4438', '#8c8468', '#c8c0a0', '#f2ecd4');
 const RED = ramp('#2c0810', '#5c1018', '#962028', '#c84838');

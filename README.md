@@ -103,6 +103,19 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 
 The same number is in `package.json`. Newest version first.
 
+### 0.27.0 (2026-10-03)
+
+Four bosses reworked as trial fights (test chamber only), and the Bell-Mother made watchable and audible.
+
+- **Trial fights**: the Sump Leviathan, Ysolde, the Hollow Colossus and Old Rimehide (twice) each have a new fight in a chamber of its own. None of them is in the world: the old fights and rooms are untouched. Pick them under **TEST ENEMY** on the title (tagged TRIAL), with the enemy editor's TEST button, or `#test=boss:leviathan2` / `gorgon2` / `colossus2` / `yeti2` / `yeti3`. Each has two halves with a scene between, and three ways to force a window in each half. A blow outside a window only chips (5 HP, never the last of a segment). The table is in docs/player-mechanics.md.
+- **The Sunken Lock** (Leviathan): drain the pool, beach it on the weir, or drop the lock gate on it; then the well floods as you climb: tangle its rise in a chain, drop the counterweight on it, or ride its harpoon into the spike racks.
+- **The Sunken Rotunda** (Ysolde): turn a bronze mirror to face her and it throws the gaze back, parry it with the shield, or bait her tail into the stone step. Second half: the gaze sweeps both ways, a turning spiral of venom, stone thorns under your feet.
+- **The Foundry** (Colossus): now a walking knight four times her height. Wedge his cleave in the floor grate, tip the crane ladle on him, or get his hot plate into the quench trough (a double window). Second half: the plate bursts and the fire inside fights on with flame waves, ember rings and a floor that heats a third at a time.
+- **The Frozen Falls** and **the Mammoth Boneyard** (Rimehide): thin ice, the frozen waterfall and hot-spring vents in one; ribs that jam his arm, a hanging tusk, carcasses he can't resist and the mammoth's skull in the other. He arms himself at half health (an ice pillar, or the tusk).
+- **Puppet art** for all four, in the Bell-Mother's form-shaded style (`gfx/art_rimehide.ts`, `art_ironknight.ts`, `art_stonebride.ts`, `art_lockwyrm.ts`): skeletons posed from a clock, drawn only when a fight first needs them (`gfx/lazy.ts`). They are on `/bosses.html` under "Trial bosses".
+- **The camera keeps every boss in view**: it frames the hero and the boss together and pulls back as far as it must, up to the whole room (`Game.updateCamera`). A boss can opt out with `camFree`.
+- **Bell-Mother**: she stays in the lower belfry, just above your head, instead of up in the vault (she used to be off screen most of the fight). Her bells have their own loud struck-bronze sound (`bell`), a fifth apart, and the music drops right down while she sings and whenever a bell rings (`Game.musicDuck`).
+
 ### 0.26.0 (2026-10-03)
 
 Pause menu overhaul, volume fixes, and a debug retry after death.

@@ -12,6 +12,10 @@ import { buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedShe
 import { buildWyrmSheet } from './gfx/art_wyrm';
 import { buildHoundSheet } from './gfx/art_hound';
 import { buildBellMotherSheet } from './gfx/art_bellmother';
+import { buildRimehideSheet } from './gfx/art_rimehide';
+import { buildIronKnightSheet } from './gfx/art_ironknight';
+import { buildStoneBrideSheet } from './gfx/art_stonebride';
+import { buildLockWyrmSheet } from './gfx/art_lockwyrm';
 import { buildSerpentSheet } from './gfx/art_depths';
 import { buildLeviathanSheet, buildGorgonSheet, buildColossusSheet, buildYetiSheet, buildArchivistSheet } from './gfx/art_bosses2';
 import { TEST_EDITS_KEY } from './config';
@@ -56,6 +60,15 @@ const BOSS_SHEETS: Record<string, Sheet> = {
   yeti: buildSheet(buildYetiSheet()),
   archivist: buildSheet(buildArchivistSheet()),
 };
+// the reworked bosses on trial (0.27.0): TEST opens each one's own chamber
+const RIMEHIDE = buildSheet(buildRimehideSheet());
+Object.assign(BOSS_SHEETS, {
+  leviathan2: buildSheet(buildLockWyrmSheet()),
+  gorgon2: buildSheet(buildStoneBrideSheet()),
+  colossus2: buildSheet(buildIronKnightSheet()),
+  yeti2: RIMEHIDE,
+  yeti3: RIMEHIDE,
+});
 const PALETTES: Record<string, { hex: string; count: number }[]> = {};
 for (const [k, s] of Object.entries(BASE_SHEETS)) PALETTES[k] = sheetColors(s);
 

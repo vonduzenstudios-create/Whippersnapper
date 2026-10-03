@@ -391,6 +391,32 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
     desc: 'The white beast of the summit, too thick-furred for the chain and too heavy for the frozen lake it dens on. Let its boulders crack a slab, then make it jump there.',
     drops: [],
   },
+  // ---- trial bosses (0.27.0): reworks that only exist in the test chamber so far (`test`)
+  yeti2: {
+    hp: 400, atk: 25, def: 4, xp: 1000, name: 'Old Rimehide (Frozen Falls)', portrait: 'walk', test: true,
+    desc: 'Trial fight. His fur turns the chain. Break thin ice under his leap, bait his charge into the frozen falls, or lure him over a vent as it blows. At half health he tears a pillar of ice loose.',
+    drops: [],
+  },
+  leviathan2: {
+    hp: 600, atk: 22, def: 3, xp: 900, name: 'The Sump Leviathan (Sunken Lock)', portrait: 'jaw1', test: true,
+    desc: 'Trial fight. In the lock: drain the pool with both sluice wheels, beach it on the weir, or drop the lock gate on it. Then it floods the well: tangle its rise in a chain, drop the counterweight on it, or ride its harpoon into the spike racks.',
+    drops: [],
+  },
+  gorgon2: {
+    hp: 400, atk: 23, def: 3, xp: 950, name: 'Ysolde (Sunken Rotunda)', portrait: 'idle', test: true,
+    desc: 'Trial fight. Her gaze is a beam. Turn a bronze mirror to face her and it throws the gaze back, or raise your shield as it lands, or bait her tail into the stone step. At half health she tears off the veil and looks both ways at once.',
+    drops: [],
+  },
+  colossus2: {
+    hp: 600, atk: 26, def: 6, xp: 1200, name: 'The Hollow Colossus (Foundry)', portrait: 'walk', test: true,
+    desc: 'Trial fight. Plate only rings. Bait his cleave onto the floor grate so the blade sticks, tip the crane ladle on him, or get his hot plate into the quench trough. At half health the plate bursts and the fire inside fights on.',
+    drops: [],
+  },
+  yeti3: {
+    hp: 400, atk: 25, def: 4, xp: 1000, name: 'Old Rimehide (Boneyard)', portrait: 'walk', test: true,
+    desc: 'Trial fight. Bait a slam at the foot of a rib to jam his arm, drop the hanging tusk on him, whip a carcass off its hook so he stops to eat, or make him leap into the skull. At half health he takes up the tusk.',
+    drops: [],
+  },
   archivist: {
     hp: 600, atk: 23, def: 3, xp: 1050, name: 'The Head Archivist', portrait: 'idle',
     desc: 'He never left his lectern, and he writes what happens next. Blot your name out of his sentence while the ink is wet and the story happens to him instead.',

@@ -248,6 +248,8 @@ export abstract class TrialBoss extends BossBase {
     if (this.pt === talkAt) g.bossTalk(`boss_${this.id}_phase2`);
     if (this.pt > talkAt) this.pick('idle');
   }
+  /** Called every frame of the death sequence (props settling, hands withdrawing). */
+  whileDying(_g: Game) {}
   /** Called once, on the frame phase two's scene begins. */
   onShift(_g: Game) {}
   update(g: Game) {
@@ -255,6 +257,7 @@ export abstract class TrialBoss extends BossBase {
     if (this.flashT > 0) this.flashT--;
     if (this.pat === 'dying') {
       this.fr = this.dyingFrame();
+      this.whileDying(g);
       this.show();
       this.dyingTick(g, 150, 30);
       return;

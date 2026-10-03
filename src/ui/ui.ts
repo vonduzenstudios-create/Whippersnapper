@@ -841,7 +841,7 @@ export class UI {
     for (let i = 0; i < ROOM_ROWS && top + i < list.length; i++) {
       const e = list[top + i], sel = top + i === this.enemySel, ry = y + 22 + i * rowH;
       drawText(c, (sel ? '> ' : '  ') + e.name.toUpperCase(), x + 10, ry, sel ? GOLD : PALE);
-      if (e.tag) drawText(c, e.tag, x + w - 8, ry, e.tag === 'BOSS' ? '#e07060' : DIM, '#000', 'right');
+      if (e.tag) drawText(c, e.tag, x + w - 8, ry, e.tag === 'BOSS' ? '#e07060' : e.tag === 'TRIAL' ? '#60d0e0' : DIM, '#000', 'right');
     }
     drawText(c, 'UP/DOWN: ENEMY   LEFT/RIGHT: PAGE   CONFIRM: GO   CANCEL: BACK', VW / 2, VH - 24, DIM, '#000', 'center');
     drawText(c, 'F3 IN GAME OPENS THE ENEMY EDITOR', VW / 2, VH - 13, '#5a4a60', '#000', 'center');

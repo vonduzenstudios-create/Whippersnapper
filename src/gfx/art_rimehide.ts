@@ -257,7 +257,7 @@ const ANIMS: [string, number, (t: number) => Pose][] = [
     return { ox: -6, oy: 12 + s * 2, lean: 62, footN: [-34 + c * 13, Math.max(0, s) * 9], footF: [-18 - c * 13, Math.max(0, -s) * 9], armN: [56 + c * 30, 78 + c * 26], armF: [58 - c * 30, 80 - c * 26], head: -44, jaw: 0.7, sway: 1 };
   }],
   // through the ice to his chest, arms thrashing
-  ['stuck', 4, (t) => ({ ...REST, oy: 40, lean: 0, armN: [-150 + w(t) * 22, -112 + w(t) * 10], armF: [-30 - w(t) * 22, -70 - w(t) * 10], head: -16 + w(t, 0.2) * 6, jaw: 0.6 + w(t) * 0.4, clip: GY, sway: w(t) })],
+  ['stuck', 4, (t) => ({ ...REST, oy: 40, lean: 0, footN: [-12, -44], footF: [14, -44], armN: [-150 + w(t) * 22, -112 + w(t) * 10], armF: [-30 - w(t) * 22, -70 - w(t) * 10], head: -16 + w(t, 0.2) * 6, jaw: 0.6 + w(t) * 0.4, clip: GY, sway: w(t) })],
   // scalded: hopping from foot to foot, arms over his face
   ['scald', 4, (t) => ({ ...REST, oy: -Math.abs(w(t)) * 5, lean: -6, footN: [-12, Math.max(0, w(t)) * 12], footF: [14, Math.max(0, -w(t)) * 12], armN: [-22, -84 + w(t) * 8], armF: [-10, -72 - w(t) * 8], head: -10, jaw: 1, sway: w(t) })],
   ['eat', 4, (t) => ({ ...REST, oy: 17, lean: 56, footN: [-18, 0], footF: [8, 0], armN: [62, 84], armF: [56, 76], head: 28 + w(t) * 9, jaw: 0.5 + w(t) * 0.5 })],
@@ -298,7 +298,12 @@ export function buildRimehideSheet(): SheetBuilder {
     b.add(name, ...Array.from({ length: n }, (_, i) => rimehide(pose(loop ? i / n : i / (n - 1)), wpn).resolve({ rim: RIM, contour: 0.1 })));
   const ONCE = ['lift', 'throw', 'slam', 'swipe', 'sweep'];
   for (const [name, n, pose] of ANIMS) run(name, n, pose, '', !ONCE.includes(name));
-  for (const wpn of ['ice', 'tusk'] as Weapon[]) for (const [name, n, pose] of ARMED) run(`${wpn}_${name}`, n, pose, wpn, !ONCE.includes(name));
+  // armed: his own weapon animations, and the rest of his poses with the weapon still in his fist
+  const CARRY = ['squat', 'charge', 'stuck', 'scald', 'eat', 'breath', 'daze'];
+  for (const wpn of ['ice', 'tusk'] as Weapon[]) {
+    for (const [name, n, pose] of ARMED) run(`${wpn}_${name}`, n, pose, wpn, !ONCE.includes(name));
+    for (const [name, n, pose] of ANIMS) if (CARRY.includes(name)) run(`${wpn}_${name}`, n, (t) => { const q = pose(t); return { ...q, club: q.armN[1] - 24 }; }, wpn, true);
+  }
   return b;
 }
 

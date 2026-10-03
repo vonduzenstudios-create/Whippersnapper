@@ -1,10 +1,14 @@
 // /bosses.html: the expansion boss sprites, animated, with every frame listed (click one to play it).
 import { SheetBuilder } from './gfx/pixel';
+import { TRIAL_ART } from './gfx/art_trials';
 import { buildHoundSheet, buildCinderHoundSheet } from './gfx/art_hound';
 import { buildBellMotherSheet } from './gfx/art_bellmother';
 import { buildWyrmSheet, buildWyrmBodySheet } from './gfx/art_wyrm';
 import { buildSerpentSheet, buildFigureSheet } from './gfx/art_depths';
 import { buildRimehideSheet, buildRimePropSheet } from './gfx/art_rimehide';
+import { buildIronKnightSheet, buildFoundrySheet } from './gfx/art_ironknight';
+import { buildStoneBrideSheet, buildRotundaSheet } from './gfx/art_stonebride';
+import { buildLockWyrmSheet, buildLockWyrmBodySheet, buildLockPropSheet } from './gfx/art_lockwyrm';
 import { buildLeviathanSheet, buildGorgonSheet, buildColossusSheet, buildYetiSheet, buildArchivistSheet, buildPropSheet, buildTallPropSheet } from './gfx/art_bosses2';
 
 interface Option { name: string; note: string; sheet: SheetBuilder; anim: string }
@@ -52,9 +56,31 @@ groups.push({
   title: 'Trial bosses (0.27.0, test chamber only)',
   options: [
     { name: 'Old Rimehide (puppet)', note: 'Form-shaded puppet: bare-handed, with an ice pillar, and with a mammoth tusk.', sheet: buildRimehideSheet(), anim: 'walk' },
+    { name: 'The Sump Leviathan (head)', note: 'Form shaded, drawn again for each of 16 headings: jaw0 to jaw2.', sheet: buildLockWyrmSheet(), anim: 'jaw1' },
+    { name: 'Leviathan body', note: 'Three sizes of segment and the tail fin, 16 headings x 2 fin beats each; the harpoon.', sheet: buildLockWyrmBodySheet(), anim: 'seg0' },
+    { name: 'The Sunken Lock', note: 'Lock gate, counterweight, winch pawl.', sheet: buildLockPropSheet(), anim: 'pawl' },
+    { name: 'Ysolde (serpent puppet)', note: 'Veiled, torn, and turned to stone. Sixteen tail segments and seven asps, each on its own clock.', sheet: buildStoneBrideSheet(), anim: 'idle' },
+    { name: 'The Rotunda', note: 'Bronze mirror discs (away, turning, facing, blackened), a column drum, stone thorns.', sheet: buildRotundaSheet(), anim: 'disc' },
+    { name: 'The Hollow Colossus (walking puppet)', note: 'Plated, and bare (the furnace fire in a cage of iron bands).', sheet: buildIronKnightSheet(), anim: 'walk' },
+    { name: 'The Foundry', note: 'Crane ladle, quench trough, floor grate, molten channel.', sheet: buildFoundrySheet(), anim: 'ladle' },
     { name: 'His dens', note: 'Snow boulder, the frozen falls, rubble, ice pillar, vent, ribs, the hanging tusk, a carcass, the mammoth skull.', sheet: buildRimePropSheet(), anim: 'rib' },
   ],
 });
+
+// the ten new trial bosses: every puppet, its props and its two portraits (gfx/art_trials.ts)
+for (const [id, a] of Object.entries(TRIAL_ART)) {
+  const faces = new SheetBuilder(64, 64, 32, 32);
+  faces.add('neutral', a.portrait(false));
+  faces.add('angry', a.portrait(true));
+  groups.push({
+    title: `Trial boss: ${id}`,
+    options: [
+      { name: id, note: a.note, sheet: a.sheet(), anim: 'idle' },
+      ...a.props.map(([name, build, anim]) => ({ name, note: 'Arena props.', sheet: build(), anim })),
+      { name: 'Portraits', note: 'Cut from the puppet, drawn large.', sheet: faces, anim: 'neutral' },
+    ],
+  });
+}
 
 const root = document.getElementById('root')!;
 const zoomInput = document.getElementById('zoom') as HTMLInputElement;

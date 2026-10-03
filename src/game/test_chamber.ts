@@ -123,7 +123,7 @@ export interface TestEntry {
 }
 /** Everything the TEST ENEMY list offers: the bosses first, then every enemy and variant, each group in alphabetical order. */
 export function testEntries(): TestEntry[] {
-  const bosses = Object.keys(BOSSES).map((id) => ({ arg: `boss:${id}`, name: ENEMY[id]?.name || BOSSES[id].name, tag: 'BOSS' }));
+  const bosses = Object.keys(BOSSES).map((id) => ({ arg: `boss:${id}`, name: ENEMY[id]?.name || BOSSES[id].name, tag: BOSSES[id].trial ? 'TRIAL' : 'BOSS' }));
   const enemies = testable().map((id) => ({ arg: id, name: ENEMY[id].name, tag: ENEMY[id].base && ENEMY[id].base !== id ? 'VARIANT' : '' }));
   const key = (e: TestEntry) => e.name.replace(/^the /i, ''); // 'The Drowned' files under D
   const byName = (a: TestEntry, b: TestEntry) => key(a).localeCompare(key(b));
@@ -154,9 +154,10 @@ export function startTest(g: Game, arg: string) {
 /** The boss's own arena, fought for real (but with the test hunter's 999 HP). */
 function startBossTest(g: Game, id: string) {
   let def = g.defs.find((d) => d.boss === id);
-  if (!def && TRIAL_ROOMS[id]) {
+  const trial = TRIAL_ROOMS[id] || BOSSES[id]?.trial; // (the reworked bosses name their chamber in BOSSES)
+  if (!def && trial) {
     // a trial boss: its chamber is not part of the world, so it is built here, off the map
-    def = TRIAL_ROOMS[id]();
+    def = trial();
     g.defs.push(def);
     g.rebuildGrid();
   }

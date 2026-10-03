@@ -244,6 +244,13 @@ Update this file when you verify something or finish a listed item.
 - Nobody has listened to the audio yet. Mix levels and song quality are unknown.
 - Gamepad support is untested on real hardware.
 
+## Trial fights (0.27.0)
+
+- Verified by script in the browser (forcing each pattern and each window, then striking): all five trial fights (`leviathan2`, `gorgon2`, `colossus2`, `yeti2`, `yeti3`) start in their chambers, every stun route opens its window, the phase scenes play, and each dies cleanly. No console errors.
+- Verified by script: the Bell-Mother stays inside the camera for 1,800 frames of her fight (0 frames off screen), and the music ducks to 0.18 while she sings.
+- Not done: nobody has played the five fights by hand, so timings, damage and difficulty are untuned. Nobody has listened to the new bell sound.
+- The trial chambers are not in `buildRooms()`, so `npm run check:rooms` does not check them.
+
 ## Known rough edges
 
 - The moon halo shows visible color banding.

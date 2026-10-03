@@ -1342,6 +1342,7 @@ export function buildBackdrop(room: Room, candleSheet: Sheet): Backdrop {
   };
   const W = room.W, H = room.H;
   switch (room.def.id) {
+    case 'trial_lock':
     case 'dp_cistern': {
       // the Black Cistern: two great sluice pipes pouring from the back wall, an iron grating
       // across the vault, and cold light falling through it in shafts
@@ -1367,6 +1368,7 @@ export function buildBackdrop(room: Room, candleSheet: Sheet): Backdrop {
       for (let i = 0; i < 10; i++) chain(40 + i * 76, 24 + (i % 3) * 20, 0, 90 + ((i * 53) % 150));
       break;
     }
+    case 'trial_rotunda':
     case 'tp_court': {
       // the Bride's Court: a ruined wedding. A round window of gold glass, veils hung between
       // the pillars, and rows of petrified guests receding into the dark
@@ -1396,6 +1398,7 @@ export function buildBackdrop(room: Room, candleSheet: Sheet): Backdrop {
       }
       break;
     }
+    case 'trial_bones':
     case 'ht_summit': {
       // Rimecrown Summit: curtains of aurora over the lake, and the lake itself shining back
       const cols = ['#40e0a0', '#60a0ff', '#a060ff'];
@@ -1420,6 +1423,7 @@ export function buildBackdrop(room: Room, candleSheet: Sheet): Backdrop {
       }
       break;
     }
+    case 'trial_foundry':
     case 'fg_forge':
     case 'fg_heart': {
       // the Great Forge (and the inside of the Colossus): a furnace mouth filling the back
