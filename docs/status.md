@@ -200,6 +200,13 @@ Update this file when you verify something or finish a listed item.
   - Ice: walking speed went from 1.65 to 0.82 px/frame on the first iced frame; she froze 119 frames after first touching ice; 90 frames off ice brought `chill` and `iceT` back to 0. Blue tint seen.
   - Spikes: 500 damage at 999 max HP, back to `lastSafe`, `crippleT` 600. Walking 0.16 px/frame (10%), jump ignored during the first 5 s and working after. Red tint seen.
 
+## NEW GAME + (0.28.0)
+
+- `npm run check:abbey` (about two minutes): all 120 rooms and every item and lever are reached, in seven rounds: no relic, grapple, slide, double jump, Pearl, Sinew Coil, glide. Nothing behind a gate showed up a round early. `npm run check:rooms -- --abbey`: no overlaps, no floating items, every sign key exists (the only WALLED lines are open-topped rooms under another room, and the two slide crawlspaces).
+- In the real game with `game.input.script`: the Weeping Shaft's coil gate. Grapple + double jump, pumping the swing every way tried, tops out with her feet ~86 px under the grate; the Sinew Coil sling plus a double jump at its peak lands her on it. The Smugglers' Cove sea wall: with the Pearl, a slide under the water carries her into the Smugglers' Cache; without it, Down + Dash is a backdash.
+- The title menu (NEW GAME +, then CONTINUE + once saved), character select with the new names, the crawl, the opening lines, saving to the abbey's own slot and continuing from it were played through. The map screen shows the whole island. New themes (docks, cloister, seacave) were looked at in a few rooms.
+- Not playtested by hand: the room-by-room feel, enemy density and difficulty, and whether every jump the checker found is comfortable. The checker's grapple ring is a rough model (the gates built on rings copy the Gallery of Wisps pattern).
+
 ## Not verified yet
 
 - 0.19.0 has had no human play. The scripts prove each cycle can be completed, not that it is fun or fair. Open questions: whether the 26-frame reflect window on Ysolde's beam is findable by feel; whether baiting Rimehide onto a pre-cracked slab is readable (the script simply stood still); how hard it is to catch the Leviathan's ring with a real whip, and to steer it; whether three bellows jumps between slams is too much busywork; whether the shell game is trackable upside down at the third round's speed; whether a page can always be reached in time (some hang over a case two screens from where you stand); whether the Bell-Mother's notes are distinct enough by ear (nobody has heard them: the pane has no audio) or only by which bell lights. The scripted Colossus run forced the furnace heat instead of pumping it between slams.

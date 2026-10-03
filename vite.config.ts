@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 const ROOMS_FILE = fileURLToPath(new URL('./src/world/room_edits.json', import.meta.url));
+const ABBEY_ROOMS_FILE = fileURLToPath(new URL('./src/world/room_edits_abbey.json', import.meta.url)); // NEW GAME +
 const ENEMIES_FILE = fileURLToPath(new URL('./src/game/enemy_edits.json', import.meta.url));
 const writeJson = (file: string, data: unknown) => fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
 
@@ -68,12 +69,18 @@ function editorSave(): Plugin {
         }
         return { enemies: Object.keys(enemies).length, moved };
       }));
+      // ?world=abbey saves NEW GAME +'s map to its own file
+      let world = '';
+      server.middlewares.use('/__editor/save', (req, res, next) => {
+        world = new URL(req.url || '', 'http://x').searchParams.get('world') || '';
+        next();
+      });
       server.middlewares.use('/__editor/save', jsonPost((data) => {
         for (const [id, r] of Object.entries<any>(data)) {
           const ok = Array.isArray(r?.tiles) && r.tiles.every((t: unknown) => typeof t === 'string') && Array.isArray(r?.ents);
           if (!ok) throw new Error(`room "${id}" needs tiles (string[]) and ents (array)`);
         }
-        writeJson(ROOMS_FILE, data);
+        writeJson(world === 'abbey' ? ABBEY_ROOMS_FILE : ROOMS_FILE, data);
         return { rooms: Object.keys(data).length };
       }));
     },
@@ -81,7 +88,7 @@ function editorSave(): Plugin {
       // The editors already hold these edits in memory, so don't reload the page
       // under them. Invalidate the module so the next manual reload reads the new file.
       const f = ctx.file.replace(/\\/g, '/');
-      if (f.endsWith('/src/world/room_edits.json') || f.endsWith('/src/game/enemy_edits.json')) {
+      if (f.endsWith('/src/world/room_edits.json') || f.endsWith('/src/world/room_edits_abbey.json') || f.endsWith('/src/game/enemy_edits.json')) {
         for (const m of ctx.modules) ctx.server.moduleGraph.invalidateModule(m);
         return [];
       }

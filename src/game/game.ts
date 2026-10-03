@@ -14,7 +14,7 @@ import { buildLeviathanSheet, buildGorgonSheet, buildColossusSheet, buildYetiShe
 import { buildItemSheet, buildCandleSheet, buildFxSheet, buildFireSheet, buildRelicFxSheet, buildRingSheet } from '../gfx/art_items';
 import { paintTiles } from '../gfx/tiles';
 import { buildBackdrop, buildWaterFront, Backdrop, WaterFront } from '../gfx/backdrops';
-import { buildRooms, RoomDef, Zone, CHASE_FLAG, ZONE_INFO } from '../world/rooms';
+import { buildRooms, RoomDef, Zone, CHASE_FLAG, ZONE_INFO, World } from '../world/rooms';
 import { Room, FURNITURE } from '../world/room';
 import { Player } from './player';
 import { Ent, HitKind, Boss } from './ent';
@@ -27,7 +27,7 @@ import { Cutscene } from './cutscene';
 import { spawnEnemy } from './spawn';
 import { ChairProp } from './enemies_library';
 import { ENEMY } from './data';
-import { HeroId, heroText, Line, SCENES } from './story';
+import { HeroId, heroText, Line, SCENES, setStoryWorld, ABBEY_OPENING } from './story';
 import { buildPortraitSheet, buildPellSheet } from '../gfx/art_portraits';
 import { trialSheet } from '../gfx/art_trials';
 import { UI } from '../ui/ui';
@@ -91,8 +91,8 @@ export interface Sheets {
   pell: Sheet;
 }
 
-/** The room a new game starts in (the opening cinematic plays there). */
-const START_ROOM = 'ridge';
+/** The room a new game starts in, per map (the opening cinematic plays on the Ridge). */
+const START_ROOM: Record<World, string> = { ash: 'ridge', abbey: 'st_landing' };
 /** Frames for one full tide cycle in tidal rooms (low, rise, high, fall). */
 const TIDE_PERIOD = 900;
 /** Frames a boss's freeze frame holds on its pose before the talking starts. */
@@ -121,6 +121,8 @@ export class Game {
   ui: UI;
   editor: Editor;
   hunter = new Hunter();
+  /** Which map is loaded: the original game, or NEW GAME + (see setWorld). */
+  world: World = 'ash';
   player!: Player;
   defs: RoomDef[];
   grid = new Map<string, RoomDef>();
@@ -297,12 +299,35 @@ export class Game {
     this.boss = null;
     this.trans = null;
     this.fade = 0;
-    const start = this.defs.find((d) => d.id === START_ROOM) || this.defs[0];
+    const start = this.defs.find((d) => d.id === START_ROOM[this.world]) || this.defs[0];
     const p = start.ents.find((e) => e.t === 'P')!;
+    if (this.world === 'abbey') {
+      // NEW GAME +: no cinematic, a few words on the beach instead
+      this.cutscene = null;
+      this.loadRoom(start, p.x * TILE + 8, (p.y + 1) * TILE);
+      this.state = 'play';
+      this.talk(ABBEY_OPENING);
+      return;
+    }
     this.cutscene = new Cutscene(this); // set before loadRoom so the avalanche waits for its cue
     this.loadRoom(start, p.x * TILE + 8, (p.y + 1) * TILE);
     this.state = 'play';
     this.cutscene.begin();
+  }
+
+  /**
+   * Switch maps: 'ash' is the original game, 'abbey' is NEW GAME + (the Drowned Abbey). Each
+   * has its own rooms, save slot and story text. Call before newGame/continueGame.
+   */
+  setWorld(w: World) {
+    Hunter.world = w;
+    setStoryWorld(w);
+    if (this.world === w) return;
+    this.world = w;
+    this.defs = buildRooms(w);
+    this.rebuildGrid();
+    this.visited = new Set();
+    this.editor.setWorld(w);
   }
 
   /**

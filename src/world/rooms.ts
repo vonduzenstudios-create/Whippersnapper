@@ -6,17 +6,32 @@
 // on top. Delete a room's entry from that file to get the code version back.
 import { SCREEN_COLS as SC, SCREEN_ROWS as SR } from '../config';
 import ROOM_EDITS from './room_edits.json';
+import ABBEY_EDITS from './room_edits_abbey.json';
 import { buildExpansionRooms } from './rooms_expansion';
 import { buildLibraryRooms } from './rooms_library';
 import { buildDepthRooms } from './rooms_depths';
+import { buildAbbeyRooms } from './rooms_abbey';
+import { RB } from './rb';
+export { RB };
+
+/**
+ * The game has two separate maps. 'ash' is the original game (Vael Keep). 'abbey' is
+ * NEW GAME +: the Drowned Abbey, a new story on its own map (rooms_abbey.ts), with its own
+ * save slot and its own editor file (room_edits_abbey.json).
+ */
+export type World = 'ash' | 'abbey';
+export const WORLDS: World[] = ['ash', 'abbey'];
 
 export const THEMES = [
   'outdoor', 'courtyard', 'hall', 'stair', 'catacomb', 'flooded', 'shrine', 'chasm', 'lair', 'snow', 'ice',
   'garden', 'rooftop', 'belfry', 'aqueduct', 'library',
   'graveyard', 'deeps', 'temple', 'gaol', 'forge', 'crystal',
+  'docks', 'cloister', 'seacave', // NEW GAME + (the Drowned Abbey)
 ] as const;
 export const ZONES = ['pass', 'castle', 'catacombs', 'lair', 'undervault', 'kennels', 'belfry', 'aqueduct', 'library',
-  'lichyard', 'deeps', 'temple', 'gaol', 'forge', 'vault', 'heights', 'archive', 'lab'] as const;
+  'lichyard', 'deeps', 'temple', 'gaol', 'forge', 'vault', 'heights', 'archive', 'lab',
+  // NEW GAME + (the Drowned Abbey)
+  'strand', 'causeway', 'cloister', 'undercroft', 'scriptorium', 'belltower', 'gardens', 'seacaves', 'penance', 'saltworks', 'glasschoir'] as const;
 /** Theme: the backdrop and tile art. */
 export type Theme = (typeof THEMES)[number];
 /** Zone: the music, map color and area banner. */
@@ -42,6 +57,18 @@ export const ZONE_INFO: Record<Zone, { name: string; color: string; music: strin
   heights: { name: 'Rimecrown Heights', color: '#7a9aba', music: 'heights' },
   archive: { name: "The Archivist's Wing", color: '#7a3a4a', music: 'library' },
   lab: { name: 'Test Chamber', color: '#5a5a5a', music: 'undervault' }, // the #lab debug room only
+  // NEW GAME + (the Drowned Abbey). They borrow the old songs for now.
+  strand: { name: 'Gullmouth Strand', color: '#3a5a7a', music: 'pass' },
+  causeway: { name: 'The Drowned Causeway', color: '#2a4a6a', music: 'aqueduct' },
+  cloister: { name: "Saint Calder's Cloister", color: '#7a7a5a', music: 'castle' },
+  undercroft: { name: 'The Undercroft', color: '#5a4a3a', music: 'catacombs' },
+  scriptorium: { name: 'The Scriptorium', color: '#6a3a5a', music: 'library' },
+  belltower: { name: 'The Bell Tower', color: '#6a4a2a', music: 'belfry' },
+  gardens: { name: 'The Tithe Gardens', color: '#3a5a2a', music: 'kennels' },
+  seacaves: { name: 'The Sea Caves', color: '#1a4a5a', music: 'deeps' },
+  penance: { name: "The Penitents' Gaol", color: '#5a4a4a', music: 'gaol' },
+  saltworks: { name: 'The Saltworks', color: '#8a3a1a', music: 'forge' },
+  glasschoir: { name: 'The Glass Choir', color: '#6a4a9a', music: 'vault' },
 };
 
 /** Set once the avalanche has buried the mountain pass. While unset, `chase` rooms have an avalanche. */
@@ -93,66 +120,6 @@ export interface RoomDef {
   warp?: { x: number; y: number; to: string; tx: number; ty: number };
   /** The Mirror Vault's trick: while the hero is in this room, LEFT and RIGHT are swapped. */
   mirror?: boolean;
-}
-
-/** Room builder: fill tiles, cut doors and holes, place entities, then build() a RoomDef. */
-export class RB {
-  g: string[][];
-  ents: EntDef[] = [];
-  W: number;
-  H: number;
-  constructor(public cw: number, public ch: number) {
-    this.W = cw * SC;
-    this.H = ch * SR;
-    this.g = [];
-    for (let y = 0; y < this.H; y++) this.g.push(new Array(this.W).fill('.'));
-  }
-  fill(x: number, y: number, w: number, h: number, c = '#') {
-    for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (i >= 0 && j >= 0 && i < this.W && j < this.H) this.g[j][i] = c;
-    return this;
-  }
-  /** Outer walls: 1 tile sides & ceiling, 2-tile floor at the bottom. */
-  shell(top = true) {
-    this.fill(0, 0, 1, this.H);
-    this.fill(this.W - 1, 0, 1, this.H);
-    if (top) this.fill(0, 0, this.W, 1);
-    this.fill(0, this.H - 2, this.W, 2);
-    return this;
-  }
-  door(side: 'L' | 'R', cy: number) {
-    const x = side === 'L' ? 0 : this.W - 1;
-    this.fill(x, cy * SR + 8, 1, 4, '.');
-    return this;
-  }
-  hole(side: 'T' | 'B', cx: number) {
-    if (side === 'T') this.fill(cx * SC + 10, 0, 4, 1, '.');
-    else this.fill(cx * SC + 10, this.H - 2, 4, 2, '.');
-    return this;
-  }
-  e(x: number, y: number, t: string, arg?: string) {
-    this.ents.push({ x, y, t, arg });
-    return this;
-  }
-  /**
-   * Grow an outdoor room upward by one map cell of open sky (call after laying out the
-   * room as usual; build() then places it one cell higher). Everything already placed moves
-   * down 14 rows. Columns that are solid in the old top row (cliffs, towers) keep rising
-   * through the new cell. Fills after this use the new rows: 0-13 is the sky cell.
-   */
-  sky() {
-    const top = this.g[0];
-    const add = Array.from({ length: SR }, () => top.map((c) => (c === '#' ? '#' : '.')));
-    this.g = [...add, ...this.g];
-    for (const e of this.ents) e.y += SR;
-    this.ch++;
-    this.H += SR;
-    this.skyCells++;
-    return this;
-  }
-  skyCells = 0;
-  build(id: string, name: string, zone: Zone, theme: Theme, gx: number, gy: number, extra: Partial<RoomDef> = {}): RoomDef {
-    return { id, name, zone, theme, gx, gy: gy - this.skyCells, w: this.cw, h: this.ch, tiles: this.g.map((r) => r.join('')), ents: this.ents, ...extra };
-  }
 }
 
 /**
@@ -209,9 +176,13 @@ export interface RoomEdit extends RoomMeta {
 }
 export type RoomEdits = Record<string, RoomEdit>;
 
-/** The rooms with the editor's saved changes applied. */
-export function buildRooms(): RoomDef[] {
-  return applyEdits(buildBaseRooms(), ROOM_EDITS as unknown as RoomEdits);
+/** The rooms of a world with the editor's saved changes applied. */
+export function buildRooms(world: World = 'ash'): RoomDef[] {
+  return applyEdits(buildBaseRooms(world), worldEdits(world));
+}
+/** The editor's saved changes for a world (each world has its own file). */
+export function worldEdits(world: World): RoomEdits {
+  return (world === 'abbey' ? ABBEY_EDITS : ROOM_EDITS) as unknown as RoomEdits;
 }
 
 const sizeMatches = (tiles: string[], w: number, h: number) => tiles.length === h * SR && tiles.every((r) => r.length === w * SC);
@@ -268,8 +239,9 @@ export function resizeRoom(d: RoomDef, gx: number, gy: number, w: number, h: num
   Object.assign(d, { gx, gy, w, h, tiles: b.g.map((r) => r.join('')) });
 }
 
-/** The rooms exactly as written in code below, without editor changes. */
-export function buildBaseRooms(): RoomDef[] {
+/** The rooms of a world exactly as written in code, without editor changes. */
+export function buildBaseRooms(world: World = 'ash'): RoomDef[] {
+  if (world === 'abbey') return buildAbbeyRooms();
   const R: RoomDef[] = [];
 
   // 1 ── Drawbridge (outdoor; the title screen shows this room, so it stays first)

@@ -36,6 +36,15 @@ if (hash === 'hub' || hash === 'relics') {
   startIn('undervault', 40, 26 * 16);
   if (hash === 'relics') g.hunter.doubleJump = g.hunter.slide = true;
 }
+// #abbey = NEW GAME + from its start (the Drowned Abbey). #abbey=<room id> = TEST ROOM there
+// (every relic, nothing saved), e.g. #abbey=gl_shaft
+if (hash === 'abbey' || hash.startsWith('abbey=')) {
+  game.setWorld('abbey');
+  const id = hash.split('=')[1];
+  const def = id && g.defs.find((d: any) => d.id === id);
+  if (def) game.testRoom(def);
+  else game.newGame();
+}
 // #test=<enemy id> = the enemy test chamber with that enemy (the enemy editor's TEST button),
 // #test=boss:<id> = that boss's fight, #test or #lab = the chamber empty (see game/test_chamber.ts)
 if (hash === 'lab' || hash === 'test' || hash.startsWith('test=')) startTest(game, hash.split('=')[1] || '');

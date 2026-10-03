@@ -188,7 +188,7 @@ export class Hunter {
   }
   static load(): Hunter | null {
     try {
-      const s = localStorage.getItem(SAVE_KEY);
+      const s = localStorage.getItem(Hunter.saveKey());
       if (!s) return null;
       const h = new Hunter();
       Object.assign(h, JSON.parse(s));
@@ -207,15 +207,20 @@ export class Hunter {
   save(room: string) {
     this.saveRoom = room;
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(this.serialize()));
+      localStorage.setItem(Hunter.saveKey(), JSON.stringify(this.serialize()));
       return true;
     } catch {
       return false;
     }
   }
-  static hasSave() {
+  /** Which map's save slot load/save/hasSave use (Game.setWorld sets it): NEW GAME + has its own. */
+  static world: 'ash' | 'abbey' = 'ash';
+  static saveKey(world = Hunter.world) {
+    return world === 'abbey' ? SAVE_KEY + '_abbey' : SAVE_KEY;
+  }
+  static hasSave(world = Hunter.world) {
     try {
-      return !!localStorage.getItem(SAVE_KEY);
+      return !!localStorage.getItem(Hunter.saveKey(world));
     } catch {
       return false;
     }

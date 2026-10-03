@@ -11,7 +11,7 @@
 // buildRooms() applies that file.
 import type { Game, Sheets } from '../game/game';
 import { Room } from '../world/room';
-import { buildBaseRooms, RoomDef, EntDef, RoomEdits, RoomEdit, RoomMeta, META_KEYS, THEMES, ZONES, ZONE_INFO, Theme, Zone, emptyRoomTiles, resizeRoom } from '../world/rooms';
+import { buildBaseRooms, World, RoomDef, EntDef, RoomEdits, RoomEdit, RoomMeta, META_KEYS, THEMES, ZONES, ZONE_INFO, Theme, Zone, emptyRoomTiles, resizeRoom } from '../world/rooms';
 import { paintTiles } from '../gfx/tiles';
 import { drawText, textWidth } from '../gfx/font';
 import { disposeTree, Sheet } from '../gfx/view';
@@ -256,11 +256,7 @@ export class Editor {
   private thumbs = new Map<RoomDef, { key: string; cv: HTMLCanvasElement }>();
 
   constructor(private g: Game) {
-    for (const d of buildBaseRooms()) {
-      this.base.set(d.id, snap(d));
-      this.baseDefs.set(d.id, d);
-    }
-    for (const d of g.defs) this.saved.set(d.id, snap(d));
+    this.setWorld('ash');
     const hud = g.view.hud;
     hud.addEventListener('pointerdown', (e) => this.onDown(e));
     window.addEventListener('pointermove', (e) => this.onMove(e));
@@ -273,6 +269,25 @@ export class Editor {
 
   get def() {
     return this.g.room.def;
+  }
+
+  /** Which map is being edited: each has its own code rooms and its own edits file. */
+  world: World = 'ash';
+  setWorld(w: World) {
+    this.world = w;
+    this.base.clear();
+    this.baseDefs.clear();
+    this.saved.clear();
+    this.undo.clear();
+    for (const d of buildBaseRooms(w)) {
+      this.base.set(d.id, snap(d));
+      this.baseDefs.set(d.id, d);
+    }
+    for (const d of this.g.defs) this.saved.set(d.id, snap(d));
+  }
+  /** The edits file of the current map (for messages). */
+  get editsFile() {
+    return this.world === 'abbey' ? 'ROOM_EDITS_ABBEY.JSON' : 'ROOM_EDITS.JSON';
   }
 
   // ================================================================ enter / leave
@@ -729,12 +744,12 @@ export class Editor {
     }
     const n = Object.keys(edits).length;
     try {
-      const res = await fetch('/__editor/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(edits) });
+      const res = await fetch(this.world === 'abbey' ? '/__editor/save?world=abbey' : '/__editor/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(edits) });
       const j = await res.json();
       if (!res.ok || !j.ok) throw new Error(j.error || res.statusText);
       this.saved.clear();
       for (const d of this.g.defs) this.saved.set(d.id, snap(d));
-      this.say(n ? `SAVED ${n} EDITED ROOM${n === 1 ? '' : 'S'} TO ROOM_EDITS.JSON` : 'SAVED: NO ROOMS DIFFER FROM THE CODE');
+      this.say(n ? `SAVED ${n} EDITED ROOM${n === 1 ? '' : 'S'} TO ${this.editsFile}` : 'SAVED: NO ROOMS DIFFER FROM THE CODE');
     } catch {
       // production builds have no save endpoint: hand the data over instead
       try {

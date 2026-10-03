@@ -59,6 +59,12 @@ export function paletteFor(theme: Theme): TilePal {
       return { base: hex('#3e2a26'), mortar: hex('#a03010'), hl: hex('#7a4a38'), top: hex('#c84a18'), top2: hex('#ffa040'), rough: false, plat: hex('#5a5a66'), platD: hex('#26262e') };
     case 'crystal': // violet glass-veined stone
       return { base: hex('#4a3e6e'), mortar: hex('#1a1432'), hl: hex('#9a8ae0'), top: hex('#7ad0e8'), top2: hex('#d8f4ff'), rough: false, plat: hex('#a890e8'), platD: hex('#5a48a0') };
+    case 'docks': // NEW GAME +: tarred timber and wet harbour stone, weed along the tops
+      return { base: hex('#463c34'), mortar: hex('#1a1410'), hl: hex('#76685a'), top: hex('#2a4a3a'), top2: hex('#4a7a5a'), rough: true, plat: hex('#6a4a2a'), platD: hex('#3a2614') };
+    case 'cloister': // NEW GAME +: pale abbey limestone, moss in the joints
+      return { base: hex('#7a7462'), mortar: hex('#34301e'), hl: hex('#aaa288'), top: hex('#4a5a34'), top2: hex('#6a8a4a'), rough: false, plat: hex('#8a7a5e'), platD: hex('#4a4030') };
+    case 'seacave': // NEW GAME +: black-blue sea rock, kelp on the ledges
+      return { base: hex('#2c3842'), mortar: hex('#0e1418'), hl: hex('#58707e'), top: hex('#245446'), top2: hex('#3e8466'), rough: true, plat: hex('#6a7e78'), platD: hex('#34443e') };
     case 'library': // warm tan-gold sandstone, a green reading carpet, oak shelf boards
       return { base: hex('#6a5a3c'), mortar: hex('#241a0e'), hl: hex('#a89062'), top: hex('#1e5a46'), top2: hex('#3a8a68'), rough: false, plat: hex('#8a6434'), platD: hex('#4a3016') };
   }

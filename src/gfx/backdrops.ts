@@ -776,6 +776,104 @@ export function buildBackdrop(room: Room, candleSheet: Sheet): Backdrop {
       g.add(motes(room, theme === 'forge' ? 70 : 40, C.mote, [10, 90]));
       break;
     }
+    case 'docks': {
+      // NEW GAME +: Gullmouth's waterfront at night. A black sea under a cold moon, the abbey's
+      // dark tower out on its island, pier posts and fishermen's lanterns
+      bg = new THREE.Color('#060a14');
+      fog = new THREE.Fog('#0e1a28', CAM_DIST + 220, CAM_DIST + 1300);
+      const sky = wallPlane(room, 1600, skyMaterial('#060c1e', '#22344e', true));
+      (sky.material as THREE.ShaderMaterial).fog = false;
+      g.add(sky);
+      anim.push((t) => ((sky.material as THREE.ShaderMaterial).uniforms.t.value = t));
+      const e = extent(room, 900);
+      const tex = ridgeTex(hex('#101a26'), 71, 3);
+      tex.repeat.set((e.x1 - e.x0) / 512, 1);
+      const cliffs = plane(e.x1 - e.x0, 220, new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, fog: true }));
+      cliffs.position.set((e.x0 + e.x1) / 2, -(floorY - 60), -900);
+      g.add(cliffs);
+      // the abbey on its isle: a dark mass with the dead lamp tower
+      const isleM = lambert({ color: '#141c28' });
+      const isle = new THREE.Mesh(new THREE.BoxGeometry(260, 90, 40), isleM);
+      isle.position.set(room.W * 0.7, -(floorY - 30), -620);
+      g.add(isle);
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(34, 200, 34), isleM);
+      tower.position.set(room.W * 0.7 + 60, -(floorY - 150), -620);
+      g.add(tower);
+      const sea = new THREE.Mesh(new THREE.PlaneGeometry(room.W + 2400, 1400), waterSurfaceMaterial('#0a1626', '#7a90c0'));
+      sea.rotation.x = -Math.PI / 2;
+      sea.position.set(room.W / 2, -(floorY + 24), -700);
+      g.add(sea);
+      anim.push((t) => ((sea.material as THREE.ShaderMaterial).uniforms.t.value = t));
+      const postM = lambert({ color: '#3a2a1c' });
+      for (let x = 40; x < room.W; x += 150) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(10, 120, 10), postM);
+        post.position.set(x + hash2(x, 3) * 40, -(floorY - 30), -(60 + hash2(x, 4) * 60));
+        g.add(post);
+      }
+      const moon = new THREE.DirectionalLight('#8aa0d0', 1.1);
+      moon.position.set(1, 1, 1);
+      g.add(moon);
+      g.add(new THREE.AmbientLight('#2a3a5a', 1.2));
+      for (let x = 200; x < room.W; x += 320) addTorch(x, floorY - 70, 50, '#ffb060', 1.8, 200);
+      g.add(motes(room, 30, '#8aa0c0', [20, 200]));
+      break;
+    }
+    case 'cloister': {
+      // NEW GAME +: Saint Calder's abbey. Pale limestone arcades, sea-blue stained glass and
+      // the warm light of votive candles
+      bg = new THREE.Color('#0c0a08');
+      fog = new THREE.Fog('#181610', CAM_DIST + 120, CAM_DIST + 460);
+      g.add(wallPlane(room, 110, lambert({ map: stoneTex(hex('#6a6454'), hex('#2a261c'), false, 81) }), 64));
+      floorPlane(checkerTex(hex('#5a5444'), hex('#3a3428')), 110);
+      const stoneM = lambert({ map: stoneTex(hex('#8a8270'), hex('#3a3628'), false, 82) });
+      const winTex = windowTex([hex('#1a4a6a'), hex('#2a7a8a'), hex('#c8b070'), hex('#3a2a6a')], hex('#14100a'));
+      const span = 192;
+      for (let x = 96; x < room.W + 96; x += span) {
+        for (let y = 64; y < room.H - 64; y += 224) {
+          const win = plane(48, 96, new THREE.MeshBasicMaterial({ map: winTex, transparent: true, alphaTest: 0.5 }));
+          win.position.set(x, -(y + 56), -108);
+          g.add(win);
+          const shaft = plane(60, 160, glowMaterial('#4a8aa0', 0.3));
+          shaft.position.set(x + 12, -(y + 110), -70);
+          shaft.rotation.z = 0.25;
+          g.add(shaft);
+          anim.push((t) => ((shaft.material as THREE.ShaderMaterial).uniforms.t.value = t * 0.3));
+        }
+        pillar(x - span / 2, 56, 0, room.H, stoneM, 22);
+        for (let y = 112; y < room.H; y += 224) addTorch(x - span / 2, y, 40, '#ffc070', 2.2, 230);
+      }
+      for (let x = 0; x < room.W; x += span) for (let y = 24; y < room.H; y += 224) arch(x, 60, span, y, stoneM, 12);
+      g.add(new THREE.AmbientLight('#5a5040', 1.1));
+      g.add(motes(room, 26, '#e0d0a0', [10, 100]));
+      break;
+    }
+    case 'seacave': {
+      // NEW GAME +: the sea caves under the strand. Wet black rock, dripping stone teeth, and
+      // the green-blue glow of things living in the water
+      bg = new THREE.Color('#02080a');
+      fog = new THREE.Fog('#041216', CAM_DIST + 80, CAM_DIST + 360);
+      g.add(wallPlane(room, 100, lambert({ map: stoneTex(hex('#1e2a30'), hex('#0a1014'), true, 91) }), 64));
+      if (!room.water) floorPlane(stoneTex(hex('#1a2428'), hex('#0a1014'), true, 92), 100);
+      const rockM = lambert({ color: '#2a3a40' });
+      const n = Math.round(room.W / 36);
+      for (let i = 0; i < n; i++) {
+        const up = i % 3 === 0;
+        const h = 20 + hash2(i, 11) * 60, r = 4 + hash2(i, 12) * 9;
+        const c = new THREE.Mesh(new THREE.ConeGeometry(r, h, 6), rockM);
+        const cy = Math.floor(hash2(i, 16) * room.def.h) * 224;
+        c.position.set(hash2(i, 13) * room.W, up ? -(cy + 192 - h / 2 + 2) : -(cy + TILE + h / 2 - 2), -(14 + hash2(i, 14) * 80));
+        if (!up) c.rotation.x = Math.PI;
+        g.add(c);
+      }
+      const glow = plane(room.W * 3, 260, glowMaterial('#1aa08a', 0.35));
+      glow.position.set(room.W / 2, -(room.H + 10), -110);
+      g.add(glow);
+      anim.push((t) => ((glow.material as THREE.ShaderMaterial).uniforms.t.value = t * 0.4));
+      g.add(new THREE.AmbientLight('#1e4a50', 1.0));
+      for (let x = 160; x < room.W; x += 320) for (let y = 120; y < room.H; y += 224) addTorch(x, y, 80, '#60e0d0', 1.8, 220, false);
+      g.add(motes(room, 50, '#60f0d0', [10, 90]));
+      break;
+    }
     case 'hall':
     case 'stair':
     case 'shrine': {

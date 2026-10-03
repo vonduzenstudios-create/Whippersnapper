@@ -8,7 +8,9 @@ import { ENEMY, ENEMY_LETTER, ITEMS } from '../src/game/data';
 import { HINTS, LORE } from '../src/game/story';
 import { BOSSES_IDS } from './check_rooms_ids';
 
-const rooms = buildRooms();
+// --abbey checks NEW GAME +'s map (the Drowned Abbey) instead of the original one
+const world = process.argv.includes('--abbey') ? 'abbey' : 'ash';
+const rooms = buildRooms(world);
 const grid = new Map<string, RoomDef>();
 const problems: string[] = [];
 for (const r of rooms)
@@ -69,7 +71,7 @@ for (const r of rooms) {
 }
 
 console.log(problems.length ? problems.join('\n') : 'no problems found');
-const arg = process.argv[2];
+const arg = process.argv.slice(2).find((a) => !a.startsWith('--'));
 if (arg) {
   const d = rooms.find((r) => r.id === arg);
   if (d) {

@@ -17,6 +17,7 @@ npm run dev        # dev server
 npm run typecheck  # tsc --noEmit (build does NOT type check)
 npm run build      # production build to dist/
 npm run check:rooms  # map check: overlaps, one-sided doorways, missing signs/items/enemies (add a room id to print it as text)
+npm run check:abbey  # NEW GAME +: plays the Drowned Abbey with the hero's physics, proves the relic order (add a room id to print it)
 ```
 
 Use `npm.cmd` on Windows PowerShell if `npm` is blocked. Python 3.14 is available for helper scripts (bulk edits, checks): call it with `py` (or `C:\Python314\python.exe`), since bare `python` hits the Microsoft Store stub on this machine. Use it whenever it's the better tool. Debug: `window.game`, `#tour` (cycles all map cells), `#boss` / `#boss=hound` / `#boss=bellmother` (jump to a boss with 99,999 HP), `#hub` (the Undervault, Wyrm dead), `#relics` (same, with both relics), `#test=<enemy id>` / `#test=boss:<id>` / `#test` (enemy test chamber, also the enemy editor's TEST button, see `game/test_chamber.ts`; `#lab` is an alias), `game.input.script` (fake held inputs), `/editor.html` (map editor), F2 in game (edit the current room), `/enemies.html` (enemy editor; F3 in the game opens it), TEST ENEMY on the title menu (any enemy or boss), RETRY ROOM on the game-over screen (rewinds to entering the room; debug only, not for the real game).
@@ -53,7 +54,8 @@ Use `npm.cmd` on Windows PowerShell if `npm` is blocked. Python 3.14 is availabl
 - `Input.mirror` swaps LEFT and RIGHT. `loadRoom` sets it from `RoomDef.mirror`; the Mirror Heart flips it mid-fight and must put it back (`settle`). It never flips a `game.input.script`.
 - Glide gates are spike gaps of 20+ tiles (a running double jump covers about 13). The Pearl gate is a one-tile tunnel under water: sliding in water needs the Pearl.
 - A save room's neighbors get an aura at the shared doorway (`Game.findSaveDoors` / `updateSaveAura`): motes, and the save theme on a second `Music` player while the zone song ducks.
-- Story text uses `{NAME}`/`{CHILD}`/`{THEY}`/`{THEIR}` tokens for the chosen twin; `Game.showDialog` fills them in (`heroText`).
+- Story text uses `{NAME}`/`{CHILD}`/`{THEY}`/`{THEIR}`/`{SURNAME}`/`{TITLE}` tokens for the chosen twin; `Game.showDialog` fills them in (`heroText`). Use `hero(id)` for names, not a fixed table: NEW GAME + names the two looks Maren and Tobin Sollis.
+- **Two maps (0.28.0).** `Game.world` is `'ash'` (the original game) or `'abbey'` (NEW GAME +, the Drowned Abbey, 120 rooms in `src/world/rooms_abbey.ts`). `Game.setWorld` swaps the rooms (`buildRooms(world)`), the save slot (`Hunter.world`), the story names (`setStoryWorld`) and the editor's edits file (`room_edits_abbey.json`). The title screen always shows the original map. Abbey rooms are rectangles plus `LINKS` (abbey_kit.ts cuts both sides of each doorway and adds landings/climbs); gates live on the links. Run `npm run check:abbey` after changing them: it must reach all 120 rooms with the relics in order (grapple, slide, double jump, Pearl, coil, glide, ward). A room's water is one box: one pool per room.
 
 ## Where to read more
 

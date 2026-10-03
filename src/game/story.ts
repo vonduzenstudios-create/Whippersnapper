@@ -4,17 +4,50 @@
 import type { Action } from '../core/input';
 
 /**
- * The two playable twins. Story text uses tokens that heroText() fills in:
- * {NAME} = VESNA / ANZEL, {CHILD} = DAUGHTER / SON, {THEY} = SHE / HE, {THEIR} = HER / HIS.
+ * The two playable looks. Story text uses tokens that heroText() fills in:
+ * {NAME} = VESNA / ANZEL, {CHILD} = DAUGHTER / SON, {THEY} = SHE / HE, {THEIR} = HER / HIS,
+ * {SURNAME} = KORDER, {TITLE} = CHAIN-HUNTER.
+ * NEW GAME + (the Drowned Abbey) tells another story with the same two looks: Maren and
+ * Tobin Sollis. Game.setWorld picks which story is told (setStoryWorld).
  */
 export type HeroId = 'vesna' | 'anzel';
-export const HEROES: Record<HeroId, { name: string; child: string; they: string; their: string }> = {
-  vesna: { name: 'VESNA', child: 'DAUGHTER', they: 'SHE', their: 'HER' },
-  anzel: { name: 'ANZEL', child: 'SON', they: 'HE', their: 'HIS' },
+export type StoryWorld = 'ash' | 'abbey';
+type HeroInfo = { name: string; child: string; they: string; their: string; surname: string; title: string };
+const HERO_SETS: Record<StoryWorld, Record<HeroId, HeroInfo>> = {
+  ash: {
+    vesna: { name: 'VESNA', child: 'DAUGHTER', they: 'SHE', their: 'HER', surname: 'KORDER', title: 'CHAIN-HUNTER' },
+    anzel: { name: 'ANZEL', child: 'SON', they: 'HE', their: 'HIS', surname: 'KORDER', title: 'CHAIN-HUNTER' },
+  },
+  abbey: {
+    vesna: { name: 'MAREN', child: 'DAUGHTER', they: 'SHE', their: 'HER', surname: 'SOLLIS', title: 'TIDE-WARDEN' },
+    anzel: { name: 'TOBIN', child: 'SON', they: 'HE', their: 'HIS', surname: 'SOLLIS', title: 'TIDE-WARDEN' },
+  },
 };
+let storyWorld: StoryWorld = 'ash';
+/** Which story is told (Game.setWorld calls this). */
+export function setStoryWorld(w: StoryWorld) {
+  storyWorld = w;
+}
+/** The original twins' names (the main game). */
+export const HEROES = HERO_SETS.ash;
+/** The names and pronouns of a look in the story being told. */
+export function hero(id: HeroId): HeroInfo {
+  const set = HERO_SETS[storyWorld];
+  return set[id] || set.vesna;
+}
 export function heroText(s: string, id: HeroId) {
-  const h = HEROES[id] || HEROES.vesna;
-  return s.replace(/\{NAME\}/g, h.name).replace(/\{CHILD\}/g, h.child).replace(/\{THEY\}/g, h.they).replace(/\{THEIR\}/g, h.their);
+  const h = hero(id);
+  return s
+    .replace(/\{NAME\}/g, h.name)
+    .replace(/\{CHILD\}/g, h.child)
+    .replace(/\{THEY\}/g, h.they)
+    .replace(/\{THEIR\}/g, h.their)
+    .replace(/\{SURNAME\}/g, h.surname)
+    .replace(/\{TITLE\}/g, h.title);
+}
+/** The opening crawl of the story being told. */
+export function introCrawl() {
+  return storyWorld === 'abbey' ? INTRO_ABBEY : INTRO;
 }
 
 /** Opening crawl. `gold` lines are highlighted. */
@@ -824,3 +857,81 @@ export const SCENES: Record<string, Line[]> = {
     { who: 'abbess', face: 'angry', text: 'MY ROOTS! THEN I WILL WALK, AND I WILL PRUNE YOU MYSELF, THORN TO CHAIN.' },
   ],
 };
+
+// ---------------------------------------------------------------- NEW GAME +: the Drowned Abbey
+// A story of its own on its own map (world/rooms_abbey.ts), told with the same two looks:
+// MAREN or TOBIN SOLLIS, the ferry-warden's child from Gullmouth. The abbey of Saint Calder
+// sits on a tidal island; its Lamp kept the Black Tide out at sea for three hundred years.
+
+/** Opening crawl of NEW GAME +. */
+export const INTRO_ABBEY: { text: string; gold?: boolean }[] = [
+  { text: 'FOR THREE HUNDRED YEARS' },
+  { text: 'THE LAMP OF SAINT CALDER HAS BURNED' },
+  { text: 'ON THE ABBEY TOWER ABOVE THE TIDAL ISLE,' },
+  { text: 'AND THE BLACK TIDE HAS KEPT TO THE DEEP.' },
+  { text: '' },
+  { text: 'NINE NIGHTS AGO THE LAMP WENT DARK.' },
+  { text: 'THE TIDE CAME IN OVER THE CAUSEWAY,' },
+  { text: 'AND IT HAS NOT GONE OUT.' },
+  { text: '' },
+  { text: 'NOW THE DROWNED WALK THE STRAND AT GULLMOUTH' },
+  { text: 'AND THE ABBEY BELLS ARE SILENT.' },
+  { text: '' },
+  { text: "{NAME} SOLLIS, THE FERRY-WARDEN'S {CHILD},", gold: true },
+  { text: 'ROWS OUT ON THE LAST OF THE EBB', gold: true },
+  { text: 'TO LIGHT THE LAMP AGAIN.', gold: true },
+];
+
+/** Signposts of the Drowned Abbey (merged into HINTS). */
+const ABBEY_HINTS: Record<string, (k: KeyName) => string> = {
+  ab_ring: () => 'A RING HIGH IN THE VAULT. SOMETHING TO SWING FROM?',
+  ab_well: () => 'THE OLD WELL DROPS STRAIGHT INTO THE SEA CAVES',
+  ab_roof: () => 'THE RIDGE HAS FALLEN IN. NO JUMP CROSSES THIS',
+};
+Object.assign(HINTS, ABBEY_HINTS);
+
+/** Lore stones of the Drowned Abbey (merged into LORE). */
+const ABBEY_LORE: Record<string, string[]> = {
+  ab_lane: ['GULL LANE', '', 'EVERY DOOR IS BARRED FROM INSIDE.', 'SOMEONE HAS CHALKED A LAMP ON EACH ONE,', 'AND STRUCK IT THROUGH.'],
+  ab_lighthouse: ['THE OLD LIGHT', '', 'BEFORE THE ABBEY HAD ITS LAMP, THIS', 'TOWER GUIDED THE BOATS HOME. THE KEEPERS', 'SAY ITS FIRE WAS NEVER THE SAME KIND.', 'THIS ONE ONLY SHOWED THE WAY.'],
+  ab_chapel: ['SEAWALL CHAPEL', '', 'LIGHT A CANDLE FOR THOSE AT SEA.', 'PRAY AT THE ALTAR TO REST AND', 'TO KEEP YOUR PLACE IN THE WORLD.'],
+  ab_seawall: ["A FISHERMAN'S NOTE", '', 'THE TIDE CAME UP THE BEACH AND STOOD', 'THERE LIKE A WALL OF BLACK GLASS.', 'MY BROTHER WALKED INTO IT SMILING.', 'HE CAME BACK OUT LAST NIGHT.'],
+  ab_cliff: ['THE LOOKOUT', '', 'FROM HERE THE ABBEY TOWER IS PLAIN.', 'NO LIGHT. FOR THE FIRST TIME IN', 'LIVING MEMORY, NO LIGHT AT ALL.'],
+  ab_cove: ["SMUGGLERS' MARK", '', 'THE SEA DOOR IS UNDER THE WATER.', 'ONLY THE PEARL-DIVERS EVER FOUND', 'THEIR WAY THROUGH IT.'],
+  ab_causeway: ['THE CAUSEWAY', '', 'TWICE A DAY THE SEA DRAWS BACK AND', 'THE ROAD TO THE ABBEY RISES. NOT', 'TONIGHT. THE STONES ARE UNDER WATER.'],
+  ab_toll: ['THE TOLLHOUSE', '', 'TOLL TO THE ISLE: ONE CANDLE FOR', 'THE LAMP. THE CANDLE BOX IS FULL,', 'AND NO ONE HAS COLLECTED IT.'],
+  ab_lamppier: ['LAMP PIER', '', 'THE BOATS THAT CARRIED OIL TO THE', 'LAMP TIED UP HERE. THE LAST ONE', 'IS STILL FULL.'],
+  ab_seagate: ['THE SEA GATE', '', 'ENTER THE HOUSE OF SAINT CALDER,', 'WHOM THE SEA GAVE BACK.'],
+  ab_narthex: ['A NOTICE IN THE NARTHEX', '', 'BY ORDER OF PRIOR AUBERT: NO BROTHER', 'IS TO CLIMB THE TOWER UNTIL THE', 'MATTER OF THE LAMP IS SETTLED.', 'THE BELLS ARE NOT TO BE RUNG.'],
+  ab_garth: ['THE PREACHING CROSS', '', 'SAINT CALDER DROWNED OFF THIS ISLE', 'AND WALKED OUT OF THE SEA THREE DAYS', 'LATER. HE LIT THE FIRST LAMP SO THAT', 'THE SEA WOULD NOT COME LOOKING FOR HIM.'],
+  ab_chapter: ['CHAPTER HOUSE', '', 'WHERE THE BROTHERS MET TO VOTE.', 'THE LAST VOTE IS STILL CHALKED ON', 'THE BOARD. TWELVE FOR THE LAMP.', 'THIRTEEN AGAINST.'],
+  ab_ante: ['RELIQUARY DOOR', '', 'THE PRIOR WHO DROWNED WAITS BEYOND,', 'GUARDING A CHAIN FORGED FOR', 'PULLING MEN OUT OF THE SEA.'],
+  ab_porch: ['THE SCRIPTORIUM', '', 'SILENCE. THE BOOKS ARE LISTENING.'],
+  ab_nook: ["SISTER ODILE'S DESK", '', 'ODILE KEPT THE LAMP FOR FORTY YEARS.', 'HER LAST ENTRY: THE OIL IS WATER.', 'SOMEONE HAS BEEN FILLING THE CASKS', 'FROM THE SEA.'],
+  ab_tower: ['THE BELL TOWER', '', 'THE LAMP IS AT THE TOP. EVERY BELL', 'ON THE WAY UP HAS BEEN MUFFLED', 'WITH SAILCLOTH.'],
+  ab_cell: ["BELLRINGER'S CELL", '', 'A BELL TOLLED AT THE TURN OF THE TIDE', 'TELLS THE SEA WHERE THE SHORE IS.', 'WITHOUT IT THE SEA FORGETS.'],
+  ab_gutter: ['SCRATCHED IN THE LEAD', '', "I SAW THE PRIOR CARRY THE LAMP'S", 'GLASS DOWN THE TOWER IN HIS ARMS,', 'WEEPING LIKE A CHILD.'],
+  ab_spire: ['LANTERN SPIRE', '', 'THE LAMP CHAMBER IS SEALED. THE KEY', 'IS NOT HERE. BEYOND THE BROKEN ROOF', 'THE GLASS CHOIR GLITTERS.'],
+  ab_gardens: ['THE TITHE GARDENS', '', 'A TENTH OF ALL THAT GROWS IS THE', "SAINT'S. LATELY THE GARDENS HAVE", 'BEGUN TO TAKE THEIR TENTH BACK.'],
+  ab_shed: ["GARDENER'S SHED", '', 'SALT IN THE SOIL. NOTHING WILL', 'GROW EXCEPT THE BRIARS, AND THE', 'BRIARS WILL NOT STOP GROWING.'],
+  ab_mouth: ['THE BROKEN WALL', '', 'THE BONE NAVE WAS BUILT AGAINST THE', 'CAVES TO KEEP THE SEA OUT. THE SEA', 'HAS BEEN PATIENT.'],
+  ab_lantern: ['LANTERN GROTTO', '', 'PEARL-DIVERS LEFT A LAMP BURNING HERE', 'TO FIND THEIR WAY BACK UP.', 'IT IS STILL BURNING.'],
+  ab_cathedral: ['THE FIRST CHURCH', '', 'BEFORE THE ABBEY, THERE WAS THIS.', 'THE SEA TOOK IT IN ONE NIGHT, AND', 'SAINT CALDER WITH IT.'],
+  ab_drownedchapel: ['A VOICE IN THE WATER', '', 'SINGING, FROM BELOW. MANY VOICES,', 'ALL OF THEM IN TUNE.'],
+  ab_floodgate: ['THE GAOL GATE', '', 'PENITENTS WERE LOCKED BELOW THE TIDE', 'LINE TO HEAR THE SEA AND REPENT.', 'THE SLUICE IS SHUT. THE BARS STOP', 'A HAND SHORT OF THE FLOOR.'],
+  ab_confess: ['CONFESSIONAL', '', 'I CONFESS I WAS GLAD WHEN THE LAMP', 'WENT OUT. I CONFESS I KNOW WHO', 'PUT IT OUT. I WILL NOT SAY.'],
+  ab_pillory: ['PILLORY YARD', '', 'A LEVER WORKS THE GRATE INTO THE', 'BONE NAVE ABOVE, SO THE GAOLERS', 'NEED NOT GO ROUND.'],
+  ab_shaft: ['THE WEEPING SHAFT', '', 'BRINE FROM THE SALTWORKS RUNS DOWN', 'THIS SHAFT. THE GRATE AT THE TOP', 'IS FAR TOO HIGH TO SWING TO.'],
+  ab_saltworks: ['THE SALTWORKS', '', 'THE ABBEY GREW RICH BOILING THE SEA', 'FOR ITS SALT. THE FIRES ARE STILL', 'LIT. NO ONE IS TENDING THEM.'],
+  ab_furnace: ['FURNACE GATE', '', 'THE GREAT KILN IS BEYOND. IT HAS NOT', 'BEEN COLD IN THREE HUNDRED YEARS.'],
+  ab_glass: ['THE GLASS CHOIR', '', 'THE CHOIR WINDOWS WERE MADE FROM', 'SAND THE SAINT CARRIED OUT OF THE', 'SEA. THEY RING WHEN THE TIDE TURNS.'],
+  ab_vestry: ['VESTRY', '', "THE LAMP'S GLASS IS HERE, WRAPPED IN", "A PRIOR'S ROBE. THE KEY TO THE LAMP", 'CHAMBER IS NOT. THE WAY ON IS SEALED.', '', 'TO BE CONTINUED.'],
+};
+Object.assign(LORE, ABBEY_LORE);
+
+/** What the hero says on landing at Gullmouth (NEW GAME +, after the crawl). */
+export const ABBEY_OPENING: Line[] = [
+  { who: 'hero', face: 'neutral', text: 'THE FERRY WILL NOT FLOAT AGAIN. AND THE TIDE IS STILL RISING.' },
+  { who: 'hero', face: 'sad', text: 'NO LIGHT ON THE TOWER. NO BELLS. GULLMOUTH LOOKS EMPTY.' },
+  { who: 'hero', face: 'angry', text: 'ALONG THE STRAND AND OVER THE CAUSEWAY, THEN. SOMEONE HAS TO LIGHT THAT LAMP.' },
+];

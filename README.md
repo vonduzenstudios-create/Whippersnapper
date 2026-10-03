@@ -103,6 +103,18 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 
 The same number is in `package.json`. Newest version first.
 
+### 0.28.0 (2026-10-03)
+
+**NEW GAME +: the Drowned Abbey.** A second, separate game on the title menu, with its own story, its own 120-room map and its own save slot. The original game and its map are untouched.
+
+- **Story**: Saint Calder's abbey on a tidal isle. Its Lamp kept the Black Tide out at sea for three hundred years; nine nights ago it went dark. You play Maren or Tobin Sollis (the twins' looks, new characters), a tide-warden from Gullmouth, rowing out to light it again. A new opening crawl, a few words on the beach, and 34 lore stones. No ending yet: the Lamp chamber is sealed.
+- **The map**: 11 zones on one cohesive island: Gullmouth Strand (start), the Drowned Causeway, Saint Calder's Cloister (hub), the Undercroft, the Scriptorium, the Bell Tower, the Tithe Gardens, the Sea Caves, the Penitents' Gaol, the Saltworks and the Glass Choir. 11 save rooms, lever shortcuts, one-way drops and loops back to the hub.
+- **Unlock order**: Chain Grapple -> Frostrunner Greaves -> Raven Mantle -> Undertow Pearl -> Sinew Coil -> Duskwing Shroud -> Ashglass Ward. Each lies on the floor of an empty boss chamber (bosses to come). About 60 other pickups (every whip, shield, armor, accessory and sub-weapon, plus stat seeds and max-ups) sit behind the right gates, so going back pays off.
+- **Enemies**: every enemy in the game is used where it fits (drowned on the strand, eels in the causeway, tomes and librarians in the Scriptorium, harpies in the Bell Tower, dogs and moths in the gardens, Devourers in the caves, slag knights in the Saltworks, glass sentinels in the Choir), with the code variants for the late zones.
+- **New settings**: three new code-made themes with their own tiles and backdrops: docks (Gullmouth's waterfront at night), cloister (pale limestone and stained glass), seacave (black rock and glowing water). Music borrows the old songs for now.
+- **Title menu**: NEW GAME + and CONTINUE +. Saves go to their own slot, so neither game overwrites the other.
+- **Tools**: the abbey's rooms are declared as rectangles plus links, and the links cut both sides of every doorway (src/world/abbey_kit.ts). `npm run check:abbey` plays the whole map with the hero's physics and proves it can be finished in order (it prints each round of relics and the rooms they open). `npm run check:rooms -- --abbey` runs the usual room checks on it. F2 edits abbey rooms into src/world/room_edits_abbey.json. Debug: `#abbey` (start NEW GAME +), `#abbey=<room id>` (test a room with every relic).
+
 ### 0.27.0 (2026-10-03)
 
 Four bosses reworked as trial fights (test chamber only), and the Bell-Mother made watchable and audible.

@@ -16,6 +16,9 @@ Because `build` skips type checking, always run `typecheck` too.
 
 ## Debug hooks
 
+- `#abbey` starts NEW GAME + (the Drowned Abbey); `#abbey=<room id>` drops a test hero with every relic into that abbey room.
+- `npm run check:abbey` plays the whole abbey with a copy of the hero's physics (real tile collision; jumps, double jumps, swimming and the surface leap, glides, slides, a rough grapple-ring model) and prints what each new relic opens. `npm run check:abbey -- <room>` also prints the room with the reached standing spots. `DEBUG_SPOT=room,x,row[,dj+slide...]` lists where every move from one spot lands.
+
 - `window.game` is the live `Game` instance. Example: `game.hunter.grapple = true` gives the grapple.
 - Open the page with `#tour` to cycle the camera through every map cell (one every 3 seconds).
 - Open the page with `#boss` to jump straight into the Wyrm fight with 99,999 HP. `#boss=hound` and `#boss=bellmother` do the same for Gnarlfang and the Bell-Mother.

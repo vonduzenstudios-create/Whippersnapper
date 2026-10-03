@@ -9,7 +9,7 @@ import { Hunter } from '../game/stats';
 import { REBINDABLE, keyLabel, PAD_NAMES, Action, ACTION_LABEL } from '../core/input';
 import type { Sheet } from '../gfx/view';
 import { clamp } from '../core/util';
-import { INTRO, CINE, HEROES, HeroId, heroText, SPEAKERS, Line, Face } from '../game/story';
+import { introCrawl, CINE, hero, HeroId, heroText, SPEAKERS, Line, Face } from '../game/story';
 import { ZONE_INFO } from '../world/rooms';
 import { startTest, testEntries, TestEntry } from '../game/test_chamber';
 
@@ -22,7 +22,8 @@ const ROOM_ROWS = 12; // rooms shown at once in the TEST ROOM list
 const TALK_SPEED = 1.2; // characters a frame the dialogue types out
 const TALK_BOX = { x: 8, y: VH - 62, w: VW - 16, h: 56 }; // the dialogue box
 const INTRO_SPEED = 0.45; // px per frame the crawl scrolls up
-const INTRO_FRAMES = Math.ceil((VH + INTRO.length * 14 + 30) / INTRO_SPEED);
+/** Frames the opening crawl takes to scroll by (each story has its own crawl). */
+const introFrames = () => Math.ceil((VH + introCrawl().length * 14 + 30) / INTRO_SPEED);
 
 /** Where the map grid is drawn (inside the map panel), and the largest zoom in px per cell. */
 const MAP_AREA = { x: 10, y: 24, w: VW - 20, h: VH - 58 };
@@ -90,6 +91,7 @@ export class UI {
 
   enterTitle() {
     const g = this.g;
+    g.setWorld('ash'); // the title shows the original game's drawbridge
     g.state = 'title';
     g.hunter = new Hunter();
     g.zone = '';
@@ -101,7 +103,15 @@ export class UI {
     g.view.camY = g.room.H - VH;
     g.player.sprite.visible = false;
     g.banner.t = 0;
-    this.titleOpts = Hunter.hasSave() ? ['CONTINUE', 'NEW GAME', 'TEST ROOM', 'TEST ENEMY', 'CONTROLS'] : ['NEW GAME', 'TEST ROOM', 'TEST ENEMY', 'CONTROLS'];
+    this.titleOpts = [
+      ...(Hunter.hasSave('ash') ? ['CONTINUE'] : []),
+      'NEW GAME',
+      ...(Hunter.hasSave('abbey') ? ['CONTINUE +'] : []),
+      'NEW GAME +', // the Drowned Abbey: a new story on its own map
+      'TEST ROOM',
+      'TEST ENEMY',
+      'CONTROLS',
+    ];
     this.titleSel = 0;
     this.titleControls = false;
     this.roomPick = false;
@@ -190,7 +200,7 @@ export class UI {
         return this.updateSelect();
       case 'intro':
         this.introT++;
-        if (inp.confirm || inp.cancel || this.introT > INTRO_FRAMES) {
+        if (inp.confirm || inp.cancel || this.introT > introFrames()) {
           g.audio.play('confirm');
           g.newGame();
           inp.flush();
@@ -253,11 +263,13 @@ export class UI {
     if (inp.confirm) {
       const o = this.titleOpts[this.titleSel];
       g.audio.play('confirm');
-      if (o === 'NEW GAME') {
+      if (o === 'NEW GAME' || o === 'NEW GAME +') {
+        g.setWorld(o === 'NEW GAME +' ? 'abbey' : 'ash');
         g.state = 'select';
         this.selStep = 'hero';
         this.heroSel = g.heroChoice === 'anzel' ? 1 : 0;
-      } else if (o === 'CONTINUE') {
+      } else if (o === 'CONTINUE' || o === 'CONTINUE +') {
+        g.setWorld(o === 'CONTINUE +' ? 'abbey' : 'ash');
         g.continueGame();
       } else if (o === 'TEST ROOM') {
         this.roomPick = true;
@@ -346,6 +358,7 @@ export class UI {
     }
     if (inp.cancel) {
       g.state = 'title';
+      g.setWorld('ash');
       g.audio.play('cancel');
       inp.flush();
     } else if (inp.confirm) {
@@ -869,8 +882,9 @@ export class UI {
       c.globalAlpha = sel ? 1 : 0.45;
       c.drawImage(s.tex.image as HTMLCanvasElement, (f % s.cols) * s.cw + 4, Math.floor(f / s.cols) * s.ch + 6, 40, 40, cx - 60, top + 4, 120, 120);
       c.globalAlpha = 1;
-      drawText(c, `${HEROES[id].name} KORDER`, cx, top + 126, sel ? GOLD : DIM, '#000', 'center');
-      drawText(c, i ? "ILSABET'S SON" : "ILSABET'S DAUGHTER", cx, top + 138, sel ? PALE : DIM, '#000', 'center');
+      drawText(c, `${hero(id).name} ${hero(id).surname}`, cx, top + 126, sel ? GOLD : DIM, '#000', 'center');
+      const sub = this.g.world === 'abbey' ? hero(id).title : `ILSABET'S ${hero(id).child}`;
+      drawText(c, sub, cx, top + 138, sel ? PALE : DIM, '#000', 'center');
     });
     if (this.selStep === 'difficulty') return this.drawDifficulty();
     drawText(c, 'LEFT / RIGHT: CHOOSE    CONFIRM: NEXT    CANCEL: BACK', VW / 2, VH - 22, DIM, '#000', 'center');
@@ -926,7 +940,7 @@ export class UI {
     c.fillStyle = 'rgba(0,0,0,0.82)';
     c.fillRect(0, 0, VW, VH);
     const y0 = VH - this.introT * INTRO_SPEED;
-    INTRO.forEach((l, i) => {
+    introCrawl().forEach((l, i) => {
       const y = y0 + i * 14;
       if (y < -10 || y > VH) return;
       const a = Math.min(1, (y - 10) / 40, (VH - y) / 40);
@@ -1230,13 +1244,13 @@ export class UI {
     const s = g.sheets.hero, a = s.anims.idle;
     const f = a[Math.floor(this.t / 20) % a.length];
     c.drawImage(s.tex.image as HTMLCanvasElement, (f % s.cols) * s.cw + 4, Math.floor(f / s.cols) * s.ch + 6, 40, 40, lx + 6, y + 13, 80, 80);
-    drawText(c, g.text('{NAME} KORDER'), lx + lw / 2, y + 103, GOLD, '#000', 'center');
-    drawText(c, 'CHAIN-HUNTER', lx + lw / 2, y + 113, DIM, '#000', 'center');
+    drawText(c, g.text('{NAME} {SURNAME}'), lx + lw / 2, y + 103, GOLD, '#000', 'center');
+    drawText(c, g.text('{TITLE}'), lx + lw / 2, y + 113, DIM, '#000', 'center');
     const sel = this.focus === 'panel';
     const other: HeroId = h.hero === 'vesna' ? 'anzel' : 'vesna';
     if (sel) this.selRow(lx, y + 126, lw, 14, true);
     else this.card(lx, y + 126, lw, 14);
-    drawText(c, `PLAY AS ${HEROES[other].name}`, lx + lw / 2 + 1, y + 130, sel ? PALE : DIM, '#000', 'center');
+    drawText(c, `PLAY AS ${hero(other).name}`, lx + lw / 2 + 1, y + 130, sel ? PALE : DIM, '#000', 'center');
     if (sel) {
       const busy = !!g.boss;
       drawText(c, busy ? 'NOT DURING A' : 'CONFIRM: SWITCH', lx + lw / 2, y + 146, busy ? RED : DIM, '#000', 'center');
@@ -1552,7 +1566,7 @@ export class UI {
     c.fillStyle = 'rgba(4,2,8,0.92)';
     c.fillRect(0, 0, VW, VH);
     this.panel(6, 6, VW - 12, VH - 12);
-    drawText(c, 'MAP OF VAEL KEEP', VW / 2, 13, GOLD, '#000', 'center');
+    drawText(c, g.world === 'abbey' ? "MAP OF SAINT CALDER'S ISLE" : 'MAP OF VAEL KEEP', VW / 2, 13, GOLD, '#000', 'center');
     const b = this.mapBounds(), { minX, minY } = b;
     // cell size from the zoom; at zoom 1 the whole world fits the panel
     const CW = this.mapCW(b), CH = Math.max(1, Math.round(CW * 0.8));

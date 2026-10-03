@@ -237,6 +237,32 @@ Gates and rewards to come back for:
 | Sky cells (Pilgrim's Road, Cliffs, Drawbridge) | double jump | Might Seed, Ward Seed, Heart Max Up |
 | Ice Conduit shelf / Cistern tank | high tide (swim + leap) or double jump | Might Seed + potion, Ward Seed |
 
+## NEW GAME +: the Drowned Abbey (0.28.0)
+
+A separate map (`src/world/rooms_abbey.ts`, 120 rooms, its own grid: the cells don't clash with the original map because the two are never loaded together). Built with `abbey_kit.ts`:
+
+- `SPECS`: each room's id, name, zone, theme and `at: [gx, gy, w, h]`, plus a `build(k)` for its interior. `open: true` leaves the ceiling off.
+- `LINKS`: `[a, b, { at, gate, in }]`. A link finds the wall or floor the two rooms share and cuts a doorway on both sides (`at` picks the row or column, default: the lowest shared row, the middle column). `gate` shapes the doorway in room `in`: `dj` (the climb stops 7 rows short), `ring` (the Gallery of Wisps pattern: stand 8 rows under the landing, ring 7 tiles out), `coil` (a ring 6 rows under a ceiling hole, a grate above; see status.md for the test), `slide` (a 4-deep crawlspace), `break`, `lever:<flag>`, `drop` (one way), `manual`.
+- `auto()` gives every doorway up a wall a 5-wide landing and a zig-zag climb of ledges from the floor, and every ceiling hole the Ossuary Shaft ledges. Helpers: `k.foes('z12 b20@4 k30:knight_glass')`, `k.pocket(x, w, h, side)` (a slide pocket), `k.pit`, `k.pool` (one pool per room: water is one box), `k.climb`.
+
+```
+Gullmouth Strand (start, x 0-15)  -> the Drowned Causeway (x 16-32) -> Saint Calder's Cloister (hub, x 32-46, y -3..1)
+  Strand: Ferry Landing (start) / Old Light [dj] / Quay / Net Lofts / Gull Lane / Gull Roofs / Watch Tower / Cliff Stair / Seawall Chapel [save] / Smugglers' Cove [Pearl wall -> Sea Caves]
+  Causeway: Gate / Low Causeway / Tollhouse [save] / The Wreck / Breaker Steps / Lamp Pier [dj] / Tide Shoals [tide] / Undertow Arch [lever from the caves] / Sea Gate
+Cloister hub -> the Undercroft (below, open): Chamber of the Drowned Prior = CHAIN GRAPPLE (save: Reliquary Door)
+  West Walk [ring] -> the Scriptorium (x 20-35, y -9..-2; save: Lectern Nook)
+  Refectory [ring] -> the Tithe Gardens (x 46-59, y -7..1): The Briar Heart = FROSTRUNNER GREAVES (save: Gardener's Shed)
+  Dorter [slide] / Scribes' Bridge [slide] -> the Bell Tower (x 36-51, y -15..-3): The Belfry Crown = RAVEN MANTLE (save: Bellringer's Cell)
+  Bone Nave west door [dj] -> the Sea Caves (x 10-31, y 1..8): The Sunken Choir = UNDERTOW PEARL (save: Lantern Grotto)
+  Novices' Tombs -> Flooded Gate [Pearl walls] -> the Penitents' Gaol (x 33-48, y 3..8): The Penitent Engine = SINEW COIL (save: Confessional)
+  Weeping Shaft [coil] -> the Saltworks (x 48-61, y 1..6): The Salt Kiln = DUSKWING SHROUD (save: Salter's Rest)
+  Abbey Roofs [34-tile spike gap: glide] -> the Glass Choir (x 52-60, y -16..-4): The Reliquary = ASHGLASS WARD (save: Vestry)
+Shortcuts: Cave Mouth lever -> Undertow Arch; Pillory Yard lever -> Bone Nave; Salter's Rest lever -> Topiary Maze; Slag Pit lever -> Weeping Shaft;
+  Gutter Walk drops into the gardens; Shattered Window drops into the Briar Heart; Ink Cistern -> Low Causeway [dj back up].
+```
+
+The Ward gates nothing yet; the Vestry's lore stone says the way on (the Lamp chamber) is sealed.
+
 ## The Ashen Library
 
 - Theme `library`: tan-gold sandstone walls, a green carpet runner on the floors, oak shelf boards for the one-way ledges, and a backdrop of towering bookshelves between sandstone piers, chandeliers and green desk lamps.

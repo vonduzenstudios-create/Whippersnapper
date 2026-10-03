@@ -47,6 +47,19 @@
         "--strictPort"
       ],
       "port": 5283
+    },
+    {
+      "name": "dev-abbey",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5295",
+        "--strictPort"
+      ],
+      "port": 5295
     }
   ]
 }

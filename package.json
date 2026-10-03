@@ -1,13 +1,14 @@
 {
   "name": "nocturne-of-ash",
   "private": true,
-  "version": "0.27.0",
+  "version": "0.28.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
+    "check:abbey": "esbuild tools/check_abbey.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/check_abbey.mjs --log-level=warning && node node_modules/.cache/check_abbey.mjs",
     "check:rooms": "esbuild tools/check_rooms.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/check_rooms.mjs --log-level=warning && node node_modules/.cache/check_rooms.mjs",
     "export:sprites": "esbuild tools/export_sprites.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/export_sprites.mjs --log-level=warning && node node_modules/.cache/export_sprites.mjs"
   },
