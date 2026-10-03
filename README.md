@@ -103,6 +103,16 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 
 The same number is in `package.json`. Newest version first.
 
+### 0.30.0 (2026-10-03)
+
+The five boss reworks are finished (still test chamber only).
+
+- **Hollow Colossus (the Foundry)**: he now turns to face you before his sweep, stamp and ember rings. The gantry is raised clear of his head with a ledge out to it from each high catwalk, so the ladle's ring can be reached from it. The fight starts with you both nearer the middle, so the camera no longer opens zoomed far out.
+- **Ysolde**: a lace veil hangs over her face in the first half, lifted when she gazes; when her tail sticks in the step it now bends up into the stone instead of lying flat.
+- **Old Rimehide, Frozen Falls**: a backdrop of its own: a frozen cascade down the cave wall, columns of old ice in two layers, icicles and low mist.
+- **Old Rimehide, Boneyard**: the mammoth skull has a lower jaw that hides the block you stand on inside it.
+- Docs: the trial fights in docs/architecture.md and docs/testing.md; the Bell-Mother's header describes her new heights.
+
 ### 0.29.0 (2026-10-03)
 
 The ten trial bosses are finished (test chamber only: none is in the world yet).

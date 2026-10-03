@@ -1496,6 +1496,43 @@ export function buildBackdrop(room: Room, candleSheet: Sheet): Backdrop {
       }
       break;
     }
+    case 'trial_falls': {
+      // the Frozen Falls: the waterfall he dens by is one end of a great frozen cascade down the
+      // cave's back wall, buttresses of old ice in two layers, icicles off the roof, cold mist
+      glowAt(W * 0.62, 120, 96, 300, 220, '#9ad8ff', 0.3, 0.25);
+      // columns of old ice down the back of the cave, in two layers so they slide as the camera pans
+      for (const [d, col, em] of [[92, '#2c4664', '#060e1c'], [70, '#43668c', '#0c2040']] as [number, string, string][]) {
+        const m = lambert({ color: col, emissive: em });
+        for (let i = 0; i < 11; i++) {
+          const h = 160 + hash2(i, d) * 220, r = 9 + hash2(i, d + 1) * 16;
+          const c = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.7, r, h, 6), m);
+          c.position.set(i * 112 + hash2(i, d + 2) * 70 + (d === 70 ? 40 : 0), -(floorY - h / 2), -d);
+          g.add(c);
+        }
+      }
+      // the cascade: stacked sheets of pale ice down the back wall behind the falls, brightest at the foot
+      for (let k = 0; k < 5; k++) {
+        const fall = sheet(70 + k * 26, H / 2, 30 + k * 12, 70 - k * 8, H + 60, '#c8f0ff', 0.2 - k * 0.025);
+        anim.push((t) => ((fall.material as THREE.MeshBasicMaterial).opacity = 0.17 - k * 0.025 + Math.sin(t * 1.3 + k) * 0.03));
+      }
+      glowAt(110, floorY - 30, 70, 220, 110, '#bfe8ff', 0.5, 0.8);
+      // icicles hanging off the top of the cliffs
+      const iceM = lambert({ color: '#bfe8ff', emissive: '#2a5a88' });
+      for (let i = 0; i < 40; i++) {
+        const h = 14 + hash2(i, 51) * 40;
+        const c = new THREE.Mesh(new THREE.ConeGeometry(3 + hash2(i, 52) * 4, h, 4), iceM);
+        c.rotation.z = Math.PI; // point down
+        c.position.set(hash2(i, 53) * W, -(3 * TILE + hash2(i, 54) * 30 + h / 2), -(40 + hash2(i, 55) * 50));
+        g.add(c);
+      }
+      // mist rolling low over the floor
+      for (let i = 0; i < 6; i++) {
+        const m = glowAt(i * 220, floorY - 20, 30 + i * 8, 320, 60, '#d8f0ff', 0.18, 0.5);
+        anim.push((t) => (m.position.x = ((i * 220 + t * 10) % (W + 320)) - 160));
+      }
+      g.add(motes(room, 60, '#e8f6ff', [10, 160], 1));
+      break;
+    }
     case 'trial_bones':
     case 'ht_summit': {
       // Rimecrown Summit: curtains of aurora over the lake, and the lake itself shining back

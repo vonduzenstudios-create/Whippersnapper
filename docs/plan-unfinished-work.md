@@ -8,7 +8,7 @@ three handoff files are gone.
 
 | Feature | Branch / commit | Handoff | State |
 |---|---|---|---|
-| Boss reworks (`leviathan2`, `gorgon2`, `colossus2`, `yeti2`, `yeti3`) + Bell-Mother fix | `ashen-library`, `c65e0aa` (0.27.0) | `docs/handoff-trial-bosses.md` | Built and script-tested, never hand-played |
+| Boss reworks (`leviathan2`, `gorgon2`, `colossus2`, `yeti2`, `yeti3`) + Bell-Mother fix | `main`, 0.30.0 | none (finished; notes in `docs/status.md`) | **Done** 2026-10-03. Tuning left to the user |
 | Ten trial bosses (Castellan ... Rose Abbess) | `ashen-library`, 0.29.0 | none (finished; tuning notes in `docs/status.md`) | **Done** 2026-10-03: all ten registered and script-tested. Not hand-played |
 | Ten mini-bosses (Headsman ... Antlered Ghoul) | branch `claude/mini-boss-enemy-design-2c6cf1`, `c6c0109` (worktree `.claude/worktrees/mini-boss-enemy-design-2c6cf1`) | `docs/handoff-minibosses.md` (on that branch) | Art for 8 of 10, no AI, not hooked up |
 | NEW GAME + (the Drowned Abbey) | `ashen-library`, `129ce82` (0.28.0) | none (finished) | Done. Follow-ups below |
@@ -19,11 +19,7 @@ the real game is safe while it is unfinished.
 ## Order of work
 
 1. ~~**Ten trial bosses**~~ done in 0.29.0 (see the README entry and `docs/status.md`).
-2. **Boss reworks**: hand-play the five fights, fix the rough spots in its handoff (Colossus
-   facing at the start of `sweep`/`stomp`/`ring`, the gantry height, Ysolde's veil and `stuck`
-   pose, the Boneyard skull prop, the camera zooming far out in 3-cell rooms), listen to the new
-   bell sound, then the docs it lists (AGENTS.md, architecture.md, testing.md, the
-   `bellmother.ts` header).
+2. ~~**Boss reworks**~~ done in 0.30.0.
 3. **Mini-bosses** (on their own branch).
    1. Art for the Ferryman and the Antlered Ghoul (specs in the handoff); polish the Brute's head.
    2. The `MiniBoss` kit and one AI class each, the `data.ts`/`spawn.ts`/editor hookup (entity

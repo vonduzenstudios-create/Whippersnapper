@@ -228,7 +228,10 @@ export class IronKnight extends BossBase {
         // the blade scythes round at knee height: jump it
         const len = 72 / fast, k = this.pt / len;
         frame = frameAt(this.A('sweep'), k);
-        if (this.pt === 1) g.audio.play('creak');
+        if (this.pt === 1) {
+          this.facing = dx < 0 ? -1 : 1;
+          g.audio.play('creak');
+        }
         if (!d.sw && k >= 0.42) {
           d.sw = true;
           g.audio.play('whip');
@@ -265,6 +268,7 @@ export class IronKnight extends BossBase {
       case 'stomp': {
         const len = 62 / fast, k = this.pt / len;
         frame = frameAt(this.A('stomp'), k);
+        if (this.pt === 1) this.facing = dx < 0 ? -1 : 1;
         if (!d.hit && k >= 0.62) {
           d.hit = true;
           g.audio.play('rumble');
@@ -327,6 +331,7 @@ export class IronKnight extends BossBase {
       }
       case 'ring': {
         // the fire throws rings of embers from his chest: each has gaps, and the second is turned
+        if (this.pt === 1) this.facing = dx < 0 ? -1 : 1;
         frame = frameLoop(this.A('roar'), this.pt, 6);
         for (const [at, off] of [[30, 0], [70, 0.5], [110, 0.25]] as [number, number][]) {
           if (this.pt !== at) continue;

@@ -35,8 +35,9 @@ export function buildFoundry(): RoomDef {
   const b = new RB(3, 2).shell();
   b.fill(3, 20, 8, 1, '=').fill(61, 20, 8, 1, '='); // low catwalks
   b.fill(13, 15, 8, 1, '=').fill(51, 15, 8, 1, '='); // high catwalks
-  b.fill(34, 16, 5, 1, '='); // the gantry under the rail
-  b.e(8, 25, 'P').e(56, 25, 'W');
+  b.fill(34, 13, 5, 1, '='); // the gantry under the rail, clear of his head (the ladle's ring is in reach from it)
+  b.fill(26, 14, 2, 1, '=').fill(45, 14, 2, 1, '='); // ledges from the high catwalks out to the gantry
+  b.e(22, 25, 'P').e(48, 25, 'W'); // close enough that the camera need not pull far back at the start
   return b.build('trial_foundry', 'The Foundry', 'forge', 'forge', 68, 60, { boss: 'colossus2' });
 }
 

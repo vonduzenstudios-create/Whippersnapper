@@ -159,3 +159,11 @@ World flags in use: `crypt_drained` (Flooded Crypt lever), `pass_buried` (the av
 - `gfx/art_bosses2.ts`: the redrawn boss sheets, `relief()` (edge lighting for flat shapes), and the `props` and `tallprops` sheets.
 - `backdrops.ts`: after the theme's switch, a second switch on `room.def.id` adds each boss arena's own layers.
 - One boss id can span two rooms: `BOSSES.colossus.make` returns the `Colossus` in `fg_forge` and the `FurnaceHeart` in `fg_heart`. The defeat flag is set only when the heart dies.
+
+## Added in 0.27.0-0.30.0 (trial fights)
+
+- Puppets: `gfx/puppet.ts` (rig, poses, `keyed`, `bake`, `bust` portraits) and `gfx/form.ts` (form-shaded drawing, `ramp`). Sheets that are big are built the first time they are needed with `lazySheet(key, builder)` (`gfx/lazy.ts`).
+- The five reworks (`leviathan2`, `gorgon2`, `colossus2`, `yeti2`, `yeti3`): `game/boss_lockwyrm.ts`, `boss_stonebride.ts`, `boss_ironknight.ts`, `boss_rimehide.ts` (both Rimehides), art in `gfx/art_lockwyrm.ts`, `art_stonebride.ts`, `art_ironknight.ts`, `art_rimehide.ts`. Their chambers are in `world/rooms_trial.ts`, named by `BossInfo.trial`; their arena layers are in `backdrops.ts` (`trial_lock`, `trial_rotunda`, `trial_foundry`, `trial_falls`, `trial_bones`).
+- The ten trial bosses: `game/boss_kit.ts` (`TrialBoss`, `Bullet`, `Chain`, `Cord`, `AX0`/`AX1`/`AMID`), one `game/boss_<id>.ts` and one `gfx/art_<id>.ts` each, chambers in `world/rooms_trials.ts` (`TRIAL_ROOMS`), and the art table `gfx/art_trials.ts` (`TRIAL_ART`) that the game, the enemy editor and `/bosses.html` all read.
+- `startBossTest` (`game/test_chamber.ts`) loads a trial chamber off the map: `TRIAL_ROOMS[id] || BOSSES[id]?.trial`. None of these rooms is in `buildRooms()`.
+- The camera (`Game.updateCamera`) frames the hero and the boss together, pulling back as far as it must (capped at 2.2x). `Boss.camFree` opts out, `Boss.camZoom` asks for a little extra. `Game.musicDuck` is the song's base volume, which the Bell-Mother lowers while she sings.

@@ -3,8 +3,9 @@
 //
 // She is wrapped in her own voice: while she sings nothing reaches her. Three small bells hang
 // in the belfry, each a different note.
-//   sing     she hangs under the great bell and sings a phrase: the bells light and sound in order
-//   hover / swoop / feathers / toll   then she comes for you, as she always did
+//   sing     she settles on her roost in the lower belfry (`roost`, about 196 px over the floor, so
+//            she stays on screen) and sings a phrase: the bells light and sound in order
+//   hover / swoop / feathers / toll   then she comes for you, keeping a little above your head (`over`)
 // Ring her phrase back on the bells (whip them, in the same order). Get it right and her
 // voice breaks: she drops to the floor, stunned, and that's the window. A wrong bell starts
 // you over and brings her straight down on you. She sings the phrase again every so often, so

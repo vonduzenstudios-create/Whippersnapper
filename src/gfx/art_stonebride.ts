@@ -42,6 +42,8 @@ export interface Pose {
   mouth: number;
   /** Cracks in the stone (0..2), when she is drawn as stone. */
   cracks?: number;
+  /** The tail's end jammed into a step (0..1): it kinks up and strains. */
+  jam?: number;
 }
 
 const at = (p: V, a: number, len: number): V => [p[0] + Math.cos(a * DEG) * len, p[1] + Math.sin(a * DEG) * len];
@@ -62,7 +64,8 @@ export function bride(P: Pose, veil: boolean, stone = false): FormCanvas {
   const seg = (i: number): V => {
     const u = i / (N - 1);
     const back: V = [cx - 8 - u * 74 + Math.sin(u * 5 + P.tail * TAU) * 4, GY - 9 - Math.sin(Math.min(1, u * 2.2) * Math.PI) * 15 * (1 - u * 0.4) - Math.max(0, tw(u)) * 3 * u];
-    const front: V = [cx + 12 + u * 84, GY - 8 - Math.sin(u * Math.PI) * 9 * (1 - P.lash) - (1 - u) * 6];
+    const jam = P.jam || 0, kink = Math.max(0, (u - 0.62) / 0.38); // the last third bends up into the stone
+    const front: V = [cx + 12 + u * 84 - kink * kink * 14 * jam, GY - 8 - Math.sin(u * Math.PI) * 9 * (1 - P.lash) - (1 - u) * 6 - kink * kink * 26 * jam + Math.sin(u * 9 + P.tail * TAU) * 2.5 * jam * (1 - kink)];
     return mixv(back, front, P.lash);
   };
   for (let i = N - 1; i > 0; i--) {
@@ -169,6 +172,12 @@ export function bride(P: Pose, veil: boolean, stone = false): FormCanvas {
   } else f.stroke(...H(4.8, 3.8), ...H(7.4, 3.6), R(MAW), 0.5);
   f.stroke(...H(-3, -5.6), ...H(7, -6.2), R(GOLD), 0.75, 2); // circlet
   f.dot(...H(6, -6.4), R(EYE), 0.95);
+  if (veil && P.eyes < 2 && !stone) {
+    // the first half: a lace veil hangs from the circlet over her face (she lifts it to gaze)
+    f.next();
+    for (let k = 0; k < 4; k++) f.stroke(...H(1 + k * 2.6, -5.4), ...H(2.4 + k * 2.8, 9 + (k % 2) * 1.5), VEIL, 0.22 + (k % 2) * 0.1, 1);
+    f.stroke(...H(1, 9.2), ...H(10.6, 10.2), VEIL, 0.4, 1); // its hem
+  }
   for (const k of [0, 2, 4, 6]) asp(k, 0);
 
   // ── near arm, in front of everything
@@ -204,7 +213,7 @@ const ANIMS: [string, number, boolean, (t: number) => Pose][] = [
   // the second half's spiral: arms up, turning her head as the asps spray
   ['cast', 6, true, (t) => ({ ...REST, rear: 12 + w(t), lean: w(t) * 4, head: w(t, 0.1) * 12, armN: [-110 + w(t) * 6, -70], armF: [-70 - w(t) * 6, -100], tail: t, hair: t * 2, flare: 0.7 + w(t * 2) * 0.3, mouth: 1 })],
   // her tail is caught fast in front of her: she hauls back on it
-  ['stuck', 4, true, (t) => ({ ...REST, rear: 2 + w(t) * 2, lean: -14 + w(t) * 4, head: 10 + w(t, 0.2) * 6, armN: [60, 30 + w(t) * 10], armF: [50, 10 - w(t) * 10], tail: t, lash: 1, hair: t * 2, flare: 0.3, mouth: 0.8 })],
+  ['stuck', 4, true, (t) => ({ ...REST, rear: 2 + w(t) * 2, lean: -14 + w(t) * 4, head: 10 + w(t, 0.2) * 6, armN: [60, 30 + w(t) * 10], armF: [50, 10 - w(t) * 10], tail: t, lash: 1, jam: 1, hair: t * 2, flare: 0.3, mouth: 0.8 })],
 ];
 const STONED: Pose = { ...REST, rear: 14, lean: 4, head: -4, armN: [150, 190], armF: [-40, -70], flare: 1, eyes: 0, mouth: 1 };
 

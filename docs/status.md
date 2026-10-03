@@ -251,7 +251,7 @@ Update this file when you verify something or finish a listed item.
 
 - Verified by script in the browser (forcing each pattern and each window, then striking): all five trial fights (`leviathan2`, `gorgon2`, `colossus2`, `yeti2`, `yeti3`) start in their chambers, every stun route opens its window, the phase scenes play, and each dies cleanly. No console errors.
 - Verified by script: the Bell-Mother stays inside the camera for 1,800 frames of her fight (0 frames off screen), and the music ducks to 0.18 while she sings.
-- Not done: nobody has played the five fights by hand, so timings, damage and difficulty are untuned. Nobody has listened to the new bell sound.
+- Hand-play and tuning are left to the user (see Boss reworks below).
 - The trial chambers are not in `buildRooms()`, so `npm run check:rooms` does not check them.
 
 ## Trial bosses (0.29.0)
@@ -260,6 +260,12 @@ Update this file when you verify something or finish a listed item.
 - Verified by script: every phase-one opening of every boss opens it and four blows close the window; also the Marionette's resting fist, the Stalker's relit lanterns, the Reaper's dizzy whirl, both outcomes of the Abbess's whip tangle and her holy-water opening. The Abbess's low heart takes a real crouching whip and the high one a real double-jump whip.
 - Fixed while testing: holy fire emptied a whole window by itself (now it chips); the Miller's millstone opened him every throw by bouncing back (now only when he inhales it); bosses killed mid-leap hung in the air; the Saint's robe was too pale.
 - Not done: nobody has played them by hand. Tuning notes from the scripted runs: the Castellan's pendulum opens him often even for a hero who does nothing; the Miller's sail brake opens him wherever he stands (the sails cover most of the floor), on a 700-frame cooldown; the bowl-back only happens if he happens to inhale right after a throw.
+
+## Boss reworks (0.30.0)
+
+- Finished the rough spots from the rework handoff: the Colossus turns to face you before his sweep, stamp and ember rings; the Foundry's gantry is raised clear of his head (row 13) with a ledge out to it from each high catwalk, and the hero and he start closer, so the camera opens at 1.3x instead of 2.2x; Ysolde wears a lace veil over her face in the first half (she lifts it to gaze) and her `stuck` tail now kinks up into the step; the Frozen Falls has its own backdrop (a frozen cascade, ice columns in two layers, icicles, mist); the Boneyard skull's jaw now hides the block under it.
+- Verified by script in the browser: all five run 1,500 frames and die cleanly with no console errors; the Leviathan's well drains to the floor as it dies.
+- Left as it is: "run up the wedged blade" (from the Colossus pitch) was not built, since nothing in the engine lets the hero stand on a sprite; wedged, he bends into whip reach instead. Nobody has listened to the `bell` sound or tuned damage (left to the user).
 
 ## Known rough edges
 

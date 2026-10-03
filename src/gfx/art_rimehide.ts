@@ -409,6 +409,10 @@ export function buildRimePropSheet(): SheetBuilder {
   }));
   // the mammoth's skull, facing left: a dome, a deep socket, the stumps of its tusks
   b.add('skull', mk((f) => {
+    // the broad lower jaw, resting on the snow: it hides the block (cols 64-67, rows 23-25) the hero stands on
+    f.limb(cx - 26, by - 22, cx + 38, by - 22, 23, 23, TUSK, 0.7);
+    f.groove(cx - 40, by - 6, cx + 50, by - 6, -0.2);
+    f.next();
     f.ball(cx + 8, by - 52, 46, 40, TUSK);
     f.ball(cx - 26, by - 30, 26, 30, TUSK);
     f.next();
