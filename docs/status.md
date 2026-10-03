@@ -138,8 +138,13 @@ Update this file when you verify something or finish a listed item.
   - RELICS page: switching the Raven Mantle off made `doubleJump` false while `_doubleJump` stayed true, and both were saved; an old-style save (`grapple: true`) loaded through the setter.
   - Gravehand: the strike started 2.0–2.2 s after it sensed the hero, walking or standing, with the gap held for the first 90 frames. Crawler on a ceiling: 4 icicles in 420 frames, each leaving floor ice.
   - Knight: the jab frames fit the new 92-wide sheet.
+- 0.15.0 (2026-10-02), checked with typecheck and scripted runs in `#test=crawler`:
+  - Ice: walking speed went from 1.65 to 0.82 px/frame on the first iced frame; she froze 119 frames after first touching ice; 90 frames off ice brought `chill` and `iceT` back to 0. Blue tint seen.
+  - Spikes: 500 damage at 999 max HP, back to `lastSafe`, `crippleT` 600. Walking 0.16 px/frame (10%), jump ignored during the first 5 s and working after. Red tint seen.
 
 ## Not verified yet
+
+- 0.15.0 by hand: how the ice and cripple feel in real play (in the air, slows are half as strong, which wasn't measured), and spikes in rooms where `lastSafe` sits right beside the pit.
 
 - 0.14.0 by hand: the dialogue on a gamepad, the pace of the boss entrances (8–9 s before the talk), shop prices against how much gold a real run earns, and the Wyrm's portrait (a horned skull head-on, while its sprite is a long-snouted profile). The `talk` and `coin` sounds haven't been heard by a human. Signs and lore stones still use the old plain text box.
 

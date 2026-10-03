@@ -31,11 +31,17 @@ const WARD_COOL = 60; // frames after it fades or pops before it can be raised a
 const SLOW_MUL = 0.55; // walking speed while hexed by a Gloomcaster
 const HOLD_TIME = 150; // a Gravehand lets go by itself after this many frames (2.5 s)
 const FREE_GRACE = 60; // after breaking free, hands can't grab again for this long
-// Frost Crawler ice trails: the longer she stands on one, the slower she gets, until she
-// freezes solid. Only time on the ground counts, and in the air she moves at full speed.
-const CHILL_MAX = 150; // frames on the ice (2.5 s) until she's frozen
-const CHILL_SLOW = 0.8; // speed lost just before she freezes (she's down to 20%)
-const CHILL_THAW = 2; // chill lost each frame she's off the ice (or in the air)
+// Frost Crawler ice trails: one step on the ice chills her at once (half speed, tinted blue).
+// Off the ice the chill wears off over 1.5 s, so hopping keeps it mostly away. Stay on it
+// for 2 s and she freezes solid; that time drains away again at the same rate off the ice.
+const ICE_SLOW = 0.5; // speed lost while fully chilled (half as much in the air)
+const ICE_THAW = 90; // frames off the ice for the chill (and the freeze timer) to wear off
+const ICE_FREEZE = 120; // frames on the ice (2 s) until she's frozen
+// Spikes: half her max HP, back to safe ground, and crippled for a while
+const SPIKE_DMG = 0.5; // share of max HP a spike takes
+const CRIPPLE_TIME = 600; // frames she's crippled after spikes (10 s)
+const CRIPPLE_NOJUMP = 300; // ...of which the first 5 s she can't jump at all
+const CRIPPLE_SLOW = 0.9; // speed lost while crippled (half as much in the air)
 const ICE_MASH = 8; // presses to break out of the ice...
 const ICE_TIME = 150; // ...or it cracks open by itself after this long
 const TRIP_DOWN = 40; // frames she lies on her face after a Gravehand trips her...
@@ -135,12 +141,14 @@ export class Player implements Body {
   iceBlock: Sprite; // the ice she's frozen in
   /** A Frost Crawler's trail is under her feet (set by IcePatch each frame, used up by update). */
   onIce = false;
-  chill = 0; // frames of standing on ice, eased off when she's off it: slows her, then freezes her at CHILL_MAX
+  chill = 0; // 0..1: 1 the moment she's on ice, wearing off over ICE_THAW frames once she's off it
+  iceT = 0; // frames spent on ice, draining off it: she freezes at ICE_FREEZE
+  crippleT = 0; // frames left of the spike cripple (slow; no jumping for the first CRIPPLE_NOJUMP)
   /** What holds her when she's frozen solid (see freeze): breaking out shatters the ice. */
   private iceHold: Holder = {
     released: () => {
       const g = this.g;
-      this.chill = 0;
+      this.iceT = 0;
       g.audio.play('glass');
       g.fx.burst(this.x, this.y, 'glass', 8, 10, { speed: 2, grav: 0.2, life: 28, tint: [0.8, 1, 1.4] });
     },
@@ -230,14 +238,23 @@ export class Player implements Body {
     }
     // Undertow Pearl: water doesn't slow her down, and she swims freely
     const freeSwim = this.inWater && g.hunter.swim;
-    // Frost Crawler ice: standing on it chills her more and more; jumping keeps her free of it
+    // Frost Crawler ice: touching it chills her at once; off it (or in the air) the chill wears off
     const iced = this.onIce && this.onGround && this.state !== 'dead';
     this.onIce = false;
     if (iced && this.holdT <= 0) {
-      if (++this.chill >= CHILL_MAX) this.freeze();
-    } else if (!this.frozen) this.chill = Math.max(0, this.chill - CHILL_THAW);
-    const chillMul = this.onGround ? 1 - CHILL_SLOW * (this.chill / CHILL_MAX) : 1;
-    const wmul = (this.inWater && !freeSwim ? 0.6 : 1) * (this.slowT > 0 ? SLOW_MUL : 1) * chillMul;
+      this.chill = 1;
+      if (++this.iceT >= ICE_FREEZE) this.freeze();
+    } else if (!this.frozen) {
+      this.chill = Math.max(0, this.chill - 1 / ICE_THAW);
+      this.iceT = Math.max(0, this.iceT - ICE_FREEZE / ICE_THAW);
+    }
+    if (this.crippleT > 0) this.crippleT--;
+    // slows bite fully on the ground and half as much in the air
+    const air = this.onGround ? 1 : 0.5;
+    const iceMul = 1 - ICE_SLOW * this.chill * air;
+    const crippleMul = this.crippleT > 0 ? 1 - CRIPPLE_SLOW * air : 1;
+    const wmul = (this.inWater && !freeSwim ? 0.6 : 1) * (this.slowT > 0 ? SLOW_MUL : 1) * iceMul * crippleMul;
+    const noJump = this.crippleT > CRIPPLE_TIME - CRIPPLE_NOJUMP;
     const L = inp.down('left'), R = inp.down('right'), U = inp.down('up'), D = inp.down('down');
     const hdir = (R ? 1 : 0) - (L ? 1 : 0);
 
@@ -319,6 +336,8 @@ export class Player implements Body {
           this.crouch = false;
           this.setHeight(18);
           this.y += 2;
+        } else if (noJump && this.jumpBuf > 0 && !(this.inWater && !this.onGround)) {
+          this.jumpBuf = 0; // crippled: her legs won't take a jump yet
         } else if (this.jumpBuf > 0 && this.coyote > 0) {
           this.vy = JUMP_V * (this.inWater && !freeSwim ? 0.85 : 1);
           this.jumpBuf = 0;
@@ -331,7 +350,7 @@ export class Player implements Body {
           // swimming: jump strokes upward; with your head at the surface it's a full leap out
           // of the water (a little stronger than a jump, since you kick off the water)
           this.jumpBuf = 0;
-          if (this.y - this.hh <= room.water.y + 6) {
+          if (this.y - this.hh <= room.water.y + 6 && !noJump) {
             this.vy = JUMP_V * 1.1;
             g.audio.play('jump');
             g.fx.burst(this.x, room.water.y - 4, 'splash', 1, 0);
@@ -599,7 +618,7 @@ export class Player implements Body {
     if (!spike) return;
     g.audio.play('spike');
     this.invuln = 0;
-    const dead = this.takeDamage(20, this.x - this.facing, true, false);
+    const dead = this.takeDamage(Math.ceil(g.hunter.maxHp * SPIKE_DMG), this.x - this.facing, true, false);
     if (!dead) {
       g.fadeFlash = 12;
       this.x = this.lastSafe.x;
@@ -607,6 +626,8 @@ export class Player implements Body {
       this.vx = this.vy = 0;
       this.set('normal');
       this.invuln = 90;
+      this.crippleT = CRIPPLE_TIME;
+      g.damageNumber(this.x, this.y - 30, 'CRIPPLED', '#d08070');
     }
   }
 
@@ -914,9 +935,9 @@ export class Player implements Body {
   // ------------------------------------------------------------- damage
 
   /**
-   * Returns true if the hit killed the player. Enemy hits are scaled by the difficulty;
-   * spikes (fromEnemy = false) are not. While running, armor doesn't count: that's the
-   * price of the speed.
+   * Returns true if the hit killed the player. Enemy hits are scaled by the difficulty and
+   * armor; hazards like spikes (fromEnemy = false) hit for exactly `raw`. While running,
+   * armor doesn't count: that's the price of the speed.
    *
    * `type` says what the raised shield does (see DmgType): melee blows from the side it
    * faces are cut by the shield's block value, shots from that side are stopped, and touch
@@ -947,7 +968,7 @@ export class Player implements Body {
     }
     const mul = fromEnemy ? (DIFFICULTIES[h.difficulty] || DIFFICULTIES[0]).dmg : 1;
     const def = this.running ? 0 : h.def;
-    let dmg = Math.max(1, Math.round(raw * mul * (0.9 + Math.random() * 0.2) - def * 0.55));
+    let dmg = fromEnemy ? Math.max(1, Math.round(raw * mul * (0.9 + Math.random() * 0.2) - def * 0.55)) : raw;
     if (blocked) dmg = Math.max(1, Math.round(dmg * (1 - h.block)));
     h.hp -= dmg;
     g.damageNumber(this.x, this.y - 20, dmg, blocked ? '#c8c8d8' : '#ff5060');
@@ -1372,10 +1393,15 @@ export class Player implements Body {
       s.tint(0.85, 0.65, 1.15);
       if (this.animT % 8 === 0) this.g.fx.burst(this.x, this.y, 'mote', 1, 8, { vy: -0.5, life: 24, fade: true, tint: [1.3, 0.5, 1.6] });
     } else if (this.chill > 0) {
-      // chilled: she pales to frosty blue, shedding flakes faster the colder she gets
-      const c = this.chill / CHILL_MAX;
-      s.tint(1 - 0.3 * c, 1 - 0.08 * c, 1 + 0.35 * c);
-      if (this.animT % Math.max(4, Math.round(16 - c * 12)) === 0) this.g.fx.burst(this.x, this.y, 'flake', 1, 7, { vy: -0.3, life: 22, fade: true });
+      // chilled: icy blue that fades as the chill wears off, shedding flakes faster the
+      // closer she is to freezing solid
+      const c = this.chill, f = this.iceT / ICE_FREEZE;
+      s.tint(1 - 0.4 * c, 1 - 0.1 * c, 1 + 0.45 * c);
+      if (this.animT % Math.max(4, Math.round(16 - f * 12)) === 0) this.g.fx.burst(this.x, this.y, 'flake', 1, 7, { vy: -0.3, life: 22, fade: true });
+    } else if (this.crippleT > 0) {
+      // crippled by spikes: a bruised red cast, with dust scuffing up as she limps
+      s.tint(1.1, 0.72, 0.68);
+      if (this.onGround && this.vx !== 0 && this.animT % 14 === 0) this.g.fx.burst(this.x, this.bottom - 2, 'dust', 1, 4, { life: 16, fade: true });
     } else s.tint(1, 1, 1);
     this.renderEchoes();
     this.renderRelics();

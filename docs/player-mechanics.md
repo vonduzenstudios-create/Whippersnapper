@@ -86,9 +86,9 @@ Broken stones stay broken (saved in `Hunter.broken`). Hidden paths built on this
 
 ## Damage
 
-Classic-hard: knockback on every hit (unless the shield blocks it or the Rootstone is worn). Spike pits deal damage and respawn the player at the last safe spot.
+Classic-hard: knockback on every hit (unless the shield blocks it or the Rootstone is worn). Spike pits (0.15.0) take exactly `SPIKE_DMG` (half) of max HP, respawn the player at the last safe spot and set `Player.crippleT` to `CRIPPLE_TIME` (600 frames): 90% slower on the ground, 45% in the air, and no jumping (ground jump, double jump, leaping out of water; swim strokes still work) for the first `CRIPPLE_NOJUMP` (300) frames.
 
-`Player.takeDamage(raw, fromX, ignoreInvuln, fromEnemy = true, type = 'touch', fromY)` (see Shield for `type`): damage = `raw × difficulty × (0.9..1.1) − DEF × 0.55`, at least 1. The difficulty multiplier comes from `DIFFICULTIES[Hunter.difficulty]` in `game/data.ts` (Normal 1, Hard 1.5, Brutal 2). Spikes pass `fromEnemy = false` and are never scaled. Because DEF is subtracted after the multiplier, Hard and Brutal hurt a bit more than 1.5× / 2× at low levels. DEF is 0 while running.
+`Player.takeDamage(raw, fromX, ignoreInvuln, fromEnemy = true, type = 'touch', fromY)` (see Shield for `type`): damage = `raw × difficulty × (0.9..1.1) − DEF × 0.55`, at least 1. The difficulty multiplier comes from `DIFFICULTIES[Hunter.difficulty]` in `game/data.ts` (Normal 1, Hard 1.5, Brutal 2). Spikes pass `fromEnemy = false`: hazards hit for exactly `raw`, with no difficulty, randomness or DEF. Because DEF is subtracted after the multiplier, Hard and Brutal hurt a bit more than 1.5× / 2× at low levels. DEF is 0 while running.
 
 ## Easter egg
 
@@ -124,7 +124,7 @@ Expansion equipment: Rime Chain (whip, ATK+32, icy blue chain, top of the Aquedu
 
 `Shockwave` is a hostile ent that runs along the floor until a wall or a drop. Bell tolls and Gnarlfang's landings use it.
 
-**Ice trails (0.13.0).** An `IcePatch` sets `Player.onIce` while her feet are on it (player.ts reads and clears it next frame). Each frame grounded on ice adds 1 to `Player.chill`; off the ice or in the air it drops by `CHILL_THAW` (2). On the ground her speed is multiplied by `1 - CHILL_SLOW * chill / CHILL_MAX` (0.8, 150), so she's at 20% just before freezing; in the air she moves at full speed. At `CHILL_MAX` she `freeze()`s: a `grab()` by her own `iceHold` (arms locked, `ICE_MASH` 8 presses or `ICE_TIME` 150 frames), drawn as a see-through `iceBlock` from the relicfx sheet that cracks as she mashes. Any hit that lands shatters it.
+**Ice trails (0.13.0).** An `IcePatch` sets `Player.onIce` while her feet are on it (player.ts reads and clears it next frame). Reworked in 0.15.0: grounded on ice, `Player.chill` (0..1) jumps straight to 1 and `Player.iceT` counts up; off the ice or in the air `chill` drops by `1/ICE_THAW` per frame and `iceT` by `ICE_FREEZE/ICE_THAW`, so both wear off in 1.5 s (`ICE_THAW` 90). Her speed is multiplied by `1 - ICE_SLOW * chill` on the ground (`ICE_SLOW` 0.5), half that slow in the air. The blue tint follows `chill`; flakes come faster as `iceT` nears `ICE_FREEZE` (120 frames, 2 s). There she `freeze()`s: a `grab()` by her own `iceHold` (arms locked, `ICE_MASH` 8 presses or `ICE_TIME` 150 frames), drawn as a see-through `iceBlock` from the relicfx sheet that cracks as she mashes. Any hit that lands shatters it.
 
 **Grave Wisp drips (0.13.0).** While a wisp is chasing (`drip` on), every 70–110 frames it drops a `WispFlame` (enemies.ts): it falls, then burns on the floor for `DRIP_BURN` (100) frames, 10×12 px, for 45% of the wisp's ATK as magic. Water puts it out. Its `drip` and `flame` frames are in the wisp's own sheet, so they burn in the wisp's colors, a variant's palette swap included (0.14.0). The Wispette has `drip` off.
 
