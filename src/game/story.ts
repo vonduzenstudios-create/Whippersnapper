@@ -268,9 +268,16 @@ export const RELIC_TEXT: Record<string, string[]> = {
   relic_grapple: [
     'CHAIN GRAPPLE',
     '',
-    'Strike toward an iron ring to latch on.',
-    'LEFT/RIGHT swing   UP/DOWN climb the chain',
-    'JUMP lets go with a mighty leap.',
+    'Strike toward an iron ring and HOLD the button.',
+    'LEFT/RIGHT swing   UP/DOWN reel the chain',
+    'Let go to fly off with the swing. JUMP hops off.',
+  ],
+  relic_sinew: [
+    'SINEW COIL',
+    '',
+    'Woven gut that wants to spring back.',
+    'On a ring, let the chain all the way out and keep',
+    'holding DOWN to stretch it. Let go to sling off.',
   ],
   relic_mantle: [
     'RAVEN MANTLE',
@@ -307,8 +314,6 @@ export const RELIC_TEXT: Record<string, string[]> = {
   ],
 };
 
-/** Shown on the victory screen, which now leads back into the game. */
-export const VICTORY_LINES = ['THE WYRM WAS ONLY THE WARDEN.', 'BEYOND THE LAIR, A SEALED DOOR HAS OPENED.'];
 
 // ---------------------------------------------------------------- dialogue scenes
 

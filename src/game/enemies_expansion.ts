@@ -10,7 +10,7 @@ import { Enemy } from './enemies';
 import { groundAt, moveBody } from '../world/room';
 import { EnemyShot } from './objects';
 import { clamp, rand } from '../core/util';
-import { TILE } from '../config';
+import { TILE, GRAVITY, MAX_FALL } from '../config';
 import { RING_RADII } from '../gfx/art_items';
 
 // ---------------------------------------------------------------- shockwave
@@ -495,11 +495,14 @@ const CRAWL_LIFT = 9; // its sprite's middle sits this far off the surface it cl
  * round and round a block. It only turns back at water and at the room's edges (doorways
  * and holes out of the room). On a ceiling it lets go when she passes below.
  *
+ * One-way ledges and furniture tops aren't solid enough to cling to: it falls straight through
+ * them, and one placed on one just walks off the end and drops to real ground.
+ *
  * It tracks a "foot" point (fx, fy) half a pixel off its surface, `nx, ny` pointing into the
  * surface and `tx, ty` the way it's walking along it.
  */
 export class Crawler extends Enemy {
-  mode: 'cling' | 'fall' = 'cling';
+  mode: 'cling' | 'fall' | 'ledge' = 'cling';
   fx: number;
   fy: number;
   nx = 0;
@@ -523,7 +526,7 @@ export class Crawler extends Enemy {
       this.nx = 0;
       this.ny = -1;
       this.rot = Math.PI;
-    } else if (!g.room.solidPx(x, bottom + 0.5)) this.mode = 'fall';
+    } else if (!g.room.solidPx(x, bottom + 0.5)) this.mode = groundAt(g.room, x, bottom) ? 'ledge' : 'fall';
     this.syncBody();
   }
   get onCeiling() {
@@ -597,6 +600,32 @@ export class Crawler extends Enemy {
     const spots = g.ents.filter((e): e is IcePatch => e instanceof IcePatch && e.owner === this && e.ceil && !e.icicle && e.t > 30 && e.t < ICE_LIFE - ICICLE_GROW && Math.abs(e.x - this.x) > 12);
     if (spots.length) g.spawn(new Icicle(g, spots[Math.floor(Math.random() * spots.length)], Math.max(1, Math.round(this.atk * 0.6))));
   }
+  /** On a one-way ledge: walk along it (turning at walls and water) until it runs out, then fall. */
+  walkLedge(g: Game) {
+    const s = this.sprite!;
+    this.hw = 8;
+    this.hh = 6;
+    this.vx = this.stun > 0 ? 0 : this.facing * CRAWL_SPEED * this.num('speed');
+    this.vy = 0;
+    const r = moveBody(g.room, this, true);
+    if (r.hitX || this.stopsAt(g, this.x + this.facing * 9, this.y)) this.facing = -this.facing;
+    if (g.room.solidPx(this.x, this.bottom + 0.5)) {
+      // stepped onto real ground: cling to it again
+      this.mode = 'cling';
+      this.fx = this.x;
+      this.fy = this.bottom - 0.5;
+      [this.nx, this.ny, this.tx, this.ty] = [0, 1, this.facing, 0];
+      this.syncBody();
+    } else if (!groundAt(g.room, this.x, this.bottom)) {
+      this.mode = 'fall';
+      this.vy = 0;
+    }
+    this.layIce(g, Math.round(this.bottom), false);
+    this.rot = 0;
+    s.anim('crawl', this.t / 60, 10);
+    s.mesh.rotation.z = 0;
+    s.place(this.x, this.bottom - CRAWL_LIFT, this.facing < 0);
+  }
   update(g: Game) {
     this.baseUpdate(g);
     const p = g.player, s = this.sprite!, A = this.anims;
@@ -604,7 +633,8 @@ export class Crawler extends Enemy {
       this.iceX = NaN; // a fresh trail where it lands
       this.hw = 8;
       this.hh = 6;
-      const r = this.physics(g);
+      this.vy = Math.min(this.vy + GRAVITY, MAX_FALL);
+      const r = moveBody(g.room, this, true, true); // straight through one-way ledges
       s.setFrame(A.drop[0]);
       if (r.landed || this.onGround) {
         this.mode = 'cling';
@@ -620,6 +650,7 @@ export class Crawler extends Enemy {
       this.place();
       return;
     }
+    if (this.mode === 'ledge') return this.walkLedge(g);
     if (this.stun <= 0) this.crawl(g, CRAWL_SPEED * this.num('speed'));
     this.syncBody();
     this.vx = this.tx * CRAWL_SPEED; // (for anything that reads which way it's going)

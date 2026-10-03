@@ -413,6 +413,7 @@ export function buildBaseRooms(): RoomDef[] {
     b.fill(10, 12, 4, 2, 'B'); // cracked floor over the Forgotten Drain: whip downward in a jump
     b.fill(14, 11, 5, 1);
     b.e(16, 10, 'R');
+    b.e(14, 10, 'i', 'relic_sinew'); // Sinew Coil, beside the Chain Grapple for now
     b.e(6, 11, 'C').e(21, 11, 'C');
     R.push(b.build('shrine', 'Shrine of the Chain', 'catacombs', 'shrine', 8, 6));
   }

@@ -29,7 +29,7 @@ import { Editor } from '../editor/editor';
 import { VW, VH, TILE, CELL_W, CELL_H, STEP, SCREEN_COLS, SCREEN_ROWS } from '../config';
 import { clamp, overlap, rand, Box } from '../core/util';
 
-export type GState = 'title' | 'select' | 'intro' | 'play' | 'pause' | 'map' | 'dialog' | 'talk' | 'shop' | 'transition' | 'gameover' | 'victory' | 'edit';
+export type GState = 'title' | 'select' | 'intro' | 'play' | 'pause' | 'map' | 'dialog' | 'talk' | 'shop' | 'transition' | 'gameover' | 'edit';
 
 export interface Sheets {
   /** The current hero (one of heroes.vesna / heroes.anzel, swapped by applyHero()). */
@@ -148,7 +148,6 @@ export class Game {
   testTick: (() => void) | null = null;
   bossName = 0;
   deathT = 0;
-  victoryT = 0;
   zone: Zone | '' = '';
   lastTime = 0;
   acc = 0;
@@ -270,7 +269,7 @@ export class Game {
     h.hp = h.maxHp = 9999;
     h.hearts = h.maxHearts = 99;
     h.grapple = h.doubleJump = h.slide = true;
-    h.glide = h.swim = h.ward = true;
+    h.glide = h.swim = h.ward = h.elastic = true;
     h.subs = ['sub_holy', 'sub_cross', 'sub_knife'];
     h.sub = 'sub_holy';
     for (const id of ['shield_heater', 'shield_ossuary', 'shield_ashen', 'acc_rootstone']) h.owned.push(id);
@@ -539,6 +538,7 @@ export class Game {
 
   snapCamera() {
     const p = this.player, r = this.room;
+    this.view.zoom = 1;
     this.view.camX = clamp(p.x - VW / 2, 0, Math.max(0, r.W - VW));
     this.view.camY = clamp(p.y - VH / 2 - 8, 0, Math.max(0, r.H - VH));
   }
@@ -790,11 +790,9 @@ export class Game {
     this.audio.play('gate');
     if (info?.flag) this.setFlag(info.flag);
     this.spawnBossRewards();
-    if (info?.victory) this.victoryT = 1;
-    else {
-      this.music.play(ZONE_INFO[this.room.def.zone]?.music || 'save', 2);
-      this.banner = { text: 'Victory', sub: `${info?.name || 'the beast'} is slain`, t: 200 };
-    }
+    this.music.play(ZONE_INFO[this.room.def.zone]?.music || 'save', 2);
+    this.banner = { text: 'Victory', sub: `${info?.name || 'the beast'} is slain`, t: 200 };
+    if (info?.after) this.message(info.after, 240);
   }
 
   /**
@@ -874,7 +872,6 @@ export class Game {
       case 'pause':
       case 'map':
       case 'gameover':
-      case 'victory':
         this.ui.update();
         break;
       case 'talk':
@@ -910,7 +907,7 @@ export class Game {
   updatePlay() {
     const inp = this.input, p = this.player;
     if (this.cutscene) this.cutscene.update();
-    else if (p.alive && this.deathT === 0 && this.victoryT === 0) {
+    else if (p.alive && this.deathT === 0) {
       if (inp.pressed('pause')) {
         this.ui.openPause();
         return;
@@ -989,15 +986,10 @@ export class Game {
     // boss trigger: once the hero is a few tiles inside the arena
     const rd = this.room.def;
     if (rd.boss && !this.boss && !this.hunter.beaten(rd.boss) && p.x > 72 && p.x < this.room.W - 72 && p.y > 48) this.startBoss();
-    // death / victory timers
+    // death timer
     if (this.deathT > 0 && ++this.deathT > 170) {
       this.deathT = 0;
       this.ui.openGameOver();
-      return;
-    }
-    if (this.victoryT > 0 && ++this.victoryT > 200) {
-      this.victoryT = 0;
-      this.ui.openVictory();
       return;
     }
     // room exits
@@ -1038,11 +1030,22 @@ export class Game {
 
   updateCamera() {
     const p = this.player, r = this.room, v = this.view;
-    const tx = clamp(p.x - VW / 2, 0, Math.max(0, r.W - VW));
-    const ty = clamp(p.y - VH / 2 - 8, 0, Math.max(0, r.H - VH));
+    // a boss can ask for the camera to pull back a touch while you fight it (Boss.camZoom);
+    // it eases there slowly, keeping the middle of the view where it is
+    const wantZ = this.boss && !this.boss.dead ? this.boss.camZoom || 1 : 1;
+    if (v.zoom !== wantZ) {
+      const z = Math.abs(wantZ - v.zoom) < 0.002 ? wantZ : v.zoom + (wantZ - v.zoom) * 0.02;
+      v.camX -= (VW * z - v.viewW) / 2;
+      v.camY -= (VH * z - v.viewH) / 2;
+      v.zoom = z;
+    }
+    const VWz = v.viewW, VHz = v.viewH;
+    const tx = clamp(p.x - VWz / 2, 0, Math.max(0, r.W - VWz));
+    const ty = clamp(p.y - VHz / 2 - 8, 0, Math.max(0, r.H - VHz));
     if (this.bossShow && this.boss) {
-      // the camera follows the boss while it shows itself off
-      const b = this.boss, bx = clamp(b.x - VW / 2, 0, Math.max(0, r.W - VW)), by = clamp(b.y - VH / 2 + 10, 0, Math.max(0, r.H - VH));
+      // the camera follows the boss while it shows itself off, keeping it in the top two
+      // thirds of the screen: its name goes across the lower third, the dialogue at the bottom
+      const b = this.boss, bx = clamp(b.x - VWz / 2, 0, Math.max(0, r.W - VWz)), by = clamp(b.y - VHz / 3, 0, Math.max(0, r.H - VHz));
       v.camX += (bx - v.camX) * 0.05;
       v.camY += (by - v.camY) * 0.05;
     } else if (!this.cutscene?.holdCam) {

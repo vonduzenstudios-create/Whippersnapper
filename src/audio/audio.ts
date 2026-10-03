@@ -465,6 +465,10 @@ const SFX: Record<string, Sfx> = {
     a.tone({ type: 'triangle', f0: 400, f1: 820, dur: 0.12, vol: 0.08 });
   },
   // boss reward beacon: a soft, high two-note shimmer that repeats while the item waits
+  // the Sinew Coil reaching its commit point: a faint, quick shimmer, kept very quiet
+  tingle: (a) => {
+    [2637, 3136, 3951].forEach((f, i) => a.tone({ type: 'sine', f0: f, dur: 0.18, vol: 0.018, t: i * 0.035, out: a.reverbSend }));
+  },
   chime: (a) => {
     [1568, 2093].forEach((f, i) => a.tone({ type: 'sine', f0: f, dur: 0.5, vol: 0.06, t: i * 0.12, out: a.reverbSend }));
   },

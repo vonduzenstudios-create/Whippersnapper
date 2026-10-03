@@ -213,7 +213,7 @@ export class RingAnchor extends Ent {
   update(g: Game) {
     this.t++;
     const p = g.player;
-    const near = g.hunter.grapple && Math.hypot(p.x - this.x, p.y - 20 - this.y) < g.hunter.whipLen + 24;
+    const near = g.hunter.grapple && Math.hypot(p.x - this.x, p.y - 20 - this.y) < g.hunter.whipLen + 16;
     this.sprite!.glow = near ? 0.3 + Math.sin(this.t * 0.2) * 0.3 : 0;
   }
 }
@@ -440,6 +440,50 @@ export class KnifeProj extends Ent {
 }
 
 // ---------------------------------------------------------------- enemy projectiles
+/**
+ * A boss shakes the ceiling loose: `count` stones (or burning cinders) drop one after another
+ * over `over` frames, spread across what the camera shows, and every third one aimed right
+ * where the hero is standing. Each gives a short warning first: grit trickling down from the
+ * spot it will fall from. Stones fall from the ceiling, or the top of the screen if the
+ * ceiling is out of sight.
+ */
+export class Rockfall extends Ent {
+  t = 0;
+  drops: { x: number; at: number; warned: boolean }[] = [];
+  constructor(
+    g: Game,
+    count: number,
+    public kind: 'rock' | 'fireball' | 'bone' = 'rock',
+    public dmg = 16,
+    over = 70,
+  ) {
+    super();
+    for (let i = 0; i < count; i++) drops(this, g, i, count, over);
+  }
+  update(g: Game) {
+    this.t++;
+    const v = g.view, top = Math.max(24, v.camY - 6);
+    for (const d of this.drops) {
+      if (this.t >= d.at - WARN && this.t < d.at && this.t % 4 === 0) {
+        g.fx.burst(d.x, top, 'dust', 1, 3, { vy: 0.8, life: 18, fade: true });
+        if (!d.warned) {
+          d.warned = true;
+          g.fx.burst(d.x, top, 'mote', 3, 4, { vy: 1.2, life: 26, fade: true, tint: [0.8, 0.75, 0.7] });
+        }
+      }
+      if (this.t === d.at) g.spawn(new EnemyShot(g, d.x, top, 0, 0.6, this.kind, this.dmg, 0.16));
+    }
+    if (this.t > Math.max(...this.drops.map((d) => d.at))) this.dead = true;
+  }
+}
+const WARN = 30; // frames of trickling grit before each stone drops
+function drops(rf: Rockfall, g: Game, i: number, count: number, over: number) {
+  const v = g.view, p = g.player, W = g.room.W;
+  const l = Math.max(24, v.camX + 12), r = Math.min(W - 24, v.camX + v.viewW - 12);
+  const x = i % 3 === 0 ? p.x + rand(-14, 14) : rand(l, r);
+  rf.drops.push({ x: Math.max(l, Math.min(r, x)), at: WARN + Math.round((i / Math.max(1, count - 1)) * over), warned: false });
+}
+
 export class EnemyShot extends Ent {
   vx: number;
   vy: number;

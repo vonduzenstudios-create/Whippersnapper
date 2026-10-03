@@ -1,4 +1,8 @@
 // The Ossuary Wyrm: a segmented bone serpent that burrows through the arena walls.
+//
+// Its lair is four screens big, so every attack starts from just outside what the camera
+// shows (not from the far walls), and a lunge first peeks its skull in at the screen's edge.
+// The camera also pulls back a touch for the fight (camZoom).
 import { Sprite } from '../gfx/view';
 import { Ent, HitKind, Boss } from './ent';
 import type { Game } from './game';
@@ -20,6 +24,14 @@ export class Wyrm extends Ent implements Boss {
   }
   get gone() {
     return this.pat === 'gone';
+  }
+  get camZoom() {
+    return this.pat === 'dying' || this.pat === 'gone' ? 1 : 1.08;
+  }
+  /** What the camera shows right now, in room pixels. */
+  get cam() {
+    const v = this.g.view;
+    return { l: v.camX, r: v.camX + v.viewW, t: v.camY, b: v.camY + v.viewH, w: v.viewW, h: v.viewH, cx: v.camX + v.viewW / 2 };
   }
   hp: number;
   maxHp: number;
@@ -149,17 +161,27 @@ export class Wyrm extends Ent implements Boss {
       case 'lunge': {
         const d = this.data;
         if (this.pt === 1) {
-          // relocate inside a side wall at the player's height
-          this.side = p.x < W / 2 ? 1 : -1;
-          d.y = clamp(p.y - 10, 120, floor - 30);
-          this.hx = this.side > 0 ? W + 70 : -70;
+          // come from the side of the screen she's further from, at her height: the skull
+          // creeps in until it just shows at the screen's edge (or out of the wall, if that's
+          // on screen), rattles there as the warning, then charges
+          const c = this.cam;
+          this.side = p.x < c.cx ? 1 : -1;
+          d.y = clamp(p.y - 10, Math.max(120, c.t + 40), floor - 30);
+          d.edge = this.side > 0 ? Math.min(W - 6, c.r - 10) : Math.max(6, c.l + 10);
+          this.hx = d.edge + this.side * 70;
           this.hy = d.y;
           this.dir = this.side > 0 ? Math.PI : 0;
           this.resetTrail();
           g.audio.play('crumble');
         }
         if (this.pt < 45) {
-          if (this.pt % 5 === 0) g.fx.burst(this.side > 0 ? W - 14 : 14, d.y + rand(-10, 10), 'dust', 2, 4, { vx: -this.side });
+          // the edge follows the camera, which may still be moving
+          const c = this.cam;
+          d.edge = this.side > 0 ? Math.min(W - 6, c.r - 10) : Math.max(6, c.l + 10);
+          this.hx += (d.edge + this.side * 6 - this.hx) * 0.12;
+          this.hy = d.y + Math.sin(this.pt * 0.9) * 1.5;
+          this.jaw = this.pt > 25 ? 0.6 : 0.2;
+          if (this.pt % 5 === 0) g.fx.burst(d.edge, d.y + rand(-12, 12), 'dust', 2, 4, { vx: -this.side });
           if (this.pt % 10 === 0) g.shake(1.5, 6);
         } else {
           if (this.pt === 45) {
@@ -171,41 +193,44 @@ export class Wyrm extends Ent implements Boss {
           // slight homing early on
           if (Math.abs(this.hx - (this.side > 0 ? W : 0)) < W * 0.4) this.hy += clamp(p.y - 10 - this.hy, -0.8, 0.8);
           this.jaw = Math.max(this.jaw, 0.6);
-          if (this.side > 0 ? this.hx < -160 : this.hx > W + 160) {
-            if (this.trailClear()) this.nextPattern();
-          }
+          const c = this.cam;
+          if ((this.side > 0 ? this.hx < c.l - 60 : this.hx > c.r + 60) && this.trailClear()) this.nextPattern();
         }
         break;
       }
       case 'weave': {
         const d = this.data;
         if (this.pt === 1) {
+          const c = this.cam;
           this.side = Math.random() < 0.5 ? 1 : -1;
-          this.hx = this.side > 0 ? -70 : W + 70;
-          this.hy = 140;
+          this.hx = this.side > 0 ? Math.max(-70, c.l - 70) : Math.min(W + 70, c.r + 70);
+          d.base = c.t + c.h * rand(0.35, 0.55);
+          this.hy = d.base;
           this.dir = this.side > 0 ? 0 : Math.PI;
           this.resetTrail();
-          d.base = rand(170, 260);
         }
         const sp = 2.6 * spd;
-        const ny = d.base + Math.sin((this.hx / W) * Math.PI * 3) * 90;
+        const ny = d.base + Math.sin((this.hx / W) * Math.PI * 3) * 55;
         this.moveToward(this.hx + this.side * 40, ny, sp, 0.09);
         if (this.pt % 70 === 35 && this.phase === 2) this.breathe(1);
-        if (this.side > 0 ? this.hx > W + 160 : this.hx < -160) {
-          if (this.trailClear()) this.nextPattern();
-        }
+        const cw = this.cam;
+        if ((this.side > 0 ? this.hx > cw.r + 60 : this.hx < cw.l - 60) && this.trailClear()) this.nextPattern();
         break;
       }
       case 'rain': {
         const d = this.data;
         if (this.pt === 1) {
-          d.x = clamp(p.x + rand(-80, 80), 120, W - 120);
+          const c = this.cam;
+          d.x = clamp(p.x + rand(-80, 80), Math.max(120, c.l + 60), Math.min(W - 120, c.r - 60));
+          d.top = c.t;
+          d.l = c.l;
+          d.r = c.r;
           this.hx = d.x;
-          this.hy = -60;
+          this.hy = d.top - 60;
           this.dir = Math.PI / 2;
           this.resetTrail(-1);
         }
-        if (this.pt < 50) this.moveToward(d.x, 80, 2.2, 0.1);
+        if (this.pt < 50) this.moveToward(d.x, d.top + 80, 2.2, 0.1);
         else if (this.pt < 170) {
           this.hx += Math.sin(this.pt * 0.05) * 0.6;
           this.dir = Math.PI / 2 + Math.sin(this.pt * 0.05) * 0.3;
@@ -214,51 +239,61 @@ export class Wyrm extends Ent implements Boss {
             g.shake(4, 40);
             this.jaw = 1.2;
           }
-          if (this.pt > 60 && this.pt % (this.phase === 2 ? 9 : 13) === 0) {
-            const bx = rand(32, W - 32);
-            g.spawn(new EnemyShot(g, bx, 24, 0, 0.5, 'bone', 14, 0.12));
-            g.fx.burst(bx, 20, 'dust', 1, 4);
+          if (this.pt > 60 && this.pt % (this.phase === 2 ? 7 : 10) === 0) {
+            // every third bone drops right on her, the rest anywhere on screen
+            d.n = (d.n || 0) + 1;
+            const l = Math.max(32, d.l + 16), r = Math.min(W - 32, d.r - 16);
+            const bx = d.n % 3 === 0 ? clamp(p.x + rand(-12, 12), l, r) : rand(l, r), by = Math.max(24, d.top - 8);
+            g.spawn(new EnemyShot(g, bx, by, 0, 0.5, 'bone', 14, 0.12));
+            g.fx.burst(bx, by - 4, 'dust', 1, 4);
           }
         } else {
           this.dir = -Math.PI / 2;
           this.hy -= 2.5;
-          if (this.hy < -160 && this.trailClear()) this.nextPattern();
+          if (this.hy < d.top - 100 && this.trailClear()) this.nextPattern();
         }
         break;
       }
       case 'coil': {
         const d = this.data;
         if (this.pt === 1) {
+          // circles the middle of the screen
+          const c = this.cam;
           this.side = Math.random() < 0.5 ? 1 : -1;
-          this.hx = this.side > 0 ? -70 : W + 70;
-          this.hy = floor - 120;
+          d.cx = c.cx;
+          d.cy = Math.min(floor - 90, c.t + c.h * 0.42);
+          d.rx = Math.min(160, c.w / 2 - 40);
+          d.ry = Math.min(105, c.h * 0.3);
+          this.hx = this.side > 0 ? Math.max(-70, c.l - 70) : Math.min(W + 70, c.r + 70);
+          this.hy = d.cy;
           this.dir = this.side > 0 ? 0 : Math.PI;
           this.resetTrail();
-          d.cx = W / 2;
-          d.cy = floor - 140;
           d.ang = this.side > 0 ? Math.PI : 0;
         }
         if (this.pt < 360) {
           d.ang += 0.022 * this.side * spd;
-          const tx = d.cx + Math.cos(d.ang) * 170, ty = d.cy + Math.sin(d.ang) * 105;
+          const tx = d.cx + Math.cos(d.ang) * d.rx, ty = d.cy + Math.sin(d.ang) * d.ry;
           this.moveToward(tx, ty, 3.2 * spd, 0.12);
           if (this.pt % 80 === 40) this.spitAt(p.x, p.y);
         } else {
-          this.moveToward(this.side > 0 ? W + 300 : -300, d.cy, 3.5, 0.06);
-          if ((this.hx < -150 || this.hx > W + 150) && this.trailClear()) this.nextPattern();
+          const c = this.cam;
+          this.moveToward(this.side > 0 ? c.r + 300 : c.l - 300, d.cy, 3.5, 0.06);
+          if ((this.hx < c.l - 100 || this.hx > c.r + 100) && this.trailClear()) this.nextPattern();
         }
         break;
       }
       case 'perch': {
         const d = this.data;
         if (this.pt === 1) {
-          d.x = [14, 24, 34][Math.floor(Math.random() * 3)] * 16 + 8;
+          const c = this.cam;
+          d.x = clamp(p.x + rand(-110, 110), Math.max(100, c.l + 70), Math.min(W - 100, c.r - 70));
+          d.top = c.t;
           this.hx = d.x;
-          this.hy = -70;
+          this.hy = d.top - 70;
           this.dir = Math.PI / 2;
           this.resetTrail(-1);
         }
-        if (this.pt < 50) this.moveToward(d.x, 56, 2.4, 0.1);
+        if (this.pt < 50) this.moveToward(d.x, d.top + 50, 2.4, 0.1);
         else if (this.pt < 230) {
           // sweeping fire breath down at the arena
           const sweep = Math.sin((this.pt - 50) * 0.03);
@@ -276,7 +311,7 @@ export class Wyrm extends Ent implements Boss {
         } else {
           this.dir = -Math.PI / 2;
           this.hy -= 2.5;
-          if (this.hy < -160 && this.trailClear()) this.nextPattern();
+          if (this.hy < d.top - 100 && this.trailClear()) this.nextPattern();
         }
         break;
       }
@@ -316,13 +351,17 @@ export class Wyrm extends Ent implements Boss {
         break;
       }
       case 'ignite': {
+        const d = this.data;
         if (this.pt === 1) {
-          this.hx = W / 2;
-          this.hy = -70;
+          const c = this.cam;
+          d.x = clamp(c.cx, 100, W - 100);
+          d.top = c.t;
+          this.hx = d.x;
+          this.hy = d.top - 70;
           this.dir = Math.PI / 2;
           this.resetTrail(-1);
         }
-        if (this.pt < 60) this.moveToward(W / 2, 120, 2.5, 0.1);
+        if (this.pt < 60) this.moveToward(d.x, d.top + 100, 2.5, 0.1);
         else if (this.pt === 60) {
           g.audio.play('roar');
           g.audio.play('fire');
@@ -337,7 +376,7 @@ export class Wyrm extends Ent implements Boss {
         } else {
           this.dir = -Math.PI / 2;
           this.hy -= 3;
-          if (this.hy < -160 && this.trailClear()) this.nextPattern();
+          if (this.hy < d.top - 100 && this.trailClear()) this.nextPattern();
         }
         break;
       }
@@ -426,9 +465,15 @@ export class Wyrm extends Ent implements Boss {
     this.trail.push({ x: this.hx, y: this.hy });
   }
 
-  /** True once every segment is out of view, so the next pattern can teleport. */
+  /**
+   * True once every segment is out of view (off screen, or buried in rock), so the next
+   * pattern can move it somewhere else unseen.
+   */
   trailClear() {
-    for (const s of this.segs) if (s.x > -40 && s.x < this.W + 40 && s.y > -40 && s.y < this.H + 40) return false;
+    const c = this.cam;
+    const seen = (x: number, y: number) => x > c.l - 30 && x < c.r + 30 && y > c.t - 30 && y < c.b + 30 && !this.hidden(x, y);
+    if (seen(this.hx, this.hy)) return false;
+    for (const s of this.segs) if (seen(s.x, s.y)) return false;
     return true;
   }
 

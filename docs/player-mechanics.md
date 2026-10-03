@@ -30,13 +30,25 @@ In water (`Player.inWater`), pressing Jump off the ground is a swim stroke (`SWI
 
 ## Grapple
 
-- The whip latches if a ring is within whip length + 32 px and within 48° of the strike direction, or within 30 px at any angle.
-- The swing is an angular pendulum (`theta` and `omega` on Player). It was slowed after playtesting:
-  - `SWING_G` (0.65) scales gravity on the rope.
-  - Pumping is gentle.
-  - `SWING_MAX_V` caps arc speed at 3.6 px/frame.
-- Up/Down change the rope length, down to a minimum of 8.
-- Jump releases with an upward boost: 7.6, or 9.4 while holding Up, and horizontal speed ×1.35 (max 4.6). The Wisp Gallery climb needs that boost to get up through the grate into the Corridor of Bones.
+Reworked in 0.17.0 to play like Super Castlevania IV:
+
+- Every whip has the same reach since 0.17.0 (`WHIP_LEN` 56 in data.ts; whips differ in ATK and element only). The whip latches if a ring is within `WHIP_LEN` + `GRAB_REACH` (22) = 78 px and within 48° of the strike direction, or within 30 px at any angle.
+- **Hold ATTACK to hang on; let go to release.** Dash does nothing on the rope. Sub-weapons can still be thrown.
+- **JUMP hops off** (`Player.hopOff`): she lets go with a small boost along the way she's already moving (speed × `HOP_MUL` 1.02 + `HOP_ADD` 2.1 along her heading, plus `HOP_UP` 2.7 of lift), or a `HOP_STILL` (5.2) hop straight up if she was hanging still. Never a pull toward the ring.
+
+## Sinew Coil (relic, 0.17.0)
+
+`relic_sinew` / `Hunter.elastic`, placed for now in the Shrine of the Chain beside the Chain Grapple (`i` at 14,10). On a ring, Down reels the chain out to `ROPE_MAX` as usual; with the Coil, holding Down past that stretches it (`Player.stretch`, up to `STRETCH_MAX` 32 px) like a rubber band (`stretchChain`): `STRETCH_RATE` (1.36 px/frame) slowing to 40% of that near full stretch, and by half at full swing speed (hanging still: 24 frames to the commit point, 39 to full). While stretching, the tension damps her swing (×`STRETCH_DAMP` 0.95 a frame), so a full stretch settles her under the ring. The links redden as it stretches, with a `creak`.
+
+- **Committed** (`Player.committed`): past `STRETCH_COMMIT` (70% of the stretch) she trembles; on the frame it crosses, a ring of six sparkles bursts round the whip's handle with a very quiet `tingle` (`commitSparkle`), and a faint twinkle shows at the hand every 18 frames while it's held. Then letting go of Down **or** of ATTACK fires the sling at once. The only ways out are JUMP (a normal hop off) or holding Up, which lets the tension out at `STRETCH_EASE` (1.2 px/frame) with no sling, then reels in as usual. While stretched, Up/Down work the band instead of reeling.
+- Short of the commit point, letting go of Down lets the band ease back (no sling), and letting go of ATTACK is a normal release.
+- The sling (`sling`): toward the ring and on past it, always at full power (`SLING_V` 12 px/frame, the same from the commit point to full stretch), plus 30% of her swing, and she lets go. It flings her ~220 px up from where she hangs at full stretch.
+- The rope starts at the length it caught at. **Up reels in, Down lets out** (`Player.reel`), between `ROPE_MIN` (20) and `ROPE_MAX` (46). The reel eases up to speed and back down (`REEL_EASE` 0.08). Its top speed depends on how big the swing is (the speed she'd have at the bottom of the arc, so it doesn't jump at the ends of each swing): `REEL_FAST` (1.1 px/frame) hanging still, falling to `REEL_SLOW` (0.18) at 70% of top swing speed. Measured: the full range in ~36 frames hanging still, ~17 px/s in a medium swing, ~11 px/s in a big one. A catch from further than `ROPE_MAX` winds in to it at `REEL_WIND` (1.2 px/frame) instead of snapping short.
+- The swing is a body on a rope, not an angle: she moves with gravity × `SWING_G` (0.65) and **passes straight through walls and floors while on the rope** (on purpose, so nothing snags the swing). Past the rope's length she's pulled back onto its circle and loses the outward part of her speed. Caught from closer than that, or from above the ring, the rope just goes slack and she falls until it pulls taut (no more being thrown off to the side).
+- Coming off a ring inside a wall or floor, by any route (letting go, a hit, a grab, a room change), pops her out to the nearest spot she fits: `Player.set()` calls `popOut` whenever the state leaves `hang` (`popOut` searches outward 2 px at a time up to 64 px, up first at each distance). As a safety net, `update()` also pops her out if she's been inside solid tiles for more than 2 frames in any state (`stuckT`).
+- Left/Right pump along the swing (`SWING_PUMP` 0.06 a frame while taut). Speed is capped at `SWING_MAX_V` (4.8).
+- Letting go: sideways speed × `LAUNCH_MUL` (1.35, max 4.8). Near the bottom of the arc or on the way up she also springs off it (`LAUNCH_KICK` 2.2 + 0.6 × swing speed, up to 8.4 px/frame), and `Player.launched` keeps the full rise even though JUMP isn't held. On the way down she just drops away. A full swing peaks a little above the ring.
+- The Wisp Gallery grate climb needs the Sinew Coil now (see below).
 
 ## Double jump (Raven Mantle)
 
@@ -86,7 +98,7 @@ Broken stones stay broken (saved in `Hunter.broken`). Hidden paths built on this
 
 ## Damage
 
-Classic-hard: knockback on every hit (unless the shield blocks it or the Rootstone is worn). Spike pits (0.15.0) take exactly `SPIKE_DMG` (half) of max HP, respawn the player at the last safe spot and set `Player.crippleT` to `CRIPPLE_TIME` (600 frames): 90% slower on the ground, 45% in the air, and no jumping (ground jump, double jump, leaping out of water; swim strokes still work) for the first `CRIPPLE_NOJUMP` (300) frames.
+Classic-hard: knockback on every hit (unless the shield blocks it or the Rootstone is worn). Spike pits take exactly `SPIKE_DMG` (half) of max HP and put her back at the last safe spot, down on one knee (`kneel` state, `KNEEL_TIME` 60 frames: no moving or jumping). When she stands, `Player.crippleT` starts at `CRIPPLE_TIME` (180 frames) and the slow fades with it: 90% slower at first (half that in the air), wearing off evenly over 3 s, with the red tint fading too. She can jump again as soon as she stands (0.17.0).
 
 `Player.takeDamage(raw, fromX, ignoreInvuln, fromEnemy = true, type = 'touch', fromY)` (see Shield for `type`): damage = `raw × difficulty × (0.9..1.1) − DEF × 0.55`, at least 1. The difficulty multiplier comes from `DIFFICULTIES[Hunter.difficulty]` in `game/data.ts` (Normal 1, Hard 1.5, Brutal 2). Spikes pass `fromEnemy = false`: hazards hit for exactly `raw`, with no difficulty, randomness or DEF. Because DEF is subtracted after the multiplier, Hard and Brutal hurt a bit more than 1.5× / 2× at low levels. DEF is 0 while running.
 
@@ -161,13 +173,18 @@ Not placed in any room yet.
 
 ## Expansion bosses
 
-- **Gnarlfang** (`game/hound.ts`, Hound Pit, 1100 HP): stalks and bites; crouches and charges until it slams into a wall, then reels dazed for 80 frames and takes 50% more damage (masonry falls); pounces at you and its landing sends shockwaves both ways. It ignores one-way ledges. At half HP it howls in two wild dogs, and howls again later if they're dead. When the first form's HP runs out it fakes its death (`fakeout`: collapses, goes dark, no HP bar, music stops, ~3.5 s of silence, embers and growls), then rises as the Cinder Mastiff (`rise`: sheet swaps to `houndCinder`, HP bar refills to 80% of the first form's, untouchable while it howls). The cinder form moves 1.35× faster, adds `spit` (two fans of three fireballs), drops fireballs instead of rocks on wall slams, and throws two burning cinders when it lands from a leap. Its second death is the real one.
-- **The Bell-Mother** (`game/bellmother.ts`, Great Belfry, 1000 HP): hovers above you; swoops from the far side at your height; fires three fans of feathers; rings the great bell so shockwaves roll in from both walls. At half HP she rages (a scene, see Boss scenes), summons two harpies, tolls twice with falling masonry, and attacks faster.
+- **Gnarlfang** (`game/hound.ts`, Hound Pit, 1100 HP): stalks and bites; crouches and charges until it slams into a wall, then reels dazed for 80 frames and takes 50% more damage (a `Rockfall` of 11 stones, 16 in phase 2); pounces at you and its landing sends shockwaves both ways. It ignores one-way ledges. At half HP it howls in four wild dogs, two at a time at the screen's edges, and howls again later if they're dead. When the first form's HP runs out it fakes its death (`fakeout`: collapses, goes dark, no HP bar, music stops, ~3.5 s of silence, embers and growls), then rises as the Cinder Mastiff (`rise`: sheet swaps to `houndCinder`, HP bar refills to 80% of the first form's, untouchable while it howls). The cinder form moves 1.35× faster, adds `spit` (two fans of three fireballs), drops fireballs instead of rocks on wall slams, and throws two burning cinders when it lands from a leap. Its second death is the real one.
+- **The Bell-Mother** (`game/bellmother.ts`, Great Belfry, 1000 HP): hovers above you; swoops from the far side at your height; fires three fans of feathers; rings the great bell so shockwaves roll in from both walls. At half HP she rages (a scene, see Boss scenes), summons four harpies at the screen's edges, tolls twice (each toll a `Rockfall` of 10 stones), and attacks faster.
+- **Rockfall** (objects.ts, 0.17.0): drops `count` stones (or cinders) one after another over ~a second, spread across what the camera shows, every third one aimed at the hero, each warned by 30 frames of trickling grit at the spot. They fall from the ceiling, or the top of the screen if the ceiling is out of view. The Wyrm's bone rain uses the same idea (every third bone aimed, faster in both phases).
 
 ## Boss rewards and deaths
 
 - When a boss's death animation ends it sets `dead = true` (so its update stops) and calls `Game.onBossDefeated()`. Before 0.2.0 the Bell-Mother and Gnarlfang kept running their death loop, and the explosions never stopped.
 - `Game.spawnBossRewards()` drops the room's `i` items a short way from the hero, toward the middle of the room, onto the floor below (`Game.floorBelow`), instead of at their placed spot. `Pickup.setBeacon()` adds a column of light (render order 8), rising sparkles and a repeating `chime`, and puts the pickup in `Game.beacons`. The HUD draws a bouncing arrow over each one (`UI.drawBeaconArrows`), or a pointer at the screen edge when it's off screen. A reward left behind is still placed at its spot on the next visit, with its beacon.
+
+## Wyrm in a big arena (0.17.0)
+
+The Lair is four screens, so the Wyrm's patterns start from just outside the camera's view instead of the far walls (`Wyrm.cam`): lunges come from the screen edge she's further from, and first creep the skull in until it just shows at that edge (or out of the wall, if the wall is on screen) for 45 frames, rattling, as the tell. Weave and coil run across or round the middle of the screen; rain, perch and ignite drop from just above it. `trailClear()` means "nothing of it can be seen" (off screen or buried in rock). It sets `Boss.camZoom` = 1.08, so the camera pulls back 8% for the fight (`View.zoom`, eased in `Game.updateCamera`), and back to 1 as it dies.
 
 ## Wyrm phase change
 

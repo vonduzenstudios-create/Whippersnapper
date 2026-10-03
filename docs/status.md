@@ -4,6 +4,15 @@ Update this file when you verify something or finish a listed item.
 
 ## Verified
 
+- 0.17.0 (2026-10-02), checked with typecheck, build and frame-stepped scripted runs in the browser pane:
+  - Grapple (current tuning, scripted): chain 20–46 px, reeled smoothly (full range in ~36 frames hanging still, ~11–17 px per second mid-swing); grab reach 78 px with every whip (all whips 56 px since 0.17.0); swing passes through walls by design, and any exit from `hang` (letting go, a hit, a grab) pops her out of solid tiles; a `stuckT` safety net fired only at the test's own bad spawn points in 13,200 frames of random play over 55 rooms. JUMP hop: 5.2 px/frame up hanging still, 5.1 sideways / 3.0 up from a 3 px/frame swing. Sinew Coil: picked up in the Shrine (dialog, RELICS list); 24 frames to the 70% commit point, 39 to full (32 px); committed, letting go of ATTACK or Down slings at a flat 12 px/frame (~220 px rise); short of it, Down eases back and ATTACK is a plain release; Up lets the tension out with no sling; JUMP hops off; the commit sparkle and tingle fire once. **Level fit:** the Ringing Climb's high rings are out of reach of the current launches and the Wisp Gallery climb wasn't rechecked after the last tuning: the user is adjusting the ring rooms. **Not checked by hand:** how it all feels.
+  - Spikes: 60 frames kneeling, then `crippleT` 180 counting down with speed recovering; a jump right after standing worked.
+  - Wyrm: every pattern (both phases) shows its head on screen for a good share of its run and finishes; a lunge's skull peeks in at the screen's edge. Retreat → ignite → fight resumes. On death the zoom eases 1.08 → 1 and the Victory banner, the gate message and play follow (no victory screen).
+  - Boss intro: the title sits in the lower third with the Wyrm above it; the dialogue box stays at the bottom.
+  - Gnarlfang's slam drops its rockfall across the screen, its howl brings 4 dogs on screen; the Bell-Mother summons 4 harpies and her two tolls drop 20 stones.
+  - Frost Crawler placed on a one-way ledge walks off, falls, clings to the floor and climbs the next wall.
+  - All three HUD styles checked magnified (sub-weapon, bar or orb level, hearts, pips).
+
 - `npm run typecheck` passes cleanly against the real `@types/three` 0.170 (TypeScript 5.9), and `npm run build` succeeds (checked 2026-10-01).
 - Headless runs with a mocked three.js: a random-input stress test in every room with no errors, an automated grapple climb, an automated chasm crossing, and an accelerated boss fight through to the victory screen.
 - The user's browser pane showed every room and the boss rendering correctly with real three.js.

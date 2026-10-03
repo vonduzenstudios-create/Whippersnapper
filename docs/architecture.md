@@ -45,6 +45,7 @@ src/
   game/stats.ts     Hunter (persistent stats/inventory/flags, save/load)
   game/data.ts      ITEMS, ENEMY stat table (+ enemy_edits.json), ENEMY_TUNING behavior knobs, SUB_COST, xpForLevel
   game/enemy_edits.json  enemy-editor changes and variants, applied on top of the code enemies
+  ui/hud.ts         the status display in three styles (classic strip, two blood-orb layouts; OPTIONS > HUD STYLE, kept in localStorage)
   ui/ui.ts          HUD, title, intro, pause menu (status/equip/items/relics/bestiary/map/controls/sound), dialogue box (drawTalk), Pell's shop (drawShop), map, end screens
   editor/editor.ts  map editor (F2 in game, or editor.html): tabbed tools, doors, world map (move/resize/create rooms), undo, save
   editor/dialog.ts  small HTML form over the canvas, for editor settings that need typing

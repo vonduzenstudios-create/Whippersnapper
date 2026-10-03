@@ -1,9 +1,9 @@
 // Gnarlfang, the two-headed hound of the Kennel Yards (boss of the Hound Pit).
 //   stalk  - walks at you; snaps if you get close (bite)
 //   charge - crouches and growls, then bolts across the pit until it slams into a wall
-//            and reels, dazed (takes 50% more damage while dazed); masonry falls
+//            and reels, dazed (takes 50% more damage while dazed); masonry rains down
 //   leap   - pounces at where you stand; the landing sends shockwaves both ways
-//   howl   - below half HP: calls two wild dogs into the pit
+//   howl   - below half HP: calls four wild dogs into the pit, two at a time
 // It fights first as a flayed, vein-covered brute. When that HP runs out it collapses and the
 // music dies as if you'd won (fakeout); then embers stir and it rises as the Cinder Mastiff
 // (rise) with a second, shorter HP bar. That form is faster, howls from the start, and adds:
@@ -14,7 +14,7 @@ import { Ent, HitKind, Boss } from './ent';
 import type { Game } from './game';
 import { ENEMY } from './data';
 import { moveBody } from '../world/room';
-import { EnemyShot } from './objects';
+import { EnemyShot, Rockfall } from './objects';
 import { Dog, shockPair, Shockwave } from './enemies_expansion';
 import { clamp, rand, sign } from '../core/util';
 import { GRAVITY, MAX_FALL } from '../config';
@@ -160,8 +160,7 @@ export class Hound extends Ent implements Boss {
             g.shake(7, 30);
             g.audio.play('explode');
             // the cinder form brings down burning debris instead of stone
-            for (let i = 0; i < (this.phase === 2 ? 7 : 5); i++)
-              g.spawn(new EnemyShot(g, rand(40, g.room.W - 40), 24 + rand(0, 20), 0, 0.5, this.form === 2 ? 'fireball' : 'rock', 16, 0.14));
+            g.spawn(new Rockfall(g, this.phase === 2 ? 16 : 11, this.form === 2 ? 'fireball' : 'rock', 16, this.phase === 2 ? 80 : 90));
             this.set('stun');
           }
         }
@@ -207,9 +206,12 @@ export class Hound extends Ent implements Boss {
           g.audio.play('howl');
           g.shake(3, 50);
         }
-        if (this.pt === 50) {
-          const floor = g.room.H - 32;
-          for (const x of [40, g.room.W - 40]) {
+        if (this.pt === 50 || this.pt === 74) {
+          // a pair at a time, bounding in from the edges of the screen (from both sides, the
+          // second pair a little further in)
+          const floor = g.room.H - 32, v = g.view, W = g.room.W;
+          const inset = this.pt === 50 ? 20 : 56;
+          for (const x of [Math.max(40, v.camX + inset), Math.min(W - 40, v.camX + v.viewW - inset)]) {
             const d = new Dog(g, 'dog', x, floor);
             d.cool = 0;
             g.spawn(d);

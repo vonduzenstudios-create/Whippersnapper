@@ -27,7 +27,7 @@ Use `npm.cmd` on Windows PowerShell if `npm` is blocked. Python 3.14 is availabl
 - Sprites use `depthTest:false`. Layering is only `renderOrder` (wyrm 5 sits *below* tiles 6 on purpose).
 - All character art faces right.
 - Rooms must line up: doors on tile rows 8–11 (floor 12–13), vertical holes on columns 10–13.
-- Jump ≈ 75 px high, ≈ 115 px running. Keep platform steps ≤ 4 tiles. The Wisp Gallery grate climb depends on the grapple Up-boost.
+- Jump ≈ 75 px high, ≈ 115 px running. Keep platform steps ≤ 4 tiles. The grapple is CV4-style since 0.17.0 (hold ATTACK, let go to launch; a full swing peaks a little above the ring), so the Wisp Gallery grate climb now needs the Sinew Coil (`relic_sinew`, a rubber-band stretch-and-sling on the chain).
 - Rooms can be overridden by `src/world/room_edits.json`, which the map editor (F2 / `editor.html`) writes. If a room appears there, the JSON wins over its code in `rooms.ts`, including its position and size. Rooms made in the editor exist only in that file.
 - Enemies can be overridden or added (variants) by `src/game/enemy_edits.json`, written by `enemies.html`. Enemy classes take a `kind` (base or variant id) and must read speed/ranges/abilities through `num()`/`can()` so variants work.
 - Levers set persistent `Hunter.flags`. `RoomDef.gateFlag` / `drainFlag` open `G` tiles and drain water, `sealFlag` fills `N` tiles with snow. New `Hunter` fields need defaults so old saves still load.

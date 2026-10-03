@@ -107,6 +107,20 @@ export function buildItemSheet(): SheetBuilder {
     p.set(5, 7, hex('#d8dce8'));
     p.set(6, 5, hex('#d8dce8'));
   });
+  mk('sinew', (p) => {
+    // a coil of dark red sinew strung between two iron rings, stretched taut
+    p.circle(3, 3, 2.5, hex('#8a8ea0'));
+    p.clear(3, 3);
+    p.circle(12, 12, 2.5, hex('#8a8ea0'));
+    p.clear(12, 12);
+    for (let i = 0; i < 5; i++) {
+      const cx = 5 + i * 1.5, cy = 5 + i * 1.5;
+      p.circle(cx, cy, 2, hex('#7a2a24'));
+      p.set(Math.round(cx - 1), Math.round(cy - 1), hex('#c8605a'));
+    }
+    p.set(2, 1, hex('#d8dce8'));
+    p.set(11, 10, hex('#d8dce8'));
+  });
   mk('mantle', (p) => {
     // black feathered cloak with a gold clasp
     p.poly([[5, 2], [11, 2], [14, 14], [8, 12], [2, 14]], hex('#3a3260'));

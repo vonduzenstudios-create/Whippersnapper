@@ -1,4 +1,4 @@
-import { ITEMS, xpForLevel } from './data';
+import { ITEMS, WHIP_LEN, xpForLevel } from './data';
 import { SAVE_KEY } from '../config';
 import type { HeroId } from './story';
 
@@ -32,6 +32,7 @@ export class Hunter {
   _glide = false;
   _swim = false;
   _ward = false;
+  _elastic = false;
   relicOff: string[] = [];
   /** Chain Grapple */
   get grapple() { return this._grapple && !this.relicOff.includes('relic_grapple'); }
@@ -51,9 +52,12 @@ export class Hunter {
   /** Ashglass Ward (experimental) */
   get ward() { return this._ward && !this.relicOff.includes('relic_ward'); }
   set ward(v) { this._ward = v; }
+  /** Sinew Coil: stretch the grapple chain and sling off it */
+  get elastic() { return this._elastic && !this.relicOff.includes('relic_sinew'); }
+  set elastic(v) { this._elastic = v; }
   /** The relics found so far (item ids, in the order the RELICS page lists them), on or off. */
   get relicsFound() {
-    const found: [string, boolean][] = [['relic_grapple', this._grapple], ['relic_mantle', this._doubleJump], ['relic_greaves', this._slide], ['relic_shroud', this._glide], ['relic_pearl', this._swim], ['relic_ward', this._ward]];
+    const found: [string, boolean][] = [['relic_grapple', this._grapple], ['relic_sinew', this._elastic], ['relic_mantle', this._doubleJump], ['relic_greaves', this._slide], ['relic_shroud', this._glide], ['relic_pearl', this._swim], ['relic_ward', this._ward]];
     return found.filter(([, has]) => has).map(([id]) => id);
   }
   /** Switch a found relic on or off (the RELICS page). */
@@ -98,8 +102,9 @@ export class Hunter {
   get def() {
     return this.bonus('def') + this.con;
   }
+  /** The whip's reach: the same for every whip (WHIP_LEN). */
   get whipLen() {
-    return ITEMS[this.equip.whip].len || 56;
+    return WHIP_LEN;
   }
   /** Share of a blocked melee hit the equipped shield soaks up (0 = no shield). */
   get block() {
@@ -156,6 +161,7 @@ export class Hunter {
     }
     else if (it.slot === 'relic') {
       if (id === 'relic_grapple') this.grapple = true;
+      else if (id === 'relic_sinew') this.elastic = true;
       else if (id === 'relic_mantle') this.doubleJump = true;
       else if (id === 'relic_greaves') this.slide = true;
       else if (id === 'relic_shroud') this.glide = true;

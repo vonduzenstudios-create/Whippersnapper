@@ -78,7 +78,7 @@ function testHunter(hero: Hunter['hero']) {
   h.hp = h.maxHp = 999;
   h.hearts = h.maxHearts = 99;
   h.grapple = h.doubleJump = h.slide = true;
-  h.glide = h.swim = h.ward = true;
+  h.glide = h.swim = h.ward = h.elastic = true;
   h.subs = ['sub_holy', 'sub_cross', 'sub_knife'];
   h.sub = 'sub_knife';
   for (const id of ['shield_heater', 'shield_ossuary', 'shield_ashen', 'acc_rootstone']) h.owned.push(id);

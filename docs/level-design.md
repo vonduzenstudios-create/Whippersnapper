@@ -221,12 +221,12 @@ These were tuned by playtesting and scripted runs. Re-check them after changing 
 
 - Ossuary Shaft and Lair platforms: every tier must be reachable by jumping.
 - The Chasm: must be crossable with grapple rings.
-- Gallery of Wisps grate climb: needs the grapple Up-boost to reach the Corridor of Bones.
+- Gallery of Wisps grate climb: was built on the old grapple Up-boost (jump release), which 0.17.0 removed. It can be climbed with the Sinew Coil (catch the ring, hold Down to full stretch, let go: straight up through the hole onto the Corridor of Bones grate), but not with the plain chain. The user is redesigning rooms around the new chain.
 - Shattered Slope: the thin-ledge climb (rows 9 and 6) up the cliff, and the bridge at row 4 that dead-ends so you must drop through it. A scripted run cleared it.
 - Frostbite Hollow: a standing whip only reaches the bottom cracked block. An up-whip right next to the wall clears the whole column, which is what the sign teaches.
 - Double-jump gates (Courtyard ledge, Old Well top, Span high end, Rookery nest, Spire gable, Servants' shelf, Raven's Drop): must stay taller than one jump (~79 px) and within a double jump (~140 px), with nothing in between.
 - Slide gates (Hound Pit/Lodge tunnel, Frost Sluice, the Raven's Drop and Cistern pockets): exactly one tile high, and the pocket mouths sit at floor level. The Pit/Lodge tunnel covers the doorway column too, so you can't stand up between the rooms.
-- The Ringing Climb: each ring sits 2-4 rows below the landing it serves, close enough to reach from the landing below with the starting whip (tested with the leather whip).
+- The Ringing Climb (0.17.0): each climb is two rings. Jump from beside the hole and catch the low ring (column 10), swing and let go to fly up and catch the high ring on the far side, then swing and let go onto the landing. High rings at (18, 37), (5, 25), (4, 10). All three climbs were scripted with the leather whip; the release window is wide (θ 0.2–0.8).
 - Rampart Walk: keep its merlons clear of x 8-15, above the Courtyard ledge you jump up from.
 - Sky-cell ledge chains: the first step of the Pilgrim's Road and Cliffs chains is a double jump that only just lands (peak 13.9 rows for a row-14 ledge). Don't raise them. The Drawbridge facade pocket needs its 4-row mouth (rows 9-12) to be enterable from the ledge.
 - Library: the Clerk's Mezzanine ledge (row 4, 6 rows over the case top at row 10) is a double-jump gate: keep every other platform in that room at least 4 tiles away from it. The Undercroft vault is shut by one `B` column and must stay at the dead end past the hole (a vault block spanning floor to row 5 in the middle of the corridor walled the room in during the first draft). The Grand Staircase's hanging bookcases (rows 1-6) must stay clear of the jump from the row-8 stepping ledge to the row-4 ledge.

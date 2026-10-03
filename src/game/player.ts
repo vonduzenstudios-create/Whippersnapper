@@ -15,7 +15,36 @@ const ECHO_EVERY = 5; // frames between afterimages
 const JUMP_V = -7.1;
 const LINKS = 12;
 const SWING_G = 0.65; // pendulum gravity scale while hanging from a ring
-const SWING_MAX_V = 3.6; // px/frame along the swing arc
+const SWING_MAX_V = 4.8; // px/frame along the swing arc
+const SWING_PUMP = 0.06; // speed LEFT/RIGHT add along the arc each frame while the rope is taut
+// Reeling the chain in and out with UP/DOWN while hanging: about half the old range, eased
+// in and out, quick while hanging still and much slower in the middle of a swing
+const ROPE_MIN = 20; // shortest the chain reels in to
+const ROPE_MAX = 46; // longest it lets out to (a catch from further away winds in to this)
+const GRAB_REACH = 22; // a ring can be caught this far beyond the whip's length
+const REEL_FAST = 1.1; // px/frame reeling while hanging still...
+const REEL_SLOW = 0.18; // ...down to this in a big swing (70% of top swing speed or more)
+const REEL_EASE = 0.08; // how quickly the reel speeds up and slows down (px/frame, per frame)
+const REEL_WIND = 1.2; // px/frame a too-long catch winds in toward ROPE_MAX
+// JUMP on a ring lets go with a little hop along the way she's already moving
+const HOP_MUL = 1.02; // her speed is nudged up by this...
+const HOP_ADD = 2.1; // ...plus this much px/frame along her heading
+const HOP_UP = 2.7; // ...and a touch of lift, so it always feels like a hop
+const HOP_STILL = 5.2; // hanging still, a small hop straight up instead
+// Sinew Coil (relic): at full length, holding DOWN stretches the chain like a rubber band;
+// letting go of DOWN slings her toward the ring and off it
+const STRETCH_MAX = 32; // px the chain stretches past ROPE_MAX
+const STRETCH_RATE = 1.36; // px/frame stretching at first (slower the further it's stretched, and mid-swing)
+const STRETCH_DAMP = 0.95; // while stretching, the tension steadies her swing by this much a frame
+const STRETCH_COMMIT = 0.7; // past this share of STRETCH_MAX she's committed: letting go of DOWN or ATTACK slings her
+const STRETCH_EASE = 1.2; // px/frame the stretch eases back (holding UP, or let go of short of the commit point)
+const SLING_V = 12; // px/frame of sling: always full power, however far past the commit point
+const HAND_DY = 24; // while hanging, her middle sits this far below the hand on the chain
+const LAUNCH_MUL = 1.35; // letting go multiplies the swing's sideways speed by this...
+const LAUNCH_MAX_X = 4.8; // ...up to this
+const LAUNCH_KICK = 2.2; // ...and springs her up by this plus LAUNCH_UP x the swing's speed,
+const LAUNCH_UP = 1.2; // unless she's on the way down the arc
+const LAUNCH_MAX_Y = 8.4;
 const DANGLE_DMG = 0.15; // dangling chain is mostly for show: 15% of a normal strike
 const DJUMP_V = -6.2; // second jump (Raven Mantle): ~60 px on its own, ~140 px with the first jump
 const SLIDE_V = 4.4; // slide start speed (Frostrunner Greaves)
@@ -38,11 +67,12 @@ const FREE_GRACE = 60; // after breaking free, hands can't grab again for this l
 const ICE_SLOW = 0.5; // speed lost while fully chilled (half as much in the air)
 const ICE_THAW = 90; // frames off the ice for the chill (and the freeze timer) to wear off
 const ICE_FREEZE = 120; // frames on the ice (2 s) until she's frozen
-// Spikes: half her max HP, back to safe ground, and crippled for a while
+// Spikes: half her max HP, back to safe ground, down on one knee for a moment, then a limp
+// that eases off as she walks it out
 const SPIKE_DMG = 0.5; // share of max HP a spike takes
-const CRIPPLE_TIME = 600; // frames she's crippled after spikes (10 s)
-const CRIPPLE_NOJUMP = 300; // ...of which the first 5 s she can't jump at all
-const CRIPPLE_SLOW = 0.9; // speed lost while crippled (half as much in the air)
+const KNEEL_TIME = 60; // frames she stays crouched, hurting, after being put back (1 s)
+const CRIPPLE_TIME = 180; // frames the limp takes to wear off once she stands (3 s)
+const CRIPPLE_SLOW = 0.9; // speed lost the moment she stands, fading to nothing (half as much in the air)
 const ICE_MASH = 8; // presses to break out of the ice...
 const ICE_TIME = 150; // ...or it cracks open by itself after this long
 const TRIP_DOWN = 40; // frames she lies on her face after a Gravehand trips her...
@@ -63,7 +93,7 @@ const KNIFE_RELEASE = 3;
 const KNIFE_END = 9;
 const KNIFE_MAX = 3; // knives in the air at once
 
-type PState = 'normal' | 'attack' | 'hurt' | 'dash' | 'throw' | 'hang' | 'dead' | 'toot' | 'slide' | 'yank' | 'trip';
+type PState = 'normal' | 'attack' | 'hurt' | 'dash' | 'throw' | 'hang' | 'dead' | 'toot' | 'slide' | 'yank' | 'trip' | 'kneel';
 
 /**
  * Something that holds her in place (a Gravehand, a Devourer's bite). `released` is called
@@ -109,8 +139,11 @@ export class Player implements Body {
   ring: { x: number; y: number } | null = null;
   ropeLen = 0;
   theta = 0;
-  omega = 0;
   dropT = 0;
+  launched = false; // flying off a ring: the rise isn't cut short for not holding JUMP
+  reelV = 0; // how fast the chain is being reeled right now (+ = letting out)
+  stretch = 0; // Sinew Coil: px the chain is stretched past its full length
+  stuckT = 0; // frames she's been inside a wall (see the safety net in update)
   spikeT = 0;
   djumped = false; // used the double jump since last touching the ground
   spin = 0; // 0..1 progress of the double-jump somersault (0 = not spinning)
@@ -148,7 +181,7 @@ export class Player implements Body {
   onIce = false;
   chill = 0; // 0..1: 1 the moment she's on ice, wearing off over ICE_THAW frames once she's off it
   iceT = 0; // frames spent on ice, draining off it: she freezes at ICE_FREEZE
-  crippleT = 0; // frames left of the spike cripple (slow; no jumping for the first CRIPPLE_NOJUMP)
+  crippleT = 0; // frames left of the spike limp: the slow fades out with it
   /** What holds her when she's frozen solid (see freeze): breaking out shatters the ice. */
   private iceHold: Holder = {
     released: () => {
@@ -216,8 +249,12 @@ export class Player implements Body {
   }
 
   set(state: PState) {
+    const offRing = this.state === 'hang' && state !== 'hang';
     this.state = state;
     this.t = 0;
+    // the swing passes through walls, so however she comes off a ring (letting go, a hit,
+    // a grab, a room change), make sure she isn't left inside one
+    if (offRing) this.popOut();
   }
 
   update() {
@@ -266,9 +303,8 @@ export class Player implements Body {
     // slows bite fully on the ground and half as much in the air
     const air = this.onGround ? 1 : 0.5;
     const iceMul = 1 - ICE_SLOW * this.chill * air;
-    const crippleMul = this.crippleT > 0 ? 1 - CRIPPLE_SLOW * air : 1;
+    const crippleMul = 1 - CRIPPLE_SLOW * (this.crippleT / CRIPPLE_TIME) * air;
     const wmul = (this.inWater && !freeSwim ? 0.6 : 1) * (this.slowT > 0 ? SLOW_MUL : 1) * iceMul * crippleMul;
-    const noJump = this.crippleT > CRIPPLE_TIME - CRIPPLE_NOJUMP;
     const L = inp.down('left'), R = inp.down('right'), U = inp.down('up'), D = inp.down('down');
     const hdir = (R ? 1 : 0) - (L ? 1 : 0);
 
@@ -350,8 +386,6 @@ export class Player implements Body {
           this.crouch = false;
           this.setHeight(18);
           this.y += 2;
-        } else if (noJump && this.jumpBuf > 0 && !(this.inWater && !this.onGround)) {
-          this.jumpBuf = 0; // crippled: her legs won't take a jump yet
         } else if (this.jumpBuf > 0 && this.coyote > 0) {
           this.vy = JUMP_V * (this.inWater && !freeSwim ? 0.85 : 1);
           this.jumpBuf = 0;
@@ -364,7 +398,7 @@ export class Player implements Body {
           // swimming: jump strokes upward; with your head at the surface it's a full leap out
           // of the water (a little stronger than a jump, since you kick off the water)
           this.jumpBuf = 0;
-          if (this.y - this.hh <= room.water.y + 6 && !noJump) {
+          if (this.y - this.hh <= room.water.y + 6) {
             this.vy = JUMP_V * 1.1;
             g.audio.play('jump');
             g.fx.burst(this.x, room.water.y - 4, 'splash', 1, 0);
@@ -382,7 +416,8 @@ export class Player implements Body {
           g.audio.play('djump');
           g.fx.burst(this.x, this.bottom, 'puff', 3, 5, { vy: 0.6, life: 20, fade: true });
         }
-        if (!inp.down('jump') && this.vy < -2.5) this.vy = -2.5;
+        if (this.launched && (this.vy >= 0 || this.onGround)) this.launched = false;
+        if (!inp.down('jump') && this.vy < -2.5 && !this.launched) this.vy = -2.5;
         if (freeSwim && (U || D) && !this.crouch) {
           // Undertow Pearl: hold UP or DOWN to swim that way
           this.vy = approach(this.vy, U ? -FREE_SWIM_V : FREE_SWIM_V, 0.25);
@@ -506,7 +541,7 @@ export class Player implements Body {
         break;
       }
       case 'hang': {
-        this.updateHang(hdir, U, D);
+        this.updateHang(hdir);
         this.tickEchoes(); // let any afterimages fade while swinging
         return;
       }
@@ -517,6 +552,19 @@ export class Player implements Body {
       case 'toot':
         this.updateToot();
         break;
+      case 'kneel': {
+        // put back after the spikes: down on one knee, then up into the limp
+        this.vx = 0;
+        this.crouch = true;
+        this.setHeight(12);
+        if (this.t >= KNEEL_TIME) {
+          this.crouch = false;
+          this.setHeight(STAND_HH);
+          this.crippleT = CRIPPLE_TIME;
+          this.set('normal');
+        }
+        break;
+      }
       case 'trip': {
         // tripped by a Gravehand: pitched forward onto her face, then up again
         if (this.onGround) this.vx = approach(this.vx, 0, 0.15);
@@ -535,6 +583,14 @@ export class Player implements Body {
     if (this.holdT > 0) {
       this.vx = 0;
       this.vy = Math.max(this.vy, 0);
+    }
+
+    // safety net: if she's somehow ended up inside a wall for more than a moment, move her
+    // to the nearest open spot rather than leave her stuck
+    this.stuckT = this.overlapsSolid() ? this.stuckT + 1 : 0;
+    if (this.stuckT > 2) {
+      this.popOut();
+      this.stuckT = 0;
     }
 
     // physics
@@ -638,9 +694,9 @@ export class Player implements Body {
       this.x = this.lastSafe.x;
       this.y = this.lastSafe.y;
       this.vx = this.vy = 0;
-      this.set('normal');
+      this.set('kneel');
       this.invuln = 90;
-      this.crippleT = CRIPPLE_TIME;
+      this.crippleT = 0;
       g.damageNumber(this.x, this.y - 30, 'CRIPPLED', '#d08070');
     }
   }
@@ -853,7 +909,7 @@ export class Player implements Body {
     let bestD = Infinity;
     for (const r of g.rings) {
       const d = dist(hx, hy, r.x, r.y);
-      if (d > L + 32 || d < 8) continue;
+      if (d > L + GRAB_REACH || d < 8) continue;
       const ux = (r.x - hx) / d, uy = (r.y - hy) / d;
       const dot = ux * dx + uy * dy;
       if (d > 30 && dot < Math.cos((48 * Math.PI) / 180)) continue;
@@ -864,12 +920,12 @@ export class Player implements Body {
     }
     if (!best) return;
     this.ring = best;
-    const ax = this.x, ay = this.y - 24; // hanging hand point
-    this.ropeLen = clamp(Math.hypot(ax - best.x, ay - best.y), 8, L + 16);
-    this.theta = Math.atan2(ax - best.x, ay - best.y);
-    // carry momentum into the swing
-    const tvx = Math.cos(this.theta), tvy = -Math.sin(this.theta);
-    this.omega = clamp((this.vx * tvx + this.vy * tvy) / this.ropeLen, -0.12, 0.12);
+    // CV4: the chain locks at the length it caught at. If she's closer than that (or above the
+    // ring) it just goes slack, and she falls until it pulls taut; momentum carries straight in
+    this.ropeLen = Math.max(ROPE_MIN, dist(this.x, this.y - HAND_DY, best.x, best.y));
+    this.reelV = 0;
+    this.stretch = 0;
+    this.theta = Math.atan2(this.x - best.x, this.y - HAND_DY - best.y);
     this.set('hang');
     this.dangle = false;
     this.djumped = false; // catching a ring gives the double jump back
@@ -879,68 +935,236 @@ export class Player implements Body {
     g.fx.burst(best.x, best.y, 'spark', 1, 0);
   }
 
-  updateHang(hdir: number, U: boolean, D: boolean) {
+  /**
+   * Hanging from a ring, Super-CV4 style: hold ATTACK to hang on, let go to fly off with the
+   * swing's speed. The rope keeps the length it caught at. LEFT/RIGHT pump the swing.
+   *
+   * She swings freely, passing straight through walls and floors (on purpose: nothing snags
+   * the swing), and the rope only pulls: past its length she's pulled back onto the circle
+   * round the ring and loses the speed that would stretch it. Letting go inside a wall pops
+   * her out to the nearest open spot (see releaseRing).
+   */
+  updateHang(hdir: number) {
     const g = this.g, inp = g.input, ring = this.ring!;
-    const HAND_DY = 24; // body center sits this far below the hand
-    const Lr = this.ropeLen;
-    // angular pendulum: theta measured from straight down, + to the right
-    // SWING_G < 1 gives a slow, weighty arc; pumping with left/right adds a little energy
-    let alpha = -(GRAVITY / Math.max(Lr, 10)) * Math.sin(this.theta) * SWING_G;
-    if (hdir) {
-      const moving = Math.sign(this.omega) || hdir;
-      if (moving === hdir) alpha += hdir * 0.0016;
-      else alpha += hdir * 0.0008;
+    // past the commit point, letting go of ATTACK fires the sling instead of a plain release
+    if (!inp.down('attack')) return this.committed ? this.sling() : this.releaseRing();
+    if (inp.pressed('jump')) return this.hopOff();
+    this.reel(inp.down('up'), inp.down('down'));
+    if (this.stretchChain(inp.down('up'), inp.down('down'))) return;
+    const len = this.ropeLen + this.stretch; // the chain's full length right now
+    this.vy += GRAVITY * SWING_G;
+    let n = this.ropeDir(ring);
+    const taut = n.d >= len - 1;
+    if (taut && hdir) {
+      // pump along the swing (the tangent points +x at the bottom of the arc)
+      const tx = n.y, ty = -n.x;
+      this.vx += tx * hdir * SWING_PUMP;
+      this.vy += ty * hdir * SWING_PUMP;
     }
-    this.omega = (this.omega + alpha) * 0.995;
-    // cap the speed along the arc so short ropes can't whip around
-    const maxW = SWING_MAX_V / Math.max(Lr, 10);
-    this.omega = clamp(this.omega, -maxW, maxW);
-    const oldT = this.theta;
-    this.theta += this.omega;
-    if (Math.abs(this.theta) > 1.65) {
-      this.theta = Math.sign(this.theta) * 1.65;
-      this.omega *= -0.2;
-    }
-    if (U) this.ropeLen = Math.max(8, this.ropeLen - 1.5);
-    if (D) this.ropeLen = Math.min(g.hunter.whipLen + 16, this.ropeLen + 1.5);
-    const ox = this.x, oy = this.y;
-    this.x = ring.x + Math.sin(this.theta) * this.ropeLen;
-    this.y = ring.y + Math.cos(this.theta) * this.ropeLen + HAND_DY;
-    if (this.overlapsSolid()) {
-      // try keeping only the rope-length change, then give up and bounce
-      this.theta = oldT;
-      this.omega *= -0.3;
-      this.x = ring.x + Math.sin(this.theta) * this.ropeLen;
-      this.y = ring.y + Math.cos(this.theta) * this.ropeLen + HAND_DY;
-      if (this.overlapsSolid()) {
-        this.x = ox;
-        this.y = oy;
-        this.ropeLen = Lr;
+    this.vx *= 0.996;
+    this.vy *= 0.996;
+    // no collision on the rope: the swing passes straight through walls and floors
+    this.x += this.vx;
+    this.y += this.vy;
+    this.onGround = false;
+    // the rope pulls her back onto its circle and drops the speed that would stretch it
+    n = this.ropeDir(ring);
+    if (n.d > len) {
+      const over = n.d - len;
+      this.x -= n.x * over;
+      this.y -= n.y * over;
+      const out = this.vx * n.x + this.vy * n.y;
+      if (out > 0) {
+        this.vx -= n.x * out;
+        this.vy -= n.y * out;
       }
     }
-    // tangential velocity (used for release + animation)
-    const v = this.omega * this.ropeLen;
-    this.vx = Math.cos(this.theta) * v;
-    this.vy = -Math.sin(this.theta) * v;
-    this.facing = this.omega > 0.004 ? 1 : this.omega < -0.004 ? -1 : this.facing;
+    // cap the speed along the arc so short ropes can't whip around
+    const sp = Math.hypot(this.vx, this.vy);
+    if (sp > SWING_MAX_V) {
+      this.vx *= SWING_MAX_V / sp;
+      this.vy *= SWING_MAX_V / sp;
+    }
+    n = this.ropeDir(ring);
+    this.theta = Math.atan2(n.x, n.y);
+    if (Math.abs(this.vx) > 0.25) this.facing = this.vx > 0 ? 1 : -1;
     this.updateWhip();
-    if (inp.pressed('jump')) {
-      this.ring = null;
-      this.set('normal');
-      const boost = U ? 9.4 : 7.6;
-      this.vy = Math.max(Math.min(this.vy, 0) * 0.6 - boost, -11);
-      this.vx = clamp(this.vx * 1.35, -4.6, 4.6);
-      this.jumpBuf = 0;
-      g.audio.play('jump');
-    } else if (inp.pressed('attack') || inp.pressed('dash')) {
-      this.ring = null;
-      this.set('normal');
-    } else if (inp.pressed('sub') && this.paySub()) {
+    if (inp.pressed('sub') && this.paySub()) {
       // throw without letting go: aim with left/right, otherwise throw the way you're swinging
       if (hdir) this.facing = hdir;
       this.releaseSub(this.x + this.facing * 6, this.y - 6);
     }
     this.checkSpikes();
+  }
+
+  /**
+   * JUMP while hanging: she lets go with a little hop along the way she's already moving
+   * (barely more than letting go of ATTACK at that moment, never a pull toward the ring).
+   */
+  hopOff() {
+    const sp = Math.hypot(this.vx, this.vy);
+    this.ring = null;
+    this.set('normal');
+    this.popOut();
+    if (sp < 0.5) this.vy = -HOP_STILL;
+    else {
+      this.vx = this.vx * HOP_MUL + (this.vx / sp) * HOP_ADD;
+      this.vy = this.vy * HOP_MUL + (this.vy / sp) * HOP_ADD - HOP_UP;
+    }
+    this.stretch = 0;
+    this.launched = this.vy < 0;
+    this.jumpBuf = 0;
+    this.g.audio.play('jump');
+  }
+
+  /** The Sinew Coil is stretched past the commit point: letting go now slings her. */
+  get committed() {
+    return this.stretch >= STRETCH_MAX * STRETCH_COMMIT;
+  }
+
+  /**
+   * Sinew Coil: with the chain at full length, holding DOWN stretches it further, like a
+   * rubber band (harder the further it goes, and slower mid-swing, like reeling). Past the
+   * commit point (STRETCH_COMMIT) she's committed: letting go of DOWN (or of ATTACK, see
+   * updateHang) slings her toward the ring, off it and on past it, always at full power. Only JUMP (a hop off) or holding UP (letting the tension out) gets her out of
+   * it. Short of the commit point, letting go of DOWN just lets the band ease back.
+   * Returns true if she was slung off.
+   */
+  stretchChain(up: boolean, down: boolean) {
+    if (!this.g.hunter.elastic) {
+      this.stretch = 0;
+      return false;
+    }
+    if (up) {
+      // reeling in lets the tension out gently, never a sling
+      this.stretch = Math.max(0, this.stretch - STRETCH_EASE);
+      return false;
+    }
+    if (down && this.ropeLen >= ROPE_MAX - 0.01) {
+      const was = this.committed;
+      const swing = Math.min(1, Math.hypot(this.vx, this.vy) / SWING_MAX_V);
+      this.stretch = Math.min(STRETCH_MAX, this.stretch + STRETCH_RATE * (1 - 0.6 * (this.stretch / STRETCH_MAX)) * (1 - swing * 0.5));
+      // the pull of the band steadies her: the swing dies down, so a full stretch slings
+      // her more or less straight at the ring
+      this.vx *= STRETCH_DAMP;
+      this.vy *= STRETCH_DAMP;
+      if (this.animT % 10 === 0 && this.stretch > STRETCH_MAX * 0.15) this.g.audio.play('creak');
+      if (this.committed && !was) this.commitSparkle();
+      else if (this.committed && this.animT % 18 === 0) {
+        // a faint twinkle at the hand now and then while she holds it
+        const [hx, hy] = this.hand();
+        this.g.fx.burst(hx, hy, 'star', 1, 5, { vy: -0.2, life: 16, fade: true, glow: 0.6 });
+      }
+      return false;
+    }
+    if (!down && this.committed) {
+      this.sling();
+      return true;
+    }
+    this.stretch = Math.max(0, this.stretch - STRETCH_EASE); // short of the commit point: it eases back
+    return false;
+  }
+
+  /** The stretch just crossed the commit point: a little ring of sparkles round the whip's handle and a soft tingle. */
+  commitSparkle() {
+    const g = this.g, [hx, hy] = this.hand();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      g.fx.burst(hx + Math.cos(a) * 5, hy + Math.sin(a) * 5, 'star', 1, 0, { vx: Math.cos(a) * 0.5, vy: Math.sin(a) * 0.5 - 0.15, life: 22, fade: true, glow: 1 });
+    }
+    g.audio.play('tingle');
+  }
+
+  /** The stretched chain snaps back: she's flung toward the ring (and past it) and lets go. */
+  sling() {
+    const g = this.g, ring = this.ring!;
+    const n = this.ropeDir(ring); // from the ring to her hand
+    const v = SLING_V;
+    this.ring = null;
+    this.set('normal');
+    this.popOut();
+    // most of the sling, with a little of the swing she had
+    this.vx = -n.x * v + this.vx * 0.3;
+    this.vy = -n.y * v + this.vy * 0.3;
+    this.stretch = 0;
+    this.launched = true;
+    this.jumpBuf = 0;
+    if (Math.abs(this.vx) > 0.5) this.facing = this.vx > 0 ? 1 : -1;
+    g.audio.play('whip');
+    g.audio.play('djump');
+    g.fx.burst(ring.x, ring.y, 'spark', 2, 4);
+    g.fx.burst(this.x, this.bottom, 'puff', 3, 5, { vy: 0.6, life: 20, fade: true });
+  }
+
+  /**
+   * She let go of a ring while inside a wall or floor: move her to the nearest spot where she
+   * fits, searching outward a pixel ring at a time (up first at each distance, so she ends up
+   * on top of the floor she swung through rather than under it).
+   */
+  popOut() {
+    if (!this.overlapsSolid()) return;
+    const ox = this.x, oy = this.y;
+    for (let r = 2; r <= 64; r += 2) {
+      for (const [dx, dy] of [[0, -1], [-1, 0], [1, 0], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        this.x = ox + dx * r;
+        this.y = oy + dy * r;
+        if (!this.overlapsSolid()) return;
+      }
+    }
+    this.x = ox;
+    this.y = oy;
+  }
+
+  /**
+   * UP reels the chain in, DOWN lets it out, between ROPE_MIN and ROPE_MAX. The reel eases up
+   * to speed and back down, and the faster she's swinging the slower it goes (REEL_FAST when
+   * hanging still, REEL_SLOW at full swing). A catch from further than ROPE_MAX winds in to it
+   * by itself, so the chain never snaps short.
+   */
+  reel(up: boolean, down: boolean) {
+    if (this.stretch > 0) {
+      // a stretched Sinew Coil takes UP/DOWN instead (see stretchChain)
+      this.reelV = 0;
+      return;
+    }
+    // how big the swing is: the speed she'd have at the bottom of the arc (speed now plus the
+    // height she's risen above the bottom), so it doesn't speed up at the ends of each swing
+    const n = this.ropeDir(this.ring!);
+    const rise = Math.max(0, this.ropeLen + this.stretch - n.y * n.d);
+    const vBottom = Math.sqrt(this.vx * this.vx + this.vy * this.vy + 2 * GRAVITY * SWING_G * rise);
+    const swing = Math.sqrt(Math.min(1, vBottom / (SWING_MAX_V * 0.7))); // even a modest swing slows it a lot
+    const top = REEL_FAST + (REEL_SLOW - REEL_FAST) * swing;
+    const want = (down ? top : 0) - (up ? top : 0);
+    this.reelV = approach(this.reelV, want, REEL_EASE);
+    if (this.ropeLen > ROPE_MAX) this.ropeLen = Math.max(ROPE_MAX, this.ropeLen - REEL_WIND + Math.max(0, this.reelV));
+    else this.ropeLen = clamp(this.ropeLen + this.reelV, ROPE_MIN, ROPE_MAX);
+    if ((this.ropeLen === ROPE_MIN && this.reelV < 0) || (this.ropeLen === ROPE_MAX && this.reelV > 0)) this.reelV = 0;
+  }
+
+  /** Unit vector from the ring to her hand, and the distance. */
+  ropeDir(ring: { x: number; y: number }) {
+    const dx = this.x - ring.x, dy = this.y - HAND_DY - ring.y;
+    const d = Math.hypot(dx, dy) || 1;
+    return { x: dx / d, y: dy / d, d };
+  }
+
+  /**
+   * Let go of the ring: she flies off with the swing's speed. Let go near the bottom or on the
+   * way up and she springs off it, higher the faster she was swinging; on the way down she
+   * just drops away with it.
+   */
+  releaseRing() {
+    const sp = Math.hypot(this.vx, this.vy);
+    this.stretch = 0;
+    this.ring = null;
+    this.set('normal');
+    this.popOut();
+    this.vx = clamp(this.vx * LAUNCH_MUL, -LAUNCH_MAX_X, LAUNCH_MAX_X);
+    if (this.vy < 1 && !this.onGround) {
+      this.vy = Math.max(Math.min(this.vy, 0) - LAUNCH_KICK - sp * LAUNCH_UP * 0.5, -LAUNCH_MAX_Y);
+      this.launched = true; // keeps the full rise even though JUMP isn't held
+      if (sp > 2) this.g.audio.play('jump');
+    }
   }
 
   overlapsSolid() {
@@ -1383,7 +1607,8 @@ export class Player implements Body {
         else if (this.crouch) s.setFrame(A.crouch[0]);
         else if (!this.onGround) s.setFrame(this.vy < 0 ? A.jump[0] : A.fall[Math.floor(this.animT / 8) % 2]);
         else if (this.landT > 0) s.setFrame(A.land[0]);
-        else if (Math.abs(this.vx) > 0.1) pick('walk', this.inWater ? 7 : this.running ? 14 : 11);
+        else if (this.running && !this.inWater && Math.abs(this.vx) > WALK) pick('sprint', 16);
+        else if (Math.abs(this.vx) > 0.1) pick('walk', this.inWater ? 7 : 11);
         else pick('idle', 3);
         break;
       case 'attack': {
@@ -1408,6 +1633,9 @@ export class Player implements Body {
       case 'yank':
         s.setFrame(A.hurt[0]);
         break;
+      case 'kneel':
+        s.setFrame(A.crouch[0]);
+        break;
       case 'trip':
         // pitching forward, then flat on her face, then pushing herself up
         s.setFrame(this.t > TRIP_DOWN ? A.crouch[0] : this.onGround && this.t > 4 ? A.trip[1] : A.trip[0]);
@@ -1424,8 +1652,9 @@ export class Player implements Body {
         break;
       }
     }
-    // held: she strains against the grip
-    const strain = this.holdT > 0 && !this.frozen ? (this.animT % 4 < 2 ? -1 : 1) : 0;
+    // held: she strains against the grip (and against a stretched Sinew Coil)
+    const tense = this.state === 'hang' && this.committed; // she trembles once she's committed to the sling
+    const strain = (this.holdT > 0 && !this.frozen) || tense ? (this.animT % 4 < 2 ? -1 : 1) : 0;
     s.place(this.x + strain, this.bottom - 18, this.facing < 0);
     const blink = this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln / 3) % 2 === 0;
     s.opacity = blink ? 0.35 : 1;
@@ -1449,7 +1678,8 @@ export class Player implements Body {
       if (this.animT % Math.max(4, Math.round(16 - f * 12)) === 0) this.g.fx.burst(this.x, this.y, 'flake', 1, 7, { vy: -0.3, life: 22, fade: true });
     } else if (this.crippleT > 0) {
       // crippled by spikes: a bruised red cast, with dust scuffing up as she limps
-      s.tint(1.1, 0.72, 0.68);
+      const k = this.crippleT / CRIPPLE_TIME;
+      s.tint(1 + 0.1 * k, 1 - 0.28 * k, 1 - 0.32 * k);
       if (this.onGround && this.vx !== 0 && this.animT % 14 === 0) this.g.fx.burst(this.x, this.bottom - 2, 'dust', 1, 4, { life: 16, fade: true });
     } else s.tint(1, 1, 1);
     this.renderEchoes();
@@ -1462,7 +1692,9 @@ export class Player implements Body {
       l.visible = this.whipVisible && i < LINKS - 1;
       if (l.visible) {
         l.place(this.chain[i].x, this.chain[i].y);
-        if (fire) l.tint(1.4, 0.8, 0.5);
+        const k = this.state === 'hang' ? this.stretch / STRETCH_MAX : 0;
+        if (k > 0) l.tint(1 + 0.5 * k, 1 - 0.35 * k, 1 - 0.4 * k); // stretched taut: reddening
+        else if (fire) l.tint(1.4, 0.8, 0.5);
         else if (frost) l.tint(0.75, 1.05, 1.5);
         else l.tint(1, 1, 1);
       }

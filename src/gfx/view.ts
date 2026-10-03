@@ -14,6 +14,12 @@ export class View {
   stage: HTMLElement;
   camX = 0; // top-left of view in world pixels
   camY = 0;
+  /**
+   * How far the camera has pulled back: 1 = the z=0 plane maps 1:1 to screen pixels, 1.1 shows
+   * 10% more of the world each way. Only nudged a little (the Wyrm's fight), since anything off
+   * 1 scales the pixel art by an uneven amount.
+   */
+  zoom = 1;
   shakeX = 0;
   shakeY = 0;
   world = new THREE.Group(); // per-room content (backdrop + tiles)
@@ -49,17 +55,43 @@ export class View {
     this.stage.style.height = `${Math.floor(VH * scale)}px`;
   }
 
-  /** Position the camera so that the z=0 plane maps 1:1 to screen pixels. */
+  /** World pixels the view spans across and down (more than VW x VH when pulled back). */
+  get viewW() {
+    return VW * this.zoom;
+  }
+  get viewH() {
+    return VH * this.zoom;
+  }
+  /** Screen position of a world point (for the HUD). */
+  sx(x: number) {
+    return (x - this.camX) / this.zoom;
+  }
+  sy(y: number) {
+    return (y - this.camY) / this.zoom;
+  }
+
+  /** Position the camera so that the z=0 plane maps 1:1 to screen pixels (times the zoom). */
   applyCamera() {
-    const cx = Math.round(this.camX + this.shakeX) + VW / 2;
-    const cy = Math.round(this.camY + this.shakeY) + VH / 2;
-    this.camera.position.set(cx, -cy, CAM_DIST);
+    const z = this.zoom;
+    const cx = (z === 1 ? Math.round(this.camX + this.shakeX) : this.camX + this.shakeX) + this.viewW / 2;
+    const cy = (z === 1 ? Math.round(this.camY + this.shakeY) : this.camY + this.shakeY) + this.viewH / 2;
+    this.camera.position.set(cx, -cy, CAM_DIST * z);
     this.camera.lookAt(cx, -cy, 0);
   }
 
   render() {
     this.applyCamera();
+    // pulled back, everything is that much further away: push the fog back to match
+    const fog = this.scene.fog as THREE.Fog | null, push = CAM_DIST * (this.zoom - 1);
+    if (fog && 'near' in fog && push) {
+      fog.near += push;
+      fog.far += push;
+    }
     this.renderer.render(this.scene, this.camera);
+    if (fog && 'near' in fog && push) {
+      fog.near -= push;
+      fog.far -= push;
+    }
   }
 
   clearWorld() {

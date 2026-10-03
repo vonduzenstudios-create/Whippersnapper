@@ -285,7 +285,7 @@ export class Editor {
     h.hp = h.maxHp = 9999;
     h.hearts = h.maxHearts = 99;
     h.grapple = h.doubleJump = h.slide = true;
-    h.glide = h.swim = h.ward = true;
+    h.glide = h.swim = h.ward = h.elastic = true;
     h.subs = ['sub_holy', 'sub_cross'];
     h.sub = 'sub_holy';
     g.hunter = h;
@@ -1007,7 +1007,7 @@ export class Editor {
     if (e.code === 'F2') {
       e.preventDefault();
       if (this.active) this.play();
-      else if (g.state === 'play' && !g.cutscene && g.player.alive && g.deathT === 0 && g.victoryT === 0) this.enter();
+      else if (g.state === 'play' && !g.cutscene && g.player.alive && g.deathT === 0) this.enter();
       return;
     }
     if (!this.active) return;

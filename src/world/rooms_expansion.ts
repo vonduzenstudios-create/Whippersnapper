@@ -199,12 +199,14 @@ export function buildExpansionRooms(): RoomDef[] {
   {
     const b = new RB(1, 4);
     b.shell().hole('B', 0).door('L', 2).door('R', 1).door('R', 0);
-    // Each ring hangs below and beside the next landing: climb the chain to the top and
-    // jump (hold UP) to launch about 88 px above the ring, then drift onto the landing.
+    // Each climb is two rings, CV4 style: jump and catch the low ring by the hole, swing and
+    // let go to fly up to the high ring on the far side, then swing from that one and let go
+    // to land on the next landing.
     b.fill(1, 40, 8, 2); // landing by the Rookery door
     b.fill(13, 26, 10, 2); // landing by the Loft door
     b.fill(13, 12, 10, 2); // landing by the Great Belfry door
-    b.e(10, 44, 'O').e(10, 30, 'O').e(10, 16, 'O');
+    b.e(10, 44, 'O').e(10, 30, 'O').e(10, 16, 'O'); // low rings
+    b.e(18, 37, 'O').e(5, 25, 'O').e(4, 10, 'O'); // high rings
     b.e(3, 39, 'C').e(19, 25, 'C').e(19, 11, 'C');
     b.e(16, 36, 'y').e(6, 22, 'y').e(4, 8, 'b');
     R.push(b.build('belfryshaft', 'The Ringing Climb', 'belfry', 'belfry', 12, -4));

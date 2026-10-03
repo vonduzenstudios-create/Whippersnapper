@@ -3,11 +3,12 @@ import type { Game } from '../game/game';
 import { drawText, drawBigText, textWidth } from '../gfx/font';
 import { VW, VH, SCREEN_COLS, SCREEN_ROWS } from '../config';
 import { ITEMS, ENEMY, PICKUP_NAMES, dropChance, DIFFICULTIES, SHOP } from '../game/data';
+import { drawHud, HUD_STYLES, HudStyle, loadHudStyle, saveHudStyle } from './hud';
 import { Hunter } from '../game/stats';
 import { REBINDABLE, keyLabel, PAD_NAMES, Action, ACTION_LABEL } from '../core/input';
 import type { Sheet } from '../gfx/view';
 import { clamp } from '../core/util';
-import { INTRO, CINE, VICTORY_LINES, HEROES, HeroId, heroText, SPEAKERS, Line, Face } from '../game/story';
+import { INTRO, CINE, HEROES, HeroId, heroText, SPEAKERS, Line, Face } from '../game/story';
 import { ZONE_INFO } from '../world/rooms';
 import { startTest, testEntries, TestEntry } from '../game/test_chamber';
 
@@ -45,6 +46,8 @@ const TABS: { id: PauseTab; label: string }[] = [
 export class UI {
   ctx: CanvasRenderingContext2D;
   t = 0;
+  /** Which status display to draw (OPTIONS > HUD STYLE, see hud.ts). */
+  hudStyle: HudStyle = loadHudStyle();
   // title
   titleSel = 0;
   titleOpts: string[] = [];
@@ -166,11 +169,6 @@ export class UI {
     this.endT = 0;
     this.g.music.play('gameover');
   }
-  openVictory() {
-    this.g.state = 'victory';
-    this.endT = 0;
-    this.g.music.play('victory');
-  }
 
   // ================================================================ update
 
@@ -217,16 +215,6 @@ export class UI {
           const test = g.testRun && g.defs.find((d) => d.id === g.testRun);
           if (this.endSel === 0) test ? g.testRoom(test) : g.continueGame();
           else this.enterTitle();
-          inp.flush();
-        }
-        return;
-      case 'victory':
-        // the story continues: back into the lair, where the gate to the Undervault now stands open
-        this.endT++;
-        if (this.endT > 120 && inp.confirm) {
-          g.audio.play('confirm');
-          g.state = 'play';
-          g.message('THE GATE BEYOND THE LAIR STANDS OPEN', 200);
           inp.flush();
         }
         return;
@@ -521,10 +509,10 @@ export class UI {
       return;
     }
     if (tab === 'sound') {
-      // OPTIONS: music volume, effects volume, difficulty
+      // OPTIONS: music volume, effects volume, difficulty, HUD style
       if (inp.cancel) return back();
       if (inp.mUp || inp.mDown) {
-        this.sel = (this.sel + (inp.mDown ? 1 : 2)) % 3;
+        this.sel = (this.sel + (inp.mDown ? 1 : 3)) % 4;
         g.audio.play('menu');
       }
       const d = (inp.mRight ? 1 : 0) - (inp.mLeft ? 1 : 0);
@@ -532,7 +520,12 @@ export class UI {
         const vol = (v: number) => Math.max(0, Math.min(1, Math.round((v + d * 0.1) * 10) / 10));
         if (this.sel === 0) g.audio.setMusicVol(vol(g.audio.musicVol));
         else if (this.sel === 1) g.audio.setSfxVol(vol(g.audio.sfxVol));
-        else h.difficulty = clamp(h.difficulty + d, 0, DIFFICULTIES.length - 1);
+        else if (this.sel === 2) h.difficulty = clamp(h.difficulty + d, 0, DIFFICULTIES.length - 1);
+        else {
+          const n = HUD_STYLES.length, k = HUD_STYLES.findIndex((s) => s.id === this.hudStyle);
+          this.hudStyle = HUD_STYLES[(k + d + n) % n].id;
+          saveHudStyle(this.hudStyle);
+        }
         g.audio.play('menu');
       }
     }
@@ -638,7 +631,6 @@ export class UI {
     if (g.state === 'talk') this.drawTalk();
     if (g.state === 'shop') this.drawShop();
     if (g.state === 'gameover') this.drawGameOver();
-    if (g.state === 'victory') this.drawVictory();
     if (g.fade > 0) {
       c.fillStyle = `rgba(0,0,0,${g.fade})`;
       c.fillRect(0, 0, VW, VH);
@@ -657,7 +649,7 @@ export class UI {
     const g = this.g, c = this.ctx, h = g.hunter;
     // damage numbers
     for (const d of g.dmgNums) {
-      const x = d.x - g.view.camX, y = d.y - g.view.camY - Math.min(d.t, 20) * 0.6;
+      const x = g.view.sx(d.x), y = g.view.sy(d.y) - Math.min(d.t, 20) * 0.6;
       if (d.t > 40 && d.t % 4 < 2) continue;
       drawText(c, d.v, x, y, d.c, '#000', 'center');
     }
@@ -672,31 +664,7 @@ export class UI {
       c.fillRect(0, VH - 18, VW, 18);
       return this.drawBanner();
     }
-    // status frame
-    this.panel(4, 4, 122, 30, 0.75);
-    drawText(c, `LV${h.level}`, 9, 9, GOLD);
-    this.bar(34, 10, 86, 5, h.hp / h.maxHp, h.hp / h.maxHp < 0.25 && this.t % 30 < 15 ? '#ff6070' : '#d02040');
-    drawText(c, `${h.hp}/${h.maxHp}`, 120, 18, PALE, '#000', 'right');
-    // hearts
-    drawText(c, '@', 9, 21, '#e0203c');
-    drawText(c, String(h.hearts).padStart(2, '0'), 16, 21, PALE);
-    // gold, on a little tab under the frame
-    this.coin(9, 39);
-    drawText(c, String(h.gold), 16, 37, '#f0d060');
-    // xp bar
-    const prev = h.level > 1 ? Math.round(25 * Math.pow(h.level - 1, 1.75)) : 0;
-    this.bar(34, 27, 46, 2, (h.xp - prev) / (h.nextXp - prev), '#c8a040', '#201820');
-    // sub-weapon box
-    this.panel(128, 4, 24, 24, 0.75);
-    if (h.sub) this.icon(g.sheets.items, ITEMS[h.sub].icon, 132, 8);
-    if (h.subs.length > 1) {
-      // one pip per unlocked sub-weapon under the box; the selected one is lit
-      const n = h.subs.length, px0 = 140 - n * 2;
-      h.subs.forEach((id, i) => {
-        c.fillStyle = id === h.sub ? '#f0d070' : '#5a4a50';
-        c.fillRect(px0 + i * 4, 30, 3, 2);
-      });
-    }
+    drawHud({ ctx: c, items: g.sheets.items, t: this.t }, h, this.hudStyle);
     if (g.editor.standalone && g.state === 'play') drawText(c, 'TEST PLAY - F2 TO EDIT', VW - 6, 6, GOLD, '#000', 'right');
     this.drawBeaconArrows();
     // hint & messages
@@ -716,16 +684,14 @@ export class UI {
     this.drawBossBar();
   }
 
-  /** True if the boss on screen stands in the lower part of it: boss scene text goes up top instead. */
-  bossLow() {
-    const g = this.g, b = g.boss;
-    return !!b && b.y - g.view.camY > VH * 0.45;
-  }
-
-  /** The banner on screen, and whether it sits at the top (picked once as it appears, so it doesn't jump about). */
+  /**
+   * The big title across the screen. A boss's name fades in across the lower third while the
+   * camera shows it off (the camera keeps the boss in the top two thirds, see Game.updateCamera).
+   * A boss on the floor of its arena can't be lifted that high (the camera stops at the room's
+   * floor), so then the name goes up top instead. Picked once as it appears, so it doesn't jump.
+   */
   private bannerFor: object | null = null;
   private bannerTop = false;
-  /** The big title across the screen (a boss's name as its fight starts), on the side of the screen away from the boss. */
   drawBanner() {
     const g = this.g, c = this.ctx;
     if (g.banner.t > 0) {
@@ -733,9 +699,9 @@ export class UI {
       const h = g.banner.sub ? 40 : 30;
       if (this.bannerFor !== g.banner) {
         this.bannerFor = g.banner;
-        this.bannerTop = this.bossLow();
+        this.bannerTop = !!g.boss && g.view.sy(g.boss.y) > VH * 0.6;
       }
-      const y = !g.boss ? 74 : this.bannerTop ? 22 : VH - 22 - h;
+      const y = !g.boss ? 74 : this.bannerTop ? 24 : VH - 26 - h;
       c.globalAlpha = Math.max(0, a);
       c.fillStyle = 'rgba(0,0,0,0.5)';
       c.fillRect(0, y, VW, h);
@@ -749,7 +715,7 @@ export class UI {
   drawVignette() {
     const g = this.g, c = this.ctx, b = g.boss;
     if (!b) return;
-    const x = b.x - g.view.camX, y = b.y - g.view.camY;
+    const x = g.view.sx(b.x), y = g.view.sy(b.y);
     const grad = c.createRadialGradient(x, y, 30, x, y, 230);
     grad.addColorStop(0, 'rgba(20,0,6,0)');
     grad.addColorStop(1, 'rgba(24,0,6,0.85)');
@@ -761,10 +727,12 @@ export class UI {
     const g = this.g, c = this.ctx;
     const b = g.boss;
     if (b && b.showBar) {
-      this.panel(60, VH - 20, VW - 120, 16, 0.8);
+      // along the bottom with the classic HUD; along the top with the orbs, which hold the bottom-left
+      const y = this.hudStyle === 'classic' ? VH - 20 : 4;
+      this.panel(60, y, VW - 120, 16, 0.8);
       const lw = textWidth(b.label) + 10;
-      drawText(c, b.label, 66, VH - 15, GOLD);
-      this.bar(66 + lw, VH - 14, VW - 136 - lw, 5, Math.max(0, b.hp) / b.maxHp, b.phase === 2 ? '#ff7020' : '#c02030');
+      drawText(c, b.label, 66, y + 5, GOLD);
+      this.bar(66 + lw, y + 6, VW - 136 - lw, 5, Math.max(0, b.hp) / b.maxHp, b.phase === 2 ? '#ff7020' : '#c02030');
     }
   }
 
@@ -777,14 +745,14 @@ export class UI {
     for (const b of g.beacons) {
       if (b.dead) continue;
       const bob = Math.sin(this.t * 0.15) * 3;
-      let x = b.x - g.view.camX, y = b.y - g.view.camY - 22 + bob;
+      let x = g.view.sx(b.x), y = g.view.sy(b.y) - 22 + bob;
       const off = x < 8 || x > VW - 8 || y < 8 || y > VH - 8;
       x = clamp(x, 10, VW - 10);
       y = clamp(y, 40, VH - 14);
       c.fillStyle = this.t % 20 < 10 ? '#ffe070' : '#d8a030';
       if (off) {
         // a triangle pointing at the reward from the screen edge
-        const a = Math.atan2(b.y - g.view.camY - y, b.x - g.view.camX - x);
+        const a = Math.atan2(g.view.sy(b.y) - y, g.view.sx(b.x) - x);
         c.beginPath();
         c.moveTo(x + Math.cos(a) * 7, y + Math.sin(a) * 7);
         c.lineTo(x + Math.cos(a + 2.4) * 6, y + Math.sin(a + 2.4) * 6);
@@ -1046,10 +1014,7 @@ export class UI {
   drawTalk() {
     const g = this.g, c = this.ctx, T = g.talkState;
     if (!T) return;
-    // in a boss scene with the boss low on screen, the box moves up top (portraits hang
-    // below it at the sides) so it doesn't cover the boss
-    const top = g.bossShow && this.bossLow();
-    const line = T.lines[T.i], B = top ? { ...TALK_BOX, y: 24 } : TALK_BOX;
+    const line = T.lines[T.i], B = TALK_BOX;
     // who stands where: the hero on the left, whoever she is talking to on the right. Each
     // shows the face of their latest line so far (or of their first, before they've spoken).
     const faceOf = (left: boolean) => {
@@ -1061,14 +1026,14 @@ export class UI {
       const l = faceOf(left);
       if (!l) continue;
       const lit = l === line;
-      this.portrait(l.who, l.face || 'neutral', left ? B.x + 6 : B.x + B.w - 70, (top ? B.y + B.h + 2 : B.y - 58) - (lit ? 2 : 0), !left, lit);
+      this.portrait(l.who, l.face || 'neutral', left ? B.x + 6 : B.x + B.w - 70, B.y - 58 - (lit ? 2 : 0), !left, lit);
     }
     this.panel(B.x, B.y, B.w, B.h, 0.94);
     // the speaker's name plate, on their side of the box
     const left = SPEAKERS[line.who].side === 'left';
     const name = g.text(SPEAKERS[line.who].name), nw = textWidth(name) + 12;
     const nx = left ? B.x + 76 : B.x + B.w - 76 - nw;
-    const ny = top ? B.y + B.h - 4 : B.y - 9; // on the box's edge next to the portraits
+    const ny = B.y - 9; // on the box's edge next to the portraits
     this.panel(nx, ny, nw, 13, 1);
     drawText(c, name, nx + 6, ny + 3, GOLD);
     // the line so far
@@ -1444,7 +1409,12 @@ export class UI {
     drawText(c, (sel ? '> ' : '  ') + 'DIFFICULTY', x + 10, y + 74, sel ? PALE : DIM);
     drawText(c, `< ${diff.name} >`, x + 90, y + 74, sel ? GOLD : DIM);
     drawText(c, diff.desc, x + 22, y + 86, '#5a4a60');
-    drawText(c, 'LEFT / RIGHT TO ADJUST', x + 10, y + 110, DIM);
+    const hsel = this.focus === 'panel' && this.sel === 3;
+    const hud = HUD_STYLES.find((s) => s.id === this.hudStyle) || HUD_STYLES[0];
+    drawText(c, (hsel ? '> ' : '  ') + 'HUD STYLE', x + 10, y + 106, hsel ? PALE : DIM);
+    drawText(c, `< ${hud.name} >`, x + 90, y + 106, hsel ? GOLD : DIM);
+    drawText(c, hud.desc, x + 22, y + 118, '#5a4a60');
+    drawText(c, 'LEFT / RIGHT TO ADJUST', x + 10, y + 142, DIM);
   }
 
   // ---------------------------------------------------------------- map
@@ -1580,31 +1550,6 @@ export class UI {
         drawText(c, (sel ? '> ' : '  ') + o, VW / 2, 140 + i * 14, sel ? PALE : DIM, '#000', 'center');
       });
     }
-    c.globalAlpha = 1;
-  }
-
-  drawVictory() {
-    const c = this.ctx, h = this.g.hunter;
-    const a = Math.min(1, this.endT / 90);
-    c.fillStyle = `rgba(0,0,0,${0.75 * a})`;
-    c.fillRect(0, 0, VW, VH);
-    c.globalAlpha = a;
-    drawBigText(c, 'THE WYRM', VW / 2, 26, 3, GOLD, '#2a1408');
-    drawBigText(c, 'IS SLAIN', VW / 2, 52, 3, GOLD, '#2a1408');
-    this.panel(VW / 2 - 100, 86, 200, 82);
-    const rows: [string, string][] = [
-      ['CLEAR TIME', this.fmtTime(h.time)],
-      ['LEVEL', String(h.level)],
-      ['ENEMIES SLAIN', String(h.kills)],
-      ['CASTLE EXPLORED', `${this.explored()}%`],
-      ['ITEMS FOUND', String(h.collected.length)],
-    ];
-    rows.forEach((r, i) => {
-      drawText(c, r[0], VW / 2 - 90, 96 + i * 13, DIM);
-      drawText(c, r[1], VW / 2 + 90, 96 + i * 13, PALE, '#000', 'right');
-    });
-    VICTORY_LINES.forEach((l, i) => drawText(c, l, VW / 2, 176 + i * 11, i ? GOLD : PALE, '#000', 'center'));
-    if (this.endT > 120 && this.t % 60 < 40) drawText(c, 'PRESS CONFIRM TO CONTINUE', VW / 2, 208, DIM, '#000', 'center');
     c.globalAlpha = 1;
   }
 }

@@ -23,6 +23,8 @@ export interface Boss extends Ent {
   readonly showBar: boolean;
   /** True once its death animation has finished. */
   readonly gone: boolean;
+  /** How far the camera pulls back during the fight (1 = not at all; see View.zoom). */
+  readonly camZoom?: number;
 }
 
 export abstract class Ent {

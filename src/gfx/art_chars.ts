@@ -369,6 +369,26 @@ export function buildHeroSheet(st: Style = HERO): SheetBuilder {
       });
     }),
   );
+  // sprint (holding RUN): leaning hard into it, longer strides with the knees driving high,
+  // arms pumping, coat and hair streaming out behind, and a little bounce at each push-off
+  add(
+    'sprint',
+    [0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+      const t = (i / 8) * Math.PI * 2;
+      const s = Math.sin(t), c = Math.cos(t);
+      return STAND({
+        hy: 32 + (Math.abs(c) < 0.5 ? 0 : 1) - (Math.abs(s) > 0.9 ? 1 : 0),
+        lean: 16,
+        fl: [38 * s + 6, 14 + 50 * Math.max(0, c)],
+        bl: [-38 * s + 6, 14 + 50 * Math.max(0, -c)],
+        fa: [-48 * s + 20, 70],
+        ba: [48 * s + 4, 64],
+        coat: 6 + Math.abs(s) * 2,
+        scarf: i * 1.5,
+        hair: 3,
+      });
+    }),
+  );
   add('jump', [STAND({ hy: 30, lean: 4, fl: [50, 80], bl: [-5, 60], fa: [70, 40], ba: [-50, 30], coat: -2, hair: -1, scarf: 1 })]);
   add('fall', [0, 1].map((i) => STAND({ hy: 30, lean: 0, fl: [18, 22], bl: [-14, 12], fa: [120 + i * 10, 20], ba: [-120 - i * 10, 20], coat: 5, hair: 3, scarf: i * 2 })));
   add('crouch', [STAND({ hy: 37, lean: 18, fl: [72, 82], bl: [8, 92], fa: [40, 30], ba: [-10, 20], coat: 3 })]);

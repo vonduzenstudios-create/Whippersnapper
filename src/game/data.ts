@@ -16,7 +16,6 @@ export interface ItemDef {
   str?: number;
   con?: number;
   lck?: number;
-  len?: number; // whip reach in px
   fire?: boolean;
   frost?: boolean; // icy blue chain (looks only)
   heal?: number;
@@ -28,12 +27,15 @@ export interface ItemDef {
   noKnock?: boolean;
 }
 
+/** Every whip reaches the same distance (0.17.0): upgrades add damage and elements, not reach. */
+export const WHIP_LEN = 56;
+
 export const ITEMS: Record<string, ItemDef> = {
-  whip_leather: { id: 'whip_leather', name: 'Leather Whip', slot: 'whip', icon: 'whip', desc: 'A worn hunting whip.', atk: 6, len: 56 },
-  whip_iron: { id: 'whip_iron', name: 'Iron Chain', slot: 'whip', icon: 'whip', desc: 'Heavy linked iron. ATK+12', atk: 12, len: 64 },
-  whip_barbed: { id: 'whip_barbed', name: 'Barbed Chain', slot: 'whip', icon: 'whip', desc: 'Hooked barbs tear flesh. ATK+18', atk: 18, len: 68 },
-  whip_ember: { id: 'whip_ember', name: 'Ember Chain', slot: 'whip', icon: 'whip', desc: 'Forged in a dying star. Burns. ATK+26', atk: 26, len: 76, fire: true },
-  whip_rime: { id: 'whip_rime', name: 'Rime Chain', slot: 'whip', icon: 'whip', desc: 'Cooled in water that never moves. ATK+32', atk: 32, len: 80, frost: true },
+  whip_leather: { id: 'whip_leather', name: 'Leather Whip', slot: 'whip', icon: 'whip', desc: 'A worn hunting whip.', atk: 6 },
+  whip_iron: { id: 'whip_iron', name: 'Iron Chain', slot: 'whip', icon: 'whip', desc: 'Heavy linked iron. ATK+12', atk: 12 },
+  whip_barbed: { id: 'whip_barbed', name: 'Barbed Chain', slot: 'whip', icon: 'whip', desc: 'Hooked barbs tear flesh. ATK+18', atk: 18 },
+  whip_ember: { id: 'whip_ember', name: 'Ember Chain', slot: 'whip', icon: 'whip', desc: 'Forged in a dying star. Burns. ATK+26', atk: 26, fire: true },
+  whip_rime: { id: 'whip_rime', name: 'Rime Chain', slot: 'whip', icon: 'whip', desc: 'Cooled in water that never moves. ATK+32', atk: 32, frost: true },
   // shields (off hand): hold SHIELD to raise one. Only the buckler is given out so far;
   // the others exist but aren't placed in the world yet.
   shield_buckler: { id: 'shield_buckler', name: 'Wooden Buckler', slot: 'shield', icon: 'shieldWood', look: 'wood', desc: 'Oak rimmed in iron. Blocks 50% of melee.', block: 0.5 },
@@ -64,6 +66,7 @@ export const ITEMS: Record<string, ItemDef> = {
   str_up: { id: 'str_up', name: 'Might Seed', slot: 'max', icon: 'strUp', desc: 'STR +1 for good' },
   con_up: { id: 'con_up', name: 'Ward Seed', slot: 'max', icon: 'conUp', desc: 'CON +1 for good' },
   relic_grapple: { id: 'relic_grapple', name: 'Chain Grapple', slot: 'relic', icon: 'relic', desc: 'Whip iron rings to swing.' },
+  relic_sinew: { id: 'relic_sinew', name: 'Sinew Coil', slot: 'relic', icon: 'sinew', desc: 'On a ring, hold DOWN to stretch the chain; let go to sling off.' },
   relic_mantle: { id: 'relic_mantle', name: 'Raven Mantle', slot: 'relic', icon: 'mantle', desc: 'Jump again in midair.' },
   relic_greaves: { id: 'relic_greaves', name: 'Frostrunner Greaves', slot: 'relic', icon: 'greaves', desc: 'Down + dash to slide.' },
   // experimental relics (0.4.0): not placed in the world yet, try them in the test chamber (#test)

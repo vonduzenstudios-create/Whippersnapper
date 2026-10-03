@@ -3,14 +3,14 @@
 //   swoop    - screeches from one side of the belfry, then dives across at your height
 //   feathers - three fans of feather darts from above
 //   toll     - rings the great bell: shockwaves roll in from both walls along the floor
-//              (twice, with falling masonry, below half HP)
+//              (twice, each bringing down a rain of masonry, below half HP)
 //   rage     - at half HP (a scene): she shrieks and rings the bell with her own body, twice
-//   summon   - below half HP: calls two harpies
+//   summon   - below half HP: calls four harpies in from the edges of the screen
 import { Sprite } from '../gfx/view';
 import { Ent, HitKind, Boss } from './ent';
 import type { Game } from './game';
 import { ENEMY } from './data';
-import { EnemyShot } from './objects';
+import { EnemyShot, Rockfall } from './objects';
 import { Harpy, Shockwave } from './enemies_expansion';
 import { clamp, rand, sign } from '../core/util';
 
@@ -176,7 +176,7 @@ export class BellMother extends Ent implements Boss {
             g.fadeFlash = 8;
             g.spawn(new Shockwave(g, 28, this.floorY, 2.3 * fast, 18, 400));
             g.spawn(new Shockwave(g, W - 28, this.floorY, -2.3 * fast, 18, 400));
-            if (this.phase === 2) for (let i = 0; i < 5; i++) g.spawn(new EnemyShot(g, rand(40, W - 40), 24 + rand(0, 20), 0, 0.5, 'rock', 16, 0.14));
+            if (this.phase === 2) g.spawn(new Rockfall(g, 10, 'rock', 16, 60));
           }
         }
         if (this.pt > 50 + rings * 70 + 30) this.pick('hover');
@@ -207,11 +207,14 @@ export class BellMother extends Ent implements Boss {
         this.steer(W / 2, 90, 2);
         frame = A.cast[0];
         if (this.pt === 20) g.audio.play('screech');
-        if (this.pt === 50)
-          for (const x of [60, W - 60]) {
-            g.spawn(new Harpy(g, 'harpy', x, 60));
-            g.fx.burst(x, 60, 'smoke', 4, 10, { vy: -0.4, fps: 8, life: 40 });
+        if (this.pt === 50) {
+          const v = g.view, top = v.camY + 40;
+          const l = Math.max(40, v.camX + 24), r = Math.min(W - 40, v.camX + v.viewW - 24);
+          for (const [x, y] of [[l, top], [r, top], [l + 40, top + 36], [r - 40, top + 36]]) {
+            g.spawn(new Harpy(g, 'harpy', x, y));
+            g.fx.burst(x, y, 'smoke', 4, 10, { vy: -0.4, fps: 8, life: 40 });
           }
+        }
         if (this.pt > 80) this.pick('hover');
         break;
       case 'dying': {
