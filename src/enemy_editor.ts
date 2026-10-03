@@ -20,6 +20,7 @@ import { buildSerpentSheet } from './gfx/art_depths';
 import { buildLeviathanSheet, buildGorgonSheet, buildColossusSheet, buildYetiSheet, buildArchivistSheet } from './gfx/art_bosses2';
 import { TEST_EDITS_KEY } from './config';
 import { TRIAL_ART, trialSheet } from './gfx/art_trials';
+import { MINI_ART, miniSheet } from './gfx/minis';
 import {
   buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet,
   buildHookjawSheet, buildDevourerSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet, buildMothSheet,
@@ -72,8 +73,20 @@ Object.assign(BOSS_SHEETS, {
 });
 // the ten trial bosses (0.27.0): big puppet sheets, so each is only drawn when first selected
 for (const id of Object.keys(TRIAL_ART)) Object.defineProperty(BOSS_SHEETS, id, { enumerable: true, get: () => trialSheet(id)! });
+// the mini-bosses (0.31.0): big puppet sheets too, drawn only when first selected
+const BASE_SET = new Set(Object.values(BASE_SHEETS)); // every base sheet built so far (so a recolor of one can be told apart)
+for (const id of Object.keys(MINI_ART))
+  Object.defineProperty(BASE_SHEETS, id, {
+    enumerable: true,
+    get: () => {
+      const s = miniSheet(id)!;
+      BASE_SET.add(s);
+      return s;
+    },
+  });
 const PALETTES: Record<string, { hex: string; count: number }[]> = {};
-for (const [k, s] of Object.entries(BASE_SHEETS)) PALETTES[k] = sheetColors(s);
+/** A base enemy's colors (worked out the first time they are needed). */
+const palette = (base: string) => (PALETTES[base] ||= sheetColors(BASE_SHEETS[base]));
 
 /** Things an enemy can drop: heart and meat pickups, and every item except relics. */
 const DROP_OPTIONS: [string, string][] = [
@@ -337,7 +350,7 @@ function drawBossForm() {
 
 function colorSection(base: string) {
   const sec = section('Colors');
-  const pal = PALETTES[base];
+  const pal = palette(base);
   const grid = el('div', { className: 'swatches' });
   const pickers: HTMLInputElement[] = [];
   const colors = () => current(sel).colors || {};
@@ -392,7 +405,7 @@ let shownSheet: { key: string; sheet: Sheet } | null = null;
 function sheetFor(id: string) {
   const st = current(id), base = baseOf(id), key = id + JSON.stringify(st.colors || {});
   if (shownSheet?.key !== key) {
-    if (shownSheet && !Object.values(BASE_SHEETS).includes(shownSheet.sheet)) shownSheet.sheet.tex.dispose();
+    if (shownSheet && !BASE_SET.has(shownSheet.sheet)) shownSheet.sheet.tex.dispose();
     const cols = st.colors || {};
     shownSheet = { key, sheet: Object.keys(cols).length ? recolorSheet(BASE_SHEETS[base], cols) : BASE_SHEETS[base] };
   }

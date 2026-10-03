@@ -267,6 +267,17 @@ Update this file when you verify something or finish a listed item.
 - Verified by script in the browser: all five run 1,500 frames and die cleanly with no console errors; the Leviathan's well drains to the floor as it dies.
 - Left as it is: "run up the wedged blade" (from the Colossus pitch) was not built, since nothing in the engine lets the hero stand on a sprite; wedged, he bends into whip reach instead. Nobody has listened to the `bell` sound or tuned damage (left to the user).
 
+## Mini-bosses (0.31.0)
+
+- Built: all ten (art, AI, data, spawn letters `0`-`9`, enemy-editor knobs, lazy sheets in the game and the editor). The Ferryman and the Antlered Ghoul are new puppets; the Brute's head was redrawn forward of its shoulder with a brow and a jaw.
+- Verified by script in the browser's test chamber: each runs 3,000 frames using every one of its states with no console errors, and dies cleanly. Checked one by one: the Headsman's cage catches and reels you in (and mashing frees you), the Unhelmed staggers when his head is whipped back, the Brute's grab slams you or reels when you mash free, the Gargoyle takes no damage as stone and switches to its cracked sheets, the Ferryman's blow takes 3 hearts and heals him, the Ghoul's scream slows you, the Warden's puddle poisons, the Lycan clings to a wall and kicks off, the Bull's toss throws you up.
+- Fixed on the way: the Mawtoad's tongue never dragged the hero in (it hurt her first, and a hurt hero can't be yanked).
+- Not done: none of them is placed in a room, nobody has played them by hand, and HP / damage are untuned (left to the user).
+
+## On hold: NEW GAME + follow-ups
+
+Paused by the user (2026-10-03), no plans to continue for now: the abbey's seven empty boss chambers, something for the Ashglass Ward to unlock (the sealed Lamp chamber), the abbey's own music, and a hand playtest of its 120 rooms (`npm run check:abbey` after any change).
+
 ## Known rough edges
 
 - The moon halo shows visible color banding.

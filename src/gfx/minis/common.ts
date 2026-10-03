@@ -1,4 +1,4 @@
-// What the ten mini-bosses' art shares (0.28.0): common materials, a seeded random, and the
+// What the ten mini-bosses' art shares (0.31.0): common materials, a seeded random, and the
 // small props sheet each one keeps for its projectiles.
 //
 // Each mini-boss is a puppet (see ../puppet.ts): a Build, a draw function for one Pose, and

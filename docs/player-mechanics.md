@@ -155,6 +155,23 @@ Not placed in any room yet. Try them with the enemy editor's TEST button, or pla
 | `u` | Grave Grub | Untouchable mound under the floor that creeps toward you. Right under you it trembles (26 frames), then bursts up (hostile) and lands stranded for `GRUB_STRANDED` (110) frames, taking 1.5× damage. Then, with `evolve` on (0.16.0), it spins a cocoon (harmless, still 1.5× damage) that hatches three Grave Moths after `GRUB_COCOON` (100) frames; with it off, it digs back down (`burrow`) | `burrow`, `evolve` |
 | `f` | Grave Moth | Hatched from a grub's cocoon, three at a time (0.16.0), or placed. 8 HP. Flutters at you in jittery zigzags (steering plus a random sideways jitter), bouncing off walls; within 90 px it sometimes darts straight at you (`dive`, 28 frames). It isn't `hostile`: when it touches you it bursts (`burst`): its ATK as damage, then `Player.poison` (2 HP every 30 frames for 300 frames by default; it never takes the last HP; the hero turns green) | `poison`, `poisonTime` |
 
+### Mini-bosses (`game/minis/`, 0.31.0)
+
+Ten big enemies, in the enemy editor and TEST ENEMY but in no room yet (entity letters `0`-`9`). They are `MiniBoss`es (`game/minis/kit.ts`, on `Enemy`): heavy (blows don't push them), a state machine of telegraphed attacks, no phases, no health bar. Each attack is a switch in the enemy editor, and speed / sight / cooldown are knobs as usual. Art: `gfx/minis/` (`MINI_ART`), drawn the first time one is needed. Stats are first guesses (150-280 HP), left for tuning.
+
+| Enemy | Letter | Attacks |
+|---|---|---|
+| The Headsman | `0` | Axe chop that sticks in the floor for a second (punish him); a gibbet cage hurled on a chain (caught: mash or be reeled in and chopped; `mash` knob); a shoulder barge (the shield blocks it) |
+| Moonrot Lycan | `1` | Gallops on all fours, two-hit rake; leaps (into a wall it clings, then kicks off back at you); shackle-chain lash at mid range |
+| The Unhelmed | `2` | Bowls his head along the floor; while it rolls he is blind and swings at the last noise you made (moving, jumping, striking). Whip the head back into him: he staggers. Sword slash up close |
+| Ossified Bull | `3` | Paws, then charges (into a wall: dazed; it stops at ledges); maul slam that throws bone shards out of the floor; an uppercut that tosses you |
+| Rookery Gargoyle | `4` | Leaps, turns to stone and drops (rubble skids both ways); stone, it can't be hurt until it wakes; tail stab, front or behind. Cracks as it is hurt (`_1`/`_2` sheets) |
+| Plague Warden | `5` | Keeps his distance; lobbed vials leave poison puddles; a lingering choke cloud; a three-cut bone saw up close |
+| The Sanguine Duchess | `6` | Blood lash (its hitbox follows the lash); bursts into bats and re-forms behind you; a running line of blood spikes |
+| Stitchwork Brute | `7` | Punches a crawl of lightning along the floor; rips up and throws masonry (it breaks into rocks); grabs, lifts you overhead and slams you unless you mash free (then it reels; `mash` knob) |
+| The Ferryman | `8` | Oar sweep that covers the air above him; lantern flames that drift after you (whip to pop); every blow he lands takes 3 hearts and mends him |
+| Antlered Ghoul | `9` | Skitters erratically; leaps; three-slash rake; a scream that slows you for 3 s up close |
+
 ### Gallows Spider (`game/enemies_spider.ts`, 0.10.0)
 
 Not placed in any room yet.

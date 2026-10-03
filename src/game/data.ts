@@ -148,6 +148,8 @@ export interface TuneField {
 }
 const SPEED: TuneField = { key: 'speed', label: 'Move speed', kind: 'num', help: '1 = normal, 0.5 = half speed' };
 const SIGHT: TuneField = { key: 'sight', label: 'Sight range', kind: 'num', help: 'How far away it notices you (1 = normal)' };
+/** How many presses break a grab (a count, not a multiplier). */
+const MASH = (def: number, label: string): TuneField => ({ key: 'mash', label, kind: 'num', def, step: 1, min: 1, help: 'Left, right or jump presses it takes' });
 const COOL: TuneField = { key: 'cooldown', label: 'Attack cooldown', kind: 'num', help: 'Time between attacks (2 = attacks half as often)' };
 /** The behavior knobs each base enemy understands (read by enemies.ts). */
 export const ENEMY_TUNING: Record<string, TuneField[]> = {
@@ -218,6 +220,47 @@ export const ENEMY_TUNING: Record<string, TuneField[]> = {
   spider: [SPEED, SIGHT, COOL,
     { key: 'spit', label: 'Spits webs', kind: 'bool', help: 'Spits a web glob that slows you while it hangs on its thread' },
     { key: 'climb', label: 'Climbs back up', kind: 'bool', help: 'Climbs its thread back to the ceiling after a while. Off: it stays down' }],
+  // the mini-bosses (0.31.0), see game/minis/: bigger, heavier enemies with a few attacks each
+  headsman: [SPEED, SIGHT, COOL,
+    { key: 'chop', label: 'Axe chop', kind: 'bool', help: 'A heavy chop in front of him. The axe sticks in the floor for a second after (strike him then)' },
+    { key: 'cage', label: 'Cage on a chain', kind: 'bool', help: 'Hurls a gibbet cage. If it catches you he reels you in and chops' },
+    { key: 'barge', label: 'Shoulder barge', kind: 'bool', help: 'Charges you shoulder first (the shield blocks it)' },
+    MASH(8, 'Presses to break out of the cage')],
+  lycan: [SPEED, SIGHT, COOL,
+    { key: 'leap', label: 'Leaps', kind: 'bool', help: 'Leaps at you. A leap into a wall clings to it and kicks off back at you' },
+    { key: 'lash', label: 'Chain lash', kind: 'bool', help: 'Swings the shackle chain on its wrist at mid range' }],
+  unhelmed: [SPEED, SIGHT, COOL,
+    { key: 'bowl', label: 'Bowls his head', kind: 'bool', help: 'Rolls his head along the floor. While it is gone he is blind and swings at wherever you last made a noise. Whip the head back at him and he staggers' },
+    { key: 'slash', label: 'Sword slash', kind: 'bool', help: 'A sweep of the sword up close' }],
+  bull: [SPEED, SIGHT, COOL,
+    { key: 'charge', label: 'Charges', kind: 'bool', help: 'Paws the floor, then charges. Into a wall it crashes and is dazed' },
+    { key: 'slam', label: 'Maul slam', kind: 'bool', help: 'The floor bursts: bone shards thrown out in a fan ahead of the blow' },
+    { key: 'toss', label: 'Uppercut', kind: 'bool', help: 'Tosses you up when you are close in front' }],
+  gargoyle: [SPEED, SIGHT, COOL,
+    { key: 'dive', label: 'Stone drop', kind: 'bool', help: 'Leaps, turns to stone and drops on you; rubble skids out both ways. Stone, it cannot be hurt until it wakes' },
+    { key: 'stab', label: 'Tail stab', kind: 'bool', help: 'Its spade tail stabs up close, or behind it if you get round it' }],
+  warden: [SPEED, SIGHT, COOL,
+    { key: 'vials', label: 'Poison vials', kind: 'bool', help: 'Lobs vials that burst into poison puddles' },
+    { key: 'saw', label: 'Bone saw', kind: 'bool', help: 'Three quick cuts when you come close' },
+    { key: 'vent', label: 'Choke cloud', kind: 'bool', help: 'A cloud of smoke hangs round him for a while: it poisons you while you stay in it' },
+    { key: 'poisonTime', label: 'Poison length', kind: 'num', help: 'How long the poison lasts (1 = 4 s)' }],
+  duchess: [SPEED, SIGHT, COOL,
+    { key: 'lash', label: 'Blood lash', kind: 'bool', help: 'A lash of blood at mid range' },
+    { key: 'bats', label: 'Bursts into bats', kind: 'bool', help: 'Vanishes into bats and re-forms behind you for a lash' },
+    { key: 'spikes', label: 'Blood spikes', kind: 'bool', help: 'A line of spikes rising one after another toward you' }],
+  brute: [SPEED, SIGHT, COOL,
+    { key: 'arc', label: 'Floor lightning', kind: 'bool', help: 'Punches the floor: a crawl of lightning runs along it at you' },
+    { key: 'throw', label: 'Throws masonry', kind: 'bool', help: 'Rips up a block and hurls it; it breaks into rocks where it lands' },
+    { key: 'grab', label: 'Grabs', kind: 'bool', help: 'Catches you, lifts you overhead and slams you down unless you mash free first (then it reels, open)' },
+    MASH(10, 'Presses to tear free of its grip')],
+  ferryman: [SPEED, SIGHT, COOL,
+    { key: 'sweep', label: 'Oar sweep', kind: 'bool', help: 'A wide arc of the oar that also covers the air above him' },
+    { key: 'flames', label: 'Lantern flames', kind: 'bool', help: 'Three slow flames drift after you for a while. Whip them to pop them' },
+    { key: 'toll', label: 'Takes the toll', kind: 'bool', help: 'Every blow he lands takes 3 of your hearts and mends him a little' }],
+  ghoul: [SPEED, SIGHT, COOL,
+    { key: 'leap', label: 'Leaps', kind: 'bool', help: 'Crouches and springs at you' },
+    { key: 'rake', label: 'Claw rake', kind: 'bool', help: 'Three slashes, stepping in with each' },
+    { key: 'scream', label: 'Scream', kind: 'bool', help: 'Rears up and screams: up close it slows you for 3 s' }],
 };
 /** Base enemies the editor can make variants of (not the boss). */
 export const BASE_ENEMIES = Object.keys(ENEMY_TUNING);
@@ -225,6 +268,8 @@ export const BASE_ENEMIES = Object.keys(ENEMY_TUNING);
 export const ENEMY_LETTER: Record<string, string> = {
   zombie: 'z', bat: 'b', knight: 'k', skeleton: 's', wisp: 'w', drowned: 'd', dog: 'g', harpy: 'y', wraith: 'r', crawler: 'c',
   hookjaw: 'h', eel: 'e', caster: 'm', ooze: 'o', grub: 'u', hand: 'x', tome: 't', chair: 'a', librarian: 'l', spider: 'p', devourer: 'v', moth: 'f', serpent: 'q',
+  // the mini-bosses use the digits (there are no letters left)
+  headsman: '0', lycan: '1', unhelmed: '2', bull: '3', gargoyle: '4', warden: '5', duchess: '6', brute: '7', ferryman: '8', ghoul: '9',
 };
 
 /** Every knob of a base enemy at its normal value. */
@@ -290,6 +335,56 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
     hp: 60, atk: 16, def: 3, xp: 22, name: 'Hookjaw', portrait: 'walk',
     desc: 'A gaoler in a rusted iron muzzle. It flings a chain hook to drag prey to its cleaver. Whip the hook out of the air.',
     drops: [{ item: 'heartB', chance: 12 }, { item: 'meat', chance: 8 }, { item: 'potion', chance: 5 }],
+  },
+  headsman: {
+    hp: 240, atk: 24, def: 4, xp: 120, name: 'The Headsman', portrait: 'idle', test: true,
+    desc: 'He keeps the old gallows yard. His axe comes down hard enough to bite into the floor, and while he hauls it out his back is yours. He hurls a gibbet cage on a chain: caught, you are reeled in to the block.',
+    drops: [{ item: 'heartB', chance: 60 }, { item: 'potion', chance: 30 }, { item: 'elixir', chance: 8 }],
+  },
+  lycan: {
+    hp: 190, atk: 22, def: 2, xp: 110, name: 'Moonrot Lycan', portrait: 'idle', test: true,
+    desc: 'A wolf that remembers being chained. It runs you down on all fours, leaps, and if a wall gets in its way it clings to it and comes back off it at you. The shackle chain on its wrist reaches further than it looks.',
+    drops: [{ item: 'heartB', chance: 60 }, { item: 'potion', chance: 30 }, { item: 'elixir', chance: 8 }],
+  },
+  unhelmed: {
+    hp: 220, atk: 23, def: 5, xp: 115, name: 'The Unhelmed', portrait: 'idle', test: true,
+    desc: 'A knight who carries his own head in a lantern, and bowls it at you. While it rolls he is blind and swings at any sound you make. Stand still. Better: whip the head back into him.',
+    drops: [{ item: 'heartB', chance: 60 }, { item: 'potion', chance: 30 }, { item: 'elixir', chance: 8 }],
+  },
+  bull: {
+    hp: 280, atk: 26, def: 5, xp: 140, name: 'Ossified Bull', portrait: 'idle', test: true,
+    desc: 'Crypt bones bound in iron round a coal of a heart. It paws once, then charges the whole room; if it meets a wall it stands dazed. Its maul cracks the floor and throws up bone.',
+    drops: [{ item: 'heartB', chance: 60 }, { item: 'potion', chance: 30 }, { item: 'elixir', chance: 8 }],
+  },
+  gargoyle: {
+    hp: 180, atk: 22, def: 7, xp: 115, name: 'Rookery Gargoyle', portrait: 'idle', test: true,
+    desc: 'It leaps, sets into granite at the top of its leap and drops on you. As stone the chain rings off it; strike when it wakes. It cracks with ember light as it is hurt.',
+    drops: [{ item: 'heartB', chance: 60 }, { item: 'potion', chance: 30 }, { item: 'elixir', chance: 8 }],
+  },
+  warden: {
+    hp: 170, atk: 20, def: 2, xp: 105, name: 'Plague Warden', portrait: 'idle', test: true,
+    desc: 'The last physician of the castle. He keeps his distance and lobs poison, and fills the air round him with a choking cloud. Close in and he has a bone saw.',
+    drops: [{ item: 'heartB', chance: 60 }, { item: 'potion', chance: 30 }, { item: 'elixir', chance: 8 }],
+  },
+  duchess: {
+    hp: 175, atk: 22, def: 2, xp: 120, name: 'The Sanguine Duchess', portrait: 'idle', test: true,
+    desc: 'She fights with a lash of her own blood, comes apart into bats when pressed and takes shape again behind you. The floor between you sprouts blood spikes in a running line.',
+    drops: [{ item: 'heartB', chance: 60 }, { item: 'potion', chance: 30 }, { item: 'elixir', chance: 8 }],
+  },
+  brute: {
+    hp: 270, atk: 25, def: 4, xp: 135, name: 'Stitchwork Brute', portrait: 'idle', test: true,
+    desc: 'Sewn from what the surgeons threw away and lit with lightning. It punches the floor to send a crawl of sparks at you, throws masonry, and if its great hand closes on you it lifts you overhead. Mash, or be slammed.',
+    drops: [{ item: 'heartB', chance: 60 }, { item: 'potion', chance: 30 }, { item: 'elixir', chance: 8 }],
+  },
+  ferryman: {
+    hp: 200, atk: 21, def: 3, xp: 120, name: 'The Ferryman', portrait: 'idle', test: true,
+    desc: 'He takes his fee: every blow he lands costs you hearts, and mends him. His oar sweeps the air above him too, and his lantern spills flames that drift after you.',
+    drops: [{ item: 'heartB', chance: 60 }, { item: 'potion', chance: 30 }, { item: 'elixir', chance: 8 }],
+  },
+  ghoul: {
+    hp: 180, atk: 23, def: 2, xp: 110, name: 'Antlered Ghoul', portrait: 'idle', test: true,
+    desc: 'It starved in the game larder and kept going. It never comes straight at you, leaps without warning, rakes three times in a row, and its scream leaves you slow.',
+    drops: [{ item: 'heartB', chance: 60 }, { item: 'potion', chance: 30 }, { item: 'elixir', chance: 8 }],
   },
   devourer: {
     hp: 110, atk: 20, def: 4, xp: 40, name: 'Devourer', portrait: 'walk',

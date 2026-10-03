@@ -172,7 +172,9 @@ export class Mawtoad extends TrialBoss {
             this.data.pin = { x: stump, y: ty };
             break;
           } else if (p.alive && p.invuln <= 0 && distToSegment(p.x, p.y, m.x, m.y, tx, ty) < 11) {
-            if (p.takeDamage(this.atk, m.x, false, true, 'melee', p.y) !== false && !p.justBlocked) p.yank(this.x + this.facing * 58);
+            // it drags her to its mouth (its body does the hurting when she gets there); if she can't be
+            // dragged (just hurt, or warded) the tongue's lash hurts her where she stands
+            if (!p.yank(this.x + this.facing * 58)) p.takeDamage(this.atk, m.x, false, true, 'melee', p.y);
             d.back = true;
           } else if (d.len >= REACH || tx < AX0 + 6 || tx > AX1 - 6) d.back = true;
         } else {

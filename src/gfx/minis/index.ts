@@ -1,4 +1,4 @@
-// The mini-bosses' art in one table (0.28.0): each one's puppet sheet and its props sheet, both
+// The mini-bosses' art in one table (0.31.0): each one's puppet sheet and its props sheet, both
 // built the first time something asks (see lazy.ts). The game, the enemy editor and
 // bosses.html all read this.
 import { SheetBuilder } from '../pixel';
@@ -12,6 +12,8 @@ import { buildGargoyleSheet, buildGargoyleProps } from './gargoyle';
 import { buildWardenSheet, buildWardenProps } from './warden';
 import { buildDuchessSheet, buildDuchessProps } from './duchess';
 import { buildBruteSheet, buildBruteProps } from './brute';
+import { buildFerrymanSheet, buildFerrymanProps } from './ferryman';
+import { buildGhoulSheet, buildGhoulProps } from './ghoul';
 
 export interface MiniArt {
   /** What bosses.html says about the sprite. */
@@ -60,6 +62,16 @@ export const MINI_ART: Record<string, MiniArt> = {
     note: 'A flesh golem stitched from discarded parts: one huge grey arm, one pale human one, bolts in the neck, a riveted skull, sparking copper electrodes.',
     sheet: buildBruteSheet,
     props: buildBruteProps,
+  },
+  ferryman: {
+    note: 'A gaunt boatman in a rotted grey-green robe and deep hood, coins for eyes, a punt-oar with a lantern of cold green flame hanging from its top.',
+    sheet: buildFerrymanSheet,
+    props: buildFerrymanProps,
+  },
+  ghoul: {
+    note: 'A starved thing with grey-white skin over its ribs, arms far too long, hooked black claws, and a stag skull for a face: antlers, black eye pits, a jaw that unhinges.',
+    sheet: buildGhoulSheet,
+    props: buildGhoulProps,
   },
 };
 

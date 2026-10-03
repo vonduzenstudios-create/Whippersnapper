@@ -102,12 +102,20 @@ export function brute(P: Pose, cell: Cell = BRUTE_CELL): FormCanvas {
   // the head last: sunk low between the shoulders, but thrust forward of them
   {
   f.next();
-  R.ball(J.head, 3.4, 3.2, PINK, P.lean + P.head);
+  // thrust well forward of the near shoulder, so the face is never hidden behind it
+  J.head = R.at(J.head, P.lean + P.head - 10, 3.6);
+  R.limb(R.face(-2.6, 1), R.face(-0.6, 3.4), 2.2, 2, PINK); // the thick neck under it
+  R.ball(J.head, 3.6, 3.4, PINK, P.lean + P.head);
+  // a square, underslung jaw
+  R.limb(R.face(-0.6, 2.2), R.face(3.4, 2.4 + P.mouth * 0.8), 2, 1.7, PINK, 0.8);
+  R.groove(R.face(0, 3.6), R.face(3.6, 3.8 + P.mouth * 0.8), -0.25);
   R.limb(R.face(-3.4, -2.6), R.face(2.8, -3.4), 1.6, 1.4, IRON); // the skull plate
   for (const x of [-2.4, 0, 2]) R.dot(R.face(x, -3.2), IRON, 0.95);
   seam(R, R.face(-2.6, -1.4), R.face(-0.4, 2.4), 3);
   // one huge eye, a little one
   R.ball(R.face(1.8, -0.6), 1.4, 1.3, ramp('#e8e0c8', '#fffaf0'), 0, 0.5);
+  R.limb(R.face(0, -1.9), R.face(3.8, -1.6), 0.9, 0.8, PINK, 0.7); // a flat heavy brow over it
+  R.groove(R.face(0.2, -1.2), R.face(3.8, -1), -0.3);
   R.dot(R.face(2.2, -0.6), EYE, 0.6);
   R.dot(R.face(2.3, -0.6), INK, 0);
   R.dot(R.face(3.1, -0.4), INK, 0);

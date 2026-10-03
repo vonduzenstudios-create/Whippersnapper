@@ -100,6 +100,7 @@ Entities:
 | `v` | Devourer: a mouth on tentacles (a stronger Hookjaw) whose tongue drags you into its jaws (see player-mechanics.md) |
 | `f` | Grave Moth: a flying enemy (grubs left on the surface also hatch them, three at a time). It bursts on touch and poisons you |
 | `q` | Temple Asp (Serpent Temple): a ground snake that coils and darts, or rears up and spits poison |
+| `0`-`9` | The mini-bosses (0.31.0, placed in no room yet): `0` Headsman, `1` Moonrot Lycan, `2` Unhelmed, `3` Ossified Bull, `4` Rookery Gargoyle, `5` Plague Warden, `6` Sanguine Duchess, `7` Stitchwork Brute, `8` Ferryman, `9` Antlered Ghoul. Big: give them a wide floor (see player-mechanics.md) |
 | `p` | Gallows Spider: place it anywhere under a ceiling; it finds the ceiling above and hangs from it. Leave it a clear drop below |
 
 In a boss room, items (`i`) are the reward: they stay hidden until the boss dies, then float down into place.

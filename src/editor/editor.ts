@@ -47,6 +47,8 @@ const ENEMY_HINT: Record<string, string> = {
   tome: ' (PUT IT INSIDE A BOOKCASE: SLEEPS UNTIL YOU PASS)',
   chair: ' (LOOKS LIKE A PROP CHAIR UNTIL YOU COME CLOSE)',
   librarian: ' (ON THE FLOOR IN FRONT OF A BOOKCASE: SHELVES BOOKS UNTIL YOU COME CLOSE)',
+  // the mini-bosses: big, so give them room
+  ...Object.fromEntries(['headsman', 'lycan', 'unhelmed', 'bull', 'gargoyle', 'warden', 'duchess', 'brute', 'ferryman', 'ghoul'].map((id) => [id, ' (MINI-BOSS: NEEDS A WIDE FLOOR)'])),
 };
 
 /** The tool palette, one list per tab. Enemy variants from the enemy editor sit after their base enemy. */

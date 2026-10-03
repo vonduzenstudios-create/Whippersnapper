@@ -103,6 +103,15 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 
 The same number is in `package.json`. Newest version first.
 
+### 0.31.0 (2026-10-03)
+
+**Ten mini-bosses**: big enemies with a handful of telegraphed attacks each. They are in the enemy editor and under TEST ENEMY, but no room places them yet (map letters `0`-`9`).
+
+- **The Headsman** (an axe that sticks in the floor, a gibbet cage on a chain that reels you in, a shoulder barge), **Moonrot Lycan** (gallop and rake, a leap that clings to walls, a chain lash), **The Unhelmed** (bowls his own head and fights blind while it rolls; whip it back into him), **Ossified Bull** (charges into walls, a slam that throws up bone shards, an uppercut), **Rookery Gargoyle** (drops on you as stone, can't be hurt until it wakes, cracks as it is hurt), **Plague Warden** (poison vials and puddles, a choke cloud, a bone saw), **The Sanguine Duchess** (a blood lash, bursts into bats and re-forms behind you, a line of blood spikes), **Stitchwork Brute** (floor lightning, thrown masonry, a grab that lifts and slams you unless you mash free), **The Ferryman** (an oar sweep, drifting lantern flames, and every blow he lands takes 3 hearts), **Antlered Ghoul** (skitters, leaps, a three-slash rake, a scream that slows you).
+- Puppet art for all ten (`gfx/minis/`), including the new Ferryman and Ghoul and a clearer face for the Brute. Each attack is a switch in the enemy editor; grabs have a "presses to escape" knob.
+- Their big sheets are drawn the first time one appears, in the game and in the editor.
+- Fix: the Mawtoad's tongue now drags you to its mouth as designed (it used to hurt you first, and a hurt hero can't be dragged).
+
 ### 0.30.0 (2026-10-03)
 
 The five boss reworks are finished (still test chamber only).

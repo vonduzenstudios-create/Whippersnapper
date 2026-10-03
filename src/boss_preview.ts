@@ -82,10 +82,10 @@ for (const [id, a] of Object.entries(TRIAL_ART)) {
     ],
   });
 }
-// the mini-bosses (0.28.0): enemies, not in any room yet. Built only when shown (?only=<name>), they are many frames.
+// the mini-bosses (0.31.0): enemies, not in any room yet. Built only when shown (?only=<name>), they are many frames.
 const ONLY = new URLSearchParams(location.search).get('only')?.toLowerCase();
 groups.push({
-  title: 'Mini-bosses (0.28.0, enemy editor only)',
+  title: 'Mini-bosses (0.31.0, enemy editor and TEST ENEMY)',
   options: Object.entries(MINI_ART)
     .filter(([id]) => !ONLY || ONLY === 'mini' || id.includes(ONLY))
     .flatMap(([id, a]) => [

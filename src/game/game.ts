@@ -26,10 +26,11 @@ import { Avalanche, LEASH } from './avalanche';
 import { Cutscene } from './cutscene';
 import { spawnEnemy } from './spawn';
 import { ChairProp } from './enemies_library';
-import { ENEMY } from './data';
+import { ENEMY, EnemyStats } from './data';
 import { HeroId, heroText, Line, SCENES, setStoryWorld, ABBEY_OPENING } from './story';
 import { buildPortraitSheet, buildPellSheet } from '../gfx/art_portraits';
 import { trialSheet } from '../gfx/art_trials';
+import { miniSheet } from '../gfx/minis';
 import { UI } from '../ui/ui';
 import { Editor } from '../editor/editor';
 import { VW, VH, TILE, CELL_W, CELL_H, STEP, SCREEN_COLS, SCREEN_ROWS } from '../config';
@@ -97,6 +98,17 @@ const START_ROOM: Record<World, string> = { ash: 'ridge', abbey: 'st_landing' };
 const TIDE_PERIOD = 900;
 /** Frames a boss's freeze frame holds on its pose before the talking starts. */
 const FREEZE = 45;
+
+/** An enemy's sheet: its base sheet, recolored if it is a variant (editor colors or a code `shift`). */
+function variantSheet(base: Sheet, st: EnemyStats): Sheet {
+  if (st.colors && Object.keys(st.colors).length) return recolorSheet(base, st.colors);
+  if (st.shift) {
+    // a code variant: every color of the base sheet, turned and scaled the same way
+    const sh = st.shift;
+    return recolorSheet(base, Object.fromEntries(sheetColors(base).map((c) => [c.hex, shiftColor(c.hex, sh)])));
+  }
+  return base;
+}
 
 export class Game {
   view = new View();
@@ -412,17 +424,17 @@ export class Game {
     this.enemySheets = {};
     for (const [id, st] of Object.entries(ENEMY)) {
       const base = (this.sheets as any)[st.base || id] as Sheet | undefined;
-      if (!base) continue;
-      if (st.colors && Object.keys(st.colors).length) this.enemySheets[id] = recolorSheet(base, st.colors);
-      else if (st.shift) {
-        // a code variant: every color of the base sheet, turned and scaled the same way
-        const sh = st.shift;
-        this.enemySheets[id] = recolorSheet(base, Object.fromEntries(sheetColors(base).map((c) => [c.hex, shiftColor(c.hex, sh)])));
-      } else this.enemySheets[id] = base;
+      if (base) this.enemySheets[id] = variantSheet(base, st);
     }
   }
   enemySheet(kind: string): Sheet {
-    return this.enemySheets[kind] || (this.sheets as any)[ENEMY[kind]?.base || kind] || trialSheet(kind);
+    const ready = this.enemySheets[kind];
+    if (ready) return ready;
+    const st = ENEMY[kind], base = st?.base || kind;
+    // a mini-boss's sheet is big, so it (and any recolor of it) is only drawn when first needed
+    const mini = miniSheet(base);
+    if (mini) return (this.enemySheets[kind] = st ? variantSheet(mini, st) : mini);
+    return (this.sheets as any)[base] || trialSheet(kind);
   }
 
   /** Map cell → room lookup. Call again after rooms move or change size. */

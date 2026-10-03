@@ -9,6 +9,8 @@ import { Hookjaw, Devourer, Eel, Caster, Ooze, Grub, Gravehand, Moth } from './e
 import { Tome, Chair, Librarian } from './enemies_library';
 import { Spider } from './enemies_spider';
 import { Serpent } from './enemies_depths';
+import { Headsman, Unhelmed, Warden, Duchess, Ferryman } from './minis/humans';
+import { Lycan, Bull, Gargoyle, Brute, Ghoul } from './minis/beasts';
 
 /**
  * Spawn the enemy for room-entity letter `t`. `variant` (the entity's arg) is an
@@ -65,6 +67,27 @@ export function spawnEnemy(g: Game, t: string, x: number, bottom: number, varian
       return new Spider(g, kind, x, bottom);
     case 'serpent':
       return new Serpent(g, kind, x, bottom);
+    // the mini-bosses (0.31.0)
+    case 'headsman':
+      return new Headsman(g, kind, x, bottom);
+    case 'lycan':
+      return new Lycan(g, kind, x, bottom);
+    case 'unhelmed':
+      return new Unhelmed(g, kind, x, bottom);
+    case 'bull':
+      return new Bull(g, kind, x, bottom);
+    case 'gargoyle':
+      return new Gargoyle(g, kind, x, bottom);
+    case 'warden':
+      return new Warden(g, kind, x, bottom);
+    case 'duchess':
+      return new Duchess(g, kind, x, bottom);
+    case 'brute':
+      return new Brute(g, kind, x, bottom);
+    case 'ferryman':
+      return new Ferryman(g, kind, x, bottom);
+    case 'ghoul':
+      return new Ghoul(g, kind, x, bottom);
   }
   return null;
 }
