@@ -207,10 +207,14 @@ export abstract class TrialBoss extends BossBase {
     g.audio.play('hit');
     if (this.hp <= 0) this.startDying(g);
   }
-  /** The default for a blow on the body: a full blow while vulnerable, a chip otherwise. */
+  /**
+   * The default for a blow on the body: a full blow while vulnerable, a chip otherwise. Holy
+   * fire only ever chips: it can open a boss up, but it keeps burning, and it would otherwise
+   * use up the whole window by itself.
+   */
   bodyHit(g: Game, t: Target, kind: HitKind) {
     if (this.vulnT > 0) {
-      if (this.strike(g, t.x, t.y, kind) && this.hp > 0) this.endStun(g);
+      if (this.strike(g, t.x, t.y, kind, kind === 'holy' ? CHIP : undefined) && this.hp > 0) this.endStun(g);
     } else this.chip(g, t.x, t.y);
   }
   onStrike(g: Game, t: Target, _fromX: number, kind: HitKind) {
@@ -257,6 +261,7 @@ export abstract class TrialBoss extends BossBase {
     if (this.flashT > 0) this.flashT--;
     if (this.pat === 'dying') {
       this.fr = this.dyingFrame();
+      this.y = Math.min(this.floorY - this.hh, this.y + 3); // killed mid-leap, it falls to the floor
       this.whileDying(g);
       this.show();
       this.dyingTick(g, 150, 30);

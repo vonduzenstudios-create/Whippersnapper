@@ -9,7 +9,7 @@ three handoff files are gone.
 | Feature | Branch / commit | Handoff | State |
 |---|---|---|---|
 | Boss reworks (`leviathan2`, `gorgon2`, `colossus2`, `yeti2`, `yeti3`) + Bell-Mother fix | `ashen-library`, `c65e0aa` (0.27.0) | `docs/handoff-trial-bosses.md` | Built and script-tested, never hand-played |
-| Ten trial bosses (Castellan ... Rose Abbess) | `ashen-library`, `b3583b3` + `c65e0aa` | `docs/trial-bosses-handoff.md` | 6 registered, 3 written but unregistered, Abbess logic not written. Only the Castellan has been fought |
+| Ten trial bosses (Castellan ... Rose Abbess) | `ashen-library`, 0.29.0 | none (finished; tuning notes in `docs/status.md`) | **Done** 2026-10-03: all ten registered and script-tested. Not hand-played |
 | Ten mini-bosses (Headsman ... Antlered Ghoul) | branch `claude/mini-boss-enemy-design-2c6cf1`, `c6c0109` (worktree `.claude/worktrees/mini-boss-enemy-design-2c6cf1`) | `docs/handoff-minibosses.md` (on that branch) | Art for 8 of 10, no AI, not hooked up |
 | NEW GAME + (the Drowned Abbey) | `ashen-library`, `129ce82` (0.28.0) | none (finished) | Done. Follow-ups below |
 
@@ -18,15 +18,7 @@ the real game is safe while it is unfinished.
 
 ## Order of work
 
-1. **Ten trial bosses** (biggest gap; other work depends on its shared files settling).
-   1. Write `src/game/boss_abbess.ts` from the design in its handoff.
-   2. Register `starreader`, `miller`, `mawtoad`, `abbess` in `BOSSES` (bosses.ts) and `TRIAL_ART`
-      (art_trials.ts), copying the `baron` rows.
-   3. Fight all ten from TEST ENEMY (`#test=boss:<id>`): entrance hands controls back, every
-      opening works, phase two at half HP, clean death.
-   4. Look at every sheet on `bosses.html`; darken pale ramps.
-   5. Add them to `BOSS_SHEETS` in `enemy_editor.ts`.
-   6. Docs: player-mechanics table, status, AGENTS boss notes, README entry.
+1. ~~**Ten trial bosses**~~ done in 0.29.0 (see the README entry and `docs/status.md`).
 2. **Boss reworks**: hand-play the five fights, fix the rough spots in its handoff (Colossus
    facing at the start of `sweep`/`stomp`/`ring`, the gantry height, Ysolde's veil and `stuck`
    pose, the Boneyard skull prop, the camera zooming far out in 3-cell rooms), listen to the new
@@ -39,7 +31,7 @@ the real game is safe while it is unfinished.
    3. **Before merging into `ashen-library`**: `git merge ashen-library` into the branch first and
       expect conflicts in `src/boss_preview.ts` (both sides added preview entries: keep both) and
       `.claude/launch.json` (keep every config). The handoff planned version 0.28.0, which NEW
-      GAME + now uses: give the mini-bosses **0.29.0** or later.
+      GAME + now uses: give the mini-bosses **0.30.0** or later (the trial bosses took 0.29.0).
 4. **NEW GAME + follow-ups** (need the user's input first):
    - Pitch 2-3 options for each of the seven empty boss chambers (the user's boss rules apply:
      one learnable cycle, no sponges, no minions, nothing from the sky, no floating out of reach).

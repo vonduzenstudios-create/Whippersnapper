@@ -109,9 +109,11 @@ export class Miller extends TrialBoss {
           b.x = clamp(b.x, AX0 + 14, AX1 - 14);
           g.audio.play('knock');
         }
+        if (this.pat === 'inhale') s.drawn = true; // his own breath is pulling it back
         if (b.t > 40 && Math.abs(b.x - this.x) < 22 && this.y > this.floorY - 60) {
+          // a stone that only bounced back he stops with his boot; one he drew in hits him
           b.strike(g, false);
-          this.stun(g, 300, 'HIS OWN MILLSTONE: STRIKE');
+          if (s.drawn) this.stun(g, 300, 'HIS OWN MILLSTONE: STRIKE');
         }
         if (g.frame % 6 === 0) g.fx.burst(b.x, this.floorY - 2, 'dust', 1, 2);
       },

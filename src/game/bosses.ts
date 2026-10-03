@@ -23,6 +23,10 @@ import { Saint } from './boss_saint';
 import { Stalker } from './boss_stalker';
 import { Reaper } from './boss_reaper';
 import { Baron } from './boss_baron';
+import { StarReader } from './boss_starreader';
+import { Miller } from './boss_miller';
+import { Mawtoad } from './boss_mawtoad';
+import { Abbess } from './boss_abbess';
 
 export interface BossInfo {
   /** Banner when the fight starts. */
@@ -65,4 +69,8 @@ export const BOSSES: Record<string, BossInfo> = {
   stalker: { name: 'The Umbral Stalker', sub: 'it lives where the lanterns do not reach', make: (g, x) => new Stalker(g, x) },
   reaper: { name: 'The Harvest Reaper', sub: 'the field is his, and all that stands in it', make: (g, x) => new Reaper(g, x) },
   baron: { name: 'The Powder Baron', sub: 'last gunner of the east rampart', make: (g, x) => new Baron(g, x) },
+  starreader: { name: 'The Star-Reader', sub: 'he has already seen how this ends', make: (g, x) => new StarReader(g, x) },
+  miller: { name: 'The Gale Miller', sub: 'the wind grinds for him', make: (g, x) => new Miller(g, x) },
+  mawtoad: { name: 'The Mawtoad', sub: 'the bog swallows; so does it', make: (g, x) => new Mawtoad(g, x) },
+  abbess: { name: 'The Rose Abbess', sub: 'her garden is always hungry', make: (g, x) => new Abbess(g, x) },
 };

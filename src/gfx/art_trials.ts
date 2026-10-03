@@ -10,6 +10,10 @@ import { buildStalkerSheet, buildLanternSheet, stalkerPortrait } from './art_sta
 import { buildReaperSheet, buildFieldProps, buildSickle, buildMoon, reaperPortrait } from './art_reaper';
 import { buildBaronSheet, buildBaronProps, baronPortrait } from './art_baron';
 import { buildCastellanSheet, buildCastellanProps, buildClockFace, castellanPortrait } from './art_castellan';
+import { buildStarReaderSheet, buildOrreryProps, buildOrbits, starreaderPortrait } from './art_starreader';
+import { buildMillerSheet, buildMillProps, buildSails, millerPortrait } from './art_miller';
+import { buildMawtoadSheet, buildBogProps, mawtoadPortrait } from './art_mawtoad';
+import { buildAbbessSheet, buildGlasshouseProps, abbessPortrait } from './art_abbess';
 
 export interface TrialArt {
   /** What bosses.html says about the sprite. */
@@ -57,6 +61,30 @@ export const TRIAL_ART: Record<string, TrialArt> = {
     sheet: buildBaronSheet,
     portrait: baronPortrait,
     props: [['Bombs, kegs and powder', buildBaronProps, 'keg']],
+  },
+  starreader: {
+    note: 'A stooped astrologer in a midnight robe sewn with constellations, a long beard, a tall bent hat, a staff with an armillary sphere.',
+    sheet: buildStarReaderSheet,
+    portrait: starreaderPortrait,
+    props: [['Orrery planets', buildOrreryProps, 'planet0'], ['Orbits', buildOrbits, 'orbits']],
+  },
+  miller: {
+    note: 'A huge flour-pale miller in a leather cap and apron, a great bellows on his back and a horn-mouthed hose in his fists.',
+    sheet: buildMillerSheet,
+    portrait: millerPortrait,
+    props: [['Millstone', buildMillProps, 'stone'], ['Sails', buildSails, 'sails']],
+  },
+  mawtoad: {
+    note: 'A toad the size of a cart: warty olive back, pale belly, a swelling throat sac and a mouth that is most of its head.',
+    sheet: buildMawtoadSheet,
+    portrait: mawtoadPortrait,
+    props: [['Reeds, pods and stumps', buildBogProps, 'pod']],
+  },
+  abbess: {
+    note: 'A tall nun in a habit of old leaves, a white wimple, a crown of thorns, roses on her shoulders, roots for feet and a briar for a whip.',
+    sheet: buildAbbessSheet,
+    portrait: abbessPortrait,
+    props: [['Hearts, briar and thorns', buildGlasshouseProps, 'heart']],
   },
 };
 

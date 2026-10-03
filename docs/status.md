@@ -254,6 +254,13 @@ Update this file when you verify something or finish a listed item.
 - Not done: nobody has played the five fights by hand, so timings, damage and difficulty are untuned. Nobody has listened to the new bell sound.
 - The trial chambers are not in `buildRooms()`, so `npm run check:rooms` does not check them.
 
+## Trial bosses (0.29.0)
+
+- Verified by script in the browser (2026-10-03): all ten (`castellan` ... `abbess`) load from `#test=boss:<id>`, the entrance and the phase-two scene both hand the controls back, 1,800 frames of each phase run with no console errors, and each death ends cleanly (nothing left in the room, the boss on the floor).
+- Verified by script: every phase-one opening of every boss opens it and four blows close the window; also the Marionette's resting fist, the Stalker's relit lanterns, the Reaper's dizzy whirl, both outcomes of the Abbess's whip tangle and her holy-water opening. The Abbess's low heart takes a real crouching whip and the high one a real double-jump whip.
+- Fixed while testing: holy fire emptied a whole window by itself (now it chips); the Miller's millstone opened him every throw by bouncing back (now only when he inhales it); bosses killed mid-leap hung in the air; the Saint's robe was too pale.
+- Not done: nobody has played them by hand. Tuning notes from the scripted runs: the Castellan's pendulum opens him often even for a hero who does nothing; the Miller's sail brake opens him wherever he stands (the sails cover most of the floor), on a 700-frame cooldown; the bowl-back only happens if he happens to inhale right after a throw.
+
 ## Known rough edges
 
 - The moon halo shows visible color banding.

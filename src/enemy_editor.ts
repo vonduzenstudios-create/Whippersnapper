@@ -19,6 +19,7 @@ import { buildLockWyrmSheet } from './gfx/art_lockwyrm';
 import { buildSerpentSheet } from './gfx/art_depths';
 import { buildLeviathanSheet, buildGorgonSheet, buildColossusSheet, buildYetiSheet, buildArchivistSheet } from './gfx/art_bosses2';
 import { TEST_EDITS_KEY } from './config';
+import { TRIAL_ART, trialSheet } from './gfx/art_trials';
 import {
   buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet,
   buildHookjawSheet, buildDevourerSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet, buildMothSheet,
@@ -69,6 +70,8 @@ Object.assign(BOSS_SHEETS, {
   yeti2: RIMEHIDE,
   yeti3: RIMEHIDE,
 });
+// the ten trial bosses (0.27.0): big puppet sheets, so each is only drawn when first selected
+for (const id of Object.keys(TRIAL_ART)) Object.defineProperty(BOSS_SHEETS, id, { enumerable: true, get: () => trialSheet(id)! });
 const PALETTES: Record<string, { hex: string; count: number }[]> = {};
 for (const [k, s] of Object.entries(BASE_SHEETS)) PALETTES[k] = sheetColors(s);
 
@@ -90,7 +93,7 @@ let renames: Record<string, string> = {};
 let sel = 'zombie';
 
 const isBase = (id: string) => BASE_ENEMIES.includes(id);
-const isBoss = (id: string) => !!BOSS_SHEETS[id] && !!CODE[id];
+const isBoss = (id: string) => id in BOSS_SHEETS && !!CODE[id]; // `in`, so a lazy sheet isn't drawn just to ask
 /** An enemy written in data.ts (a base enemy or a boss), as opposed to an editor-made variant. */
 const isCode = (id: string) => isBase(id) || isBoss(id);
 const baseOf = (id: string) => (isBase(id) ? id : edits[id]?.base) || 'zombie';

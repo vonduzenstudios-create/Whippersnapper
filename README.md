@@ -103,6 +103,15 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 
 The same number is in `package.json`. Newest version first.
 
+### 0.29.0 (2026-10-03)
+
+The ten trial bosses are finished (test chamber only: none is in the world yet).
+
+- **The Rose Abbess** (`game/boss_abbess.ts`), the last of the ten. Walls of briar creep in from both sides of the Glasshouse. Rooted, she is fed by three root-hearts: one high (the ring or a double jump), one in the crawlspace under the planter, one behind a thorn curtain you hack through or burn with holy water. Wither all three and she is open. Uprooted, she walks: catch her briar whip on yours and tear it free, or splash holy water into her blooms while she casts.
+- **Registered** the Star-Reader, the Gale Miller, the Mawtoad and the Abbess, so all ten are under TEST ENEMY, `#test=boss:<id>` and `/bosses.html`, and now in the enemy editor too (each sheet drawn only when picked).
+- **All ten fought by script**: every opening, both phases and the deaths. Fixes from that: holy fire no longer empties a vulnerable window by itself (it only chips); the Miller's millstone only hits him when he inhales it back, not when it merely bounces; a boss killed mid-leap falls to the floor; the Censer Saint's robe has darker shading so he no longer looks washed out.
+- The table of openings is in docs/player-mechanics.md ("Trial bosses").
+
 ### 0.28.1 (2026-10-03)
 
 - Removed the abandoned `art_exchange/` folder (hand-off art for an outside redesign of the Bell-Mother) and the `npm run export:sprites` tool that fed it. Nothing in the game changed.

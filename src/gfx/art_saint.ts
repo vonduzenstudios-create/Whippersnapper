@@ -8,7 +8,7 @@ import { Rig, Build, Cell, Pose, STAND, V, bake, wave, pose, bust } from './pupp
 export const SAINT_CELL: Cell = { w: 152, h: 152, ax: 76, ay: 142 };
 const BUILD: Build = { k: 1.5, torso: 12.5, hipR: 3.8, chestR: 4.6, neck: 2.6, headR: 3.9, arm: [9, 9, 2.6, 2.2], leg: [10, 10, 2, 1.6], foot: 3, shoulder: 1.4, hipW: 1 };
 
-const ROBE = ramp('#2a2634', '#544e60', '#8a8490', '#b8b2b4', '#dcd6d0', '#f6f2e8');
+const ROBE = ramp('#14121c', '#2a2634', '#46404e', '#686270', '#948e94', '#c2bcb8', '#ece6dc'); // dark mid-range, or the half-Lambert light washes him out
 const STOLE = ramp('#24060c', '#4e0c16', '#841822', '#b43030', '#dc6048');
 const GOLD = ramp('#3a2008', '#7a4c10', '#b88424', '#e4bc50', '#fff0a8');
 const SKIN = ramp('#2e2a38', '#565064', '#847c8a', '#aaa2a8', '#ccc4c0');
