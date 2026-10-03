@@ -4,8 +4,49 @@
     {
       "name": "dev",
       "runtimeExecutable": "npm.cmd",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5273
+    },
+    {
+      "name": "dev-alt",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5274"
+      ],
+      "port": 5274
+    },
+    {
+      "name": "dev-trial",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5276",
+        "--strictPort"
+      ],
+      "port": 5276
+    },
+    {
+      "name": "dev-bosses",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5283",
+        "--strictPort"
+      ],
+      "port": 5283
     }
   ]
 }

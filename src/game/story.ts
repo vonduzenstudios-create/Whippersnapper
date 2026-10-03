@@ -538,7 +538,9 @@ export const RELIC_TEXT: Record<string, string[]> = {
 // ---------------------------------------------------------------- dialogue scenes
 
 /** Who can speak in a dialogue scene. 'hero' is whichever twin is playing. */
-export type Speaker = 'hero' | 'pell' | 'wyrm' | 'hound' | 'bellmother' | 'leviathan' | 'gorgon' | 'colossus' | 'mirror' | 'yeti' | 'archivist';
+export type Speaker = 'hero' | 'pell' | 'wyrm' | 'hound' | 'bellmother' | 'leviathan' | 'gorgon' | 'colossus' | 'mirror' | 'yeti' | 'archivist'
+  // the ten trial bosses (0.27.0)
+  | 'castellan' | 'marionette' | 'saint' | 'stalker' | 'reaper' | 'baron' | 'starreader' | 'miller' | 'mawtoad' | 'abbess';
 /** A face for the speaker's portrait (see gfx/art_portraits.ts; missing ones fall back to neutral). */
 export type Face = 'neutral' | 'smile' | 'angry' | 'surprised' | 'sad';
 export interface Line {
@@ -559,6 +561,16 @@ export const SPEAKERS: Record<Speaker, { name: string; side: 'left' | 'right' }>
   mirror: { name: '{NAME}?', side: 'right' },
   yeti: { name: 'OLD RIMEHIDE', side: 'right' },
   archivist: { name: 'THE HEAD ARCHIVIST', side: 'right' },
+  castellan: { name: 'THE CASTELLAN', side: 'right' },
+  marionette: { name: 'LADY MARROW', side: 'right' },
+  saint: { name: 'THE CENSER SAINT', side: 'right' },
+  stalker: { name: 'THE UMBRAL STALKER', side: 'right' },
+  reaper: { name: 'THE HARVEST REAPER', side: 'right' },
+  baron: { name: 'THE POWDER BARON', side: 'right' },
+  starreader: { name: 'THE STAR-READER', side: 'right' },
+  miller: { name: 'THE GALE MILLER', side: 'right' },
+  mawtoad: { name: 'THE MAWTOAD', side: 'right' },
+  abbess: { name: 'THE ROSE ABBESS', side: 'right' },
 };
 
 /** Conversations, shown with Game.talk(). Boss scenes are named `boss_<id>`. */
@@ -684,5 +696,88 @@ export const SCENES: Record<string, Line[]> = {
     { who: 'archivist', face: 'angry', text: 'YOU BLOTTED MY MANUSCRIPT! THREE CHAPTERS, RUINED!' },
     { who: 'hero', face: 'neutral', text: 'YOUR INK DRIES SLOWLY, OLD MAN.' },
     { who: 'archivist', face: 'angry', text: 'THEN I SHALL WRITE MYSELF INTO THE STORY, AND WATCH YOU CHOOSE THE WRONG NAME.' },
+  ],
+  // ---- the ten trial bosses (0.27.0): a short exchange before each fight, a line or two at half HP
+  boss_castellan: [
+    { who: 'castellan', face: 'neutral', text: 'TICK. THE TOWER IS CLOSED BETWEEN THE HOURS. TICK. STATE YOUR MINUTE.' },
+    { who: 'hero', face: 'neutral', text: 'I DO NOT HAVE ONE TO SPARE.' },
+    { who: 'castellan', face: 'angry', text: 'THEN I SHALL TAKE THEM ALL. MIND THE PENDULUM. IT DOES NOT MIND YOU.' },
+  ],
+  boss_castellan_phase2: [
+    { who: 'castellan', face: 'angry', text: 'THIRTEEN. THE CLOCK STRIKES THIRTEEN! WIND ME TIGHTER, TOWER. WE ARE LATE.' },
+  ],
+  boss_marionette: [
+    { who: 'marionette', face: 'smile', text: 'AN AUDIENCE! AT LAST. THE HOUSE HAS BEEN DARK FOR SO VERY LONG.' },
+    { who: 'hero', face: 'surprised', text: 'WHO IS HOLDING YOUR STRINGS?' },
+    { who: 'marionette', face: 'neutral', text: 'ONE DOES NOT ASK THAT, DARLING. ONE DANCES. DO TRY TO KEEP UP.' },
+  ],
+  boss_marionette_phase2: [
+    { who: 'marionette', face: 'angry', text: 'YOU CUT ME DOWN. HOW RUDE. HOW... FREEING. OH. OH, HE IS COMING DOWN HIMSELF.' },
+    { who: 'hero', face: 'surprised', text: 'THOSE ARE HANDS.' },
+  ],
+  boss_saint: [
+    { who: 'saint', face: 'neutral', text: 'KNEEL, CHILD. BREATHE DEEP. EVERY SIN LEAVES THE BODY AS SMOKE.' },
+    { who: 'hero', face: 'angry', text: 'THAT IS NOT INCENSE YOU ARE BURNING.' },
+    { who: 'saint', face: 'angry', text: 'NO. IT IS THE CONGREGATION.' },
+  ],
+  boss_saint_phase2: [
+    { who: 'saint', face: 'angry', text: 'YOU SNUFF MY LIGHTS? THEN I WILL CARRY THE FIRE TO YOU MYSELF.' },
+  ],
+  boss_stalker: [
+    { who: 'hero', face: 'neutral', text: 'SOMETHING IS BREATHING IN HERE. BETWEEN THE LANTERNS.' },
+    { who: 'stalker', face: 'neutral', text: '...WARM. WARM LITTLE LIGHT. COME OUT OF THE GLOW, WARM THING.' },
+    { who: 'hero', face: 'angry', text: 'YOU FIRST.' },
+  ],
+  boss_stalker_phase2: [
+    { who: 'stalker', face: 'angry', text: 'IT BURNS. IT BURNS! NO MORE LANTERNS. I WILL EAT THEM ONE BY ONE.' },
+  ],
+  boss_reaper: [
+    { who: 'reaper', face: 'neutral', text: 'HARVEST MOON. EVERYTHING THAT STANDS TONIGHT GETS CUT TONIGHT.' },
+    { who: 'hero', face: 'neutral', text: 'THEN I WILL NOT STAND WHERE YOU CAN SEE ME.' },
+    { who: 'reaper', face: 'angry', text: 'THE WHEAT TELLS ME WHERE IT BENDS, LITTLE MOUSE.' },
+  ],
+  boss_reaper_phase2: [
+    { who: 'reaper', face: 'angry', text: 'YOU HIDE IN MY CROP? THEN THERE WILL BE NO CROP. BURN. ALL OF IT, BURN!' },
+  ],
+  boss_baron: [
+    { who: 'baron', face: 'smile', text: 'HA! A VISITOR ON MY WALL! THIRTY YEARS AT THIS BATTERY AND NOT ONE THING WORTH SHOOTING.' },
+    { who: 'hero', face: 'neutral', text: 'I AM ONLY PASSING THROUGH.' },
+    { who: 'baron', face: 'angry', text: 'THROUGH THE AIR, IN PIECES! MIND THE FUSES, THEY ARE SHORTER THAN THEY LOOK!' },
+  ],
+  boss_baron_phase2: [
+    { who: 'baron', face: 'angry', text: 'ENOUGH TENNIS! I AM LIGHTING THE WHOLE MAGAZINE. WATCH YOUR FEET!' },
+  ],
+  boss_starreader: [
+    { who: 'starreader', face: 'neutral', text: 'AH. THE TWIN. THE STARS SAID YOU WOULD ARRIVE AT THIS HOUR, FROM THAT DOOR, WITH THAT FROWN.' },
+    { who: 'hero', face: 'angry', text: 'AND WHAT DO THEY SAY HAPPENS NEXT?' },
+    { who: 'starreader', face: 'smile', text: 'THEY SAY YOU FALL. THEY ARE VERY RARELY WRONG, UNLESS SOMEONE MOVES THEM.' },
+  ],
+  boss_starreader_phase2: [
+    { who: 'starreader', face: 'angry', text: 'YOU STOPPED THE HEAVENS! PUT THEM BACK! NO. NO, I WILL SET THE WHOLE SKY ON THE FLOOR.' },
+  ],
+  boss_miller: [
+    { who: 'miller', face: 'neutral', text: 'MILL IS SHUT. WIND IS MINE. I GRIND WHAT IT BRINGS ME.' },
+    { who: 'hero', face: 'neutral', text: 'IT BROUGHT YOU ME.' },
+    { who: 'miller', face: 'angry', text: 'THEN YOU ARE FLOUR.' },
+  ],
+  boss_miller_phase2: [
+    { who: 'miller', face: 'angry', text: 'ROOF IS IN THE WAY. THERE. NOW THE WHOLE STORM COMES IN TO HELP.' },
+  ],
+  boss_mawtoad: [
+    { who: 'hero', face: 'surprised', text: 'THAT HILL JUST BLINKED.' },
+    { who: 'mawtoad', face: 'neutral', text: 'GRRRUUUUP.' },
+    { who: 'hero', face: 'angry', text: 'IT EATS WHATEVER ITS TONGUE TOUCHES. GOOD. LET US FEED IT SOMETHING ELSE.' },
+  ],
+  boss_mawtoad_phase2: [
+    { who: 'mawtoad', face: 'angry', text: 'GRRRRUUUUAAAAP!' },
+    { who: 'hero', face: 'surprised', text: 'IT IS SWELLING UP. IT IS GOING TO ROLL.' },
+  ],
+  boss_abbess: [
+    { who: 'abbess', face: 'smile', text: 'WELCOME TO THE GLASSHOUSE, DEAR. DO NOT MIND THE WALLS. THEY ARE ONLY CURIOUS.' },
+    { who: 'hero', face: 'neutral', text: 'THEY ARE GETTING CLOSER.' },
+    { who: 'abbess', face: 'angry', text: 'EVERYTHING GROWS TOWARD WHAT FEEDS IT. MY ROOTS RUN THREE WAYS. YOU WILL NOT FIND THEM ALL.' },
+  ],
+  boss_abbess_phase2: [
+    { who: 'abbess', face: 'angry', text: 'MY ROOTS! THEN I WILL WALK, AND I WILL PRUNE YOU MYSELF, THORN TO CHAIN.' },
   ],
 };

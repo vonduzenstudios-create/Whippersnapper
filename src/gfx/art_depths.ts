@@ -3,6 +3,7 @@
 // redrawn in 0.19.0: see art_bosses2.ts.)
 // Everything faces right, like the rest of the art.
 import { PixelCanvas, SheetBuilder, hex, RGBA, mix } from './pixel';
+import { FormCanvas, ramp } from './form';
 
 const INK = hex('#0c0810');
 const WHITE = hex('#f4f0e4');
@@ -18,36 +19,51 @@ function taper(p: PixelCanvas, x0: number, y0: number, x1: number, y1: number, r
 
 // ---------------------------------------------------------------- Temple Asp
 
-/** A green temple snake. 40x32 cell, anchored at the bottom middle (the floor is row 31). */
+const ASP = ramp('#10240e', '#24481e', '#3a6e2e', '#4a8a3a', '#72b058');
+const ASP_BELLY = ramp('#7a7438', '#c8c070', '#eee8a0');
+const ASP_MOUTH = ramp('#3a0810', '#7a1020', '#d03040');
+const ASP_EYE = ramp('#a07010', '#ffd040');
+const FANG = ramp('#a8a498', '#f4f0e4');
+
+/**
+ * A green temple snake, form shaded (0.24.0). 40x32 cell, anchored at the bottom middle (the
+ * floor is row 31). `slither` is an 8-frame loop; the other poses are single frames.
+ */
 export function buildSerpentSheet(): SheetBuilder {
   const b = new SheetBuilder(40, 32, 20, 31);
-  const body = hex('#4a8a3a'), dark = hex('#24481e'), belly = hex('#c8c070'), eye = hex('#ffd040');
   /** `wave`: phase of the slither. `up`: how high the neck is raised (0 flat .. 1 reared). `reach`: head thrown forward. */
   const draw = (wave: number, up: number, reach = 0, mouth = false) => {
-    const p = b.canvas();
-    // the body along the floor: a sine wave from the tail to the neck
+    const f = new FormCanvas(40, 32);
+    // the body along the floor: a sine wave from the tail to the neck, banded dark and light
     let px = 4, py = 28;
-    for (let x = 4; x <= 24; x++) {
+    for (let x = 5; x <= 24; x++) {
       const y = 27 + Math.sin(x * 0.5 + wave) * 1.6;
-      taper(p, px, py, x, y, 1.2 + (x - 4) * 0.09, 1.3 + (x - 4) * 0.09, x % 6 < 3 ? body : dark);
+      f.limb(px, py, x, y, 1.2 + (x - 5) * 0.09, 1.3 + (x - 5) * 0.09, ASP, 1, () => (x % 6 < 3 ? 0 : -0.22));
       px = x;
       py = y;
     }
-    // the neck and head
+    // the neck and head, a pale belly showing up the front of the neck
     const hx = 27 + reach * 9 - up * 3, hy = 25 - up * 15;
-    taper(p, 24, 27, hx, hy, 3, 2.5, body);
-    taper(p, 24, 28, hx, hy + 1, 1, 1, belly);
-    if (up > 0.5) p.ellipse(hx - 1, hy + 4, 4.5, 5, dark); // the hood, spread when it rears
-    p.ellipse(hx + 2, hy, 4, 2.6, body);
-    p.set(hx + 3, hy - 1, eye);
+    f.limb(24, 27, hx, hy, 3, 2.5, ASP);
+    if (up > 0.5) {
+      // the hood, spread when it rears
+      f.bias = -0.14;
+      f.ball(hx - 1, hy + 4, 4.5, 5, ASP);
+      f.bias = 0;
+    }
+    f.next();
+    f.limb(24.6, 28, hx + 0.8, hy + 1.6, 1, 1, ASP_BELLY, 0.7);
+    f.next();
+    f.ball(hx + 2, hy, 4, 2.6, ASP);
+    f.dot(hx + 3, hy - 1, ASP_EYE, 0.9);
     if (mouth) {
-      p.poly([[hx + 3, hy + 1], [hx + 8, hy], [hx + 7, hy + 4]], hex('#7a1020'));
-      p.line(hx + 6, hy + 1, hx + 6, hy + 3, WHITE);
-    } else p.line(hx + 6, hy + 1, hx + 9, hy + 2, hex('#d03040'));
-    p.outline(INK);
-    return p;
+      f.next();
+      f.poly([[hx + 3, hy + 1], [hx + 8, hy], [hx + 7, hy + 4]], ASP_MOUTH, 0.5);
+      f.stroke(hx + 6, hy + 1, hx + 6, hy + 3, FANG, 0.9);
+    } else f.stroke(hx + 6, hy + 1, hx + 9, hy + 2, ASP_MOUTH, 0.9); // a flick of its tongue
+    return f.resolve();
   };
-  b.add('slither', draw(0, 0.15), draw(1.5, 0.2), draw(3, 0.15), draw(4.5, 0.1));
+  b.add('slither', ...Array.from({ length: 8 }, (_, i) => draw((i / 8) * Math.PI * 2, 0.15 + 0.05 * Math.sin((i / 8) * Math.PI * 2))));
   b.add('coil', draw(0, 0.5, -0.4));
   b.add('strike', draw(2, 0.1, 1, true));
   b.add('rear', draw(1, 1, 0, true));

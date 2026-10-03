@@ -13,15 +13,15 @@ import { TILE } from '../config';
 
 /**
  * A grimoire that sleeps spine-out inside a bookcase. Walk near and it rattles, tears loose
- * and flaps at you, circling overhead and diving now and then. One book waking rouses the
+ * and flaps at you, circling overhead; now and then it stops, opens wide and spits a fan of
+ * its own pages at you (0.24.1; it used to dive). One book waking rouses the
  * rest of its shelf, so they come out together.
  *
  * Place it inside the bookcase tiles (the 'H' blocks of library rooms): while it is shelved it
  * can't hurt you or be hit, and when it bursts out it flies through the wood.
  */
 export class Tome extends Enemy {
-  state: 'shelved' | 'rattle' | 'burst' | 'flap' | 'wind' | 'dive' = 'shelved';
-  lunges = ['dive'];
+  state: 'shelved' | 'rattle' | 'burst' | 'flap' | 'wind' | 'spew' = 'shelved';
   st = 0;
   /** Frames until a shelved tome starts to rattle (-1 = still asleep). */
   wake = -1;
@@ -149,49 +149,49 @@ export class Tome extends Enemy {
         s.mesh.rotation.z = -this.vx * 0.06 * (this.facing < 0 ? -1 : 1);
         if (this.t % 18 === 0) g.fx.burst(this.x, this.y + 6, 'page', 1, 3, { vy: 0.3, grav: 0.015, life: 36, rot: 0.1, fade: true });
         if (this.stun <= 0 && p.alive && --this.cool <= 0) {
-          if (this.can('dive') && dist < 200) this.set('wind');
+          if (this.can('spew') && dist < 200) this.set('wind');
           else this.cool = 50;
         }
         break;
       }
       case 'wind':
-        // rear back with the covers wide: the tell before a dive
+        // rears back, shuddering, its pages starting to glow: the tell before it spits
         this.vx = -(dx / dist) * 0.9;
         this.vy = -0.5;
         this.faceToward(p.x);
         this.fly(g, false);
-        s.anim('flap', this.t / 60, 18);
+        s.anim('spew', this.t / 60, 12);
         ox = this.st % 4 < 2 ? -1 : 1;
         if (this.stun > 0) this.set('flap');
-        else if (this.st >= 18) {
-          this.set('dive');
-          const sp = 3.1 * spd;
-          this.vx = (dx / dist) * sp;
-          this.vy = (dy / dist) * sp;
-          this.facing = this.vx < 0 ? -1 : 1;
-          g.audio.play('pages');
-        }
+        else if (this.st >= 22) this.set('spew');
         break;
-      case 'dive':
-        // covers shut, straight at where the hunter stood
-        s.setFrame(A.dive[0]);
-        s.mesh.rotation.z = -Math.atan2(this.vy, Math.abs(this.vx) || 1) * (this.facing < 0 ? -1 : 1);
-        if (this.t % 3 === 0) g.fx.burst(this.x - this.facing * 8, this.y, 'page', 1, 2, { life: 24, rot: 0.2, fade: true });
-        {
-          const hx = this.vx, hy = this.vy;
-          this.fly(g, false);
-          // slammed into something: bounce off and flap again
-          if ((hx !== 0 && this.vx !== hx) || (hy !== 0 && this.vy !== hy) || this.stun > 0 || this.st > 30) {
-            this.set('flap');
-            this.cool = (90 + Math.random() * 60) * this.num('cooldown');
-            this.vx *= 0.3;
-            this.vy = Math.min(this.vy, -0.6);
-          }
+      case 'spew':
+        // hangs where it is and spits pages: five of them, fanned round where the hunter stands
+        this.vx *= 0.85;
+        this.vy *= 0.85;
+        this.fly(g, false);
+        this.faceToward(p.x);
+        s.anim('spew', this.t / 60, 16);
+        s.glow = 0.25;
+        if (this.st % 7 === 1 && this.st <= 5 * 7) {
+          const n = (this.st - 1) / 7, a = Math.atan2(dy, dx) + (n - 2) * 0.2 + rand(-0.05, 0.05);
+          const sp = 2.5 * spd;
+          g.spawn(new EnemyShot(g, this.x + this.facing * 4, this.y, Math.cos(a) * sp, Math.sin(a) * sp, 'page', Math.max(1, Math.round(this.atk * 0.6)), 0.015));
+          g.audio.play('pages');
+          // each page it spits kicks it back a little
+          this.vx -= Math.cos(a) * 0.5;
+          this.vy -= Math.sin(a) * 0.5;
+        }
+        if (this.stun > 0 || this.st > 5 * 7 + 16) {
+          s.glow = 0;
+          this.set('flap');
+          this.cool = (100 + Math.random() * 60) * this.num('cooldown');
         }
         break;
     }
     // wedged into stone after a bounce: tear loose again
-    if ((this.state === 'flap' || this.state === 'wind' || this.state === 'dive') && g.room.solidPx(this.x, this.y)) this.tearLoose(g, dx, dy);
+    if (this.state !== 'spew') s.glow = 0;
+    if ((this.state === 'flap' || this.state === 'wind' || this.state === 'spew') && g.room.solidPx(this.x, this.y)) this.tearLoose(g, dx, dy);
     s.place(this.x + ox, this.y, this.facing < 0);
   }
   die(g: Game) {

@@ -1624,23 +1624,32 @@ export class Player implements Body {
 
   render() {
     const s = this.sprite, A = this.g.sheets.hero.anims;
-    const pick = (name: string, fps = 10, loop = true) => s.anim(name, this.animT / 60, fps, loop);
+    // The twins' sheets have the same animations but not the same number of frames in each
+    // (Anzel's has in-betweens), so nothing here assumes a count. `pick` plays a loop at `fps`
+    // for a cycle of `base` frames, faster for a longer cycle so it takes the same time.
+    const pick = (name: string, fps: number, base: number) => s.anim(name, this.animT / 60, (fps * A[name].length) / base, true);
+    const cyc = (a: number[], every: number) => a[Math.floor(this.animT / every) % a.length];
+    const at = (a: number[], k: number) => a[Math.max(0, Math.min(a.length - 1, Math.floor(k)))];
     const spinning = this.state === 'normal' && this.spin > 0 && !this.onGround;
-    s.mesh.rotation.z = spinning ? -this.facing * this.spin * Math.PI * 2 : 0;
+    // the somersault: a sheet with turned frames plays them; one with a single frame is rotated
+    const turned = A.tuck.length > 1;
+    s.mesh.rotation.z = spinning && !turned ? -this.facing * this.spin * Math.PI * 2 : 0;
     switch (this.state) {
       case 'normal':
-        if (this.mount) s.setFrame(A.hang[0]);
-        else if (spinning) s.setFrame(A.tuck[0]);
-        else if (this.crouch) s.setFrame(A.crouch[0]);
-        else if (!this.onGround) s.setFrame(this.vy < 0 ? A.jump[0] : A.fall[Math.floor(this.animT / 8) % 2]);
-        else if (this.landT > 0) s.setFrame(A.land[0]);
-        else if (this.running && !this.inWater && Math.abs(this.vx) > WALK) pick('sprint', 16);
-        else if (Math.abs(this.vx) > 0.1) pick('walk', this.inWater ? 7 : 11);
-        else pick('idle', 3);
+        if (this.mount) s.setFrame(cyc(A.hang, 10));
+        else if (spinning) s.setFrame(at(A.tuck, this.spin * A.tuck.length));
+        else if (this.crouch) s.setFrame(cyc(A.crouch, 14));
+        // rising: the push-off, the climb, then easing over the top
+        else if (!this.onGround) s.setFrame(this.vy < 0 ? at(A.jump, this.vy < -3.2 ? 0 : this.vy < -1.2 ? 1 : 2) : cyc(A.fall, (8 * 2) / A.fall.length));
+        else if (this.landT > 0) s.setFrame(at(A.land, ((5 - this.landT) * A.land.length) / 5));
+        else if (this.running && !this.inWater && Math.abs(this.vx) > WALK) pick('sprint', 16, 8);
+        else if (Math.abs(this.vx) > 0.1) pick('walk', this.inWater ? 7 : 11, 8);
+        else s.anim('idle', this.animT / 60, A.idle.length > 4 ? 6 : 3, true); // a long idle is two breaths and a blink
         break;
       case 'attack': {
-        const phase = this.t < 6 ? 0 : 1;
-        s.setFrame(A[`atk_${this.atkStance}_${this.atkDir}_${phase}`][0]);
+        // the wind-up plays over its 6 frames; the stroke plays through once and holds
+        const wind = A[`atk_${this.atkStance}_${this.atkDir}_0`], hit = A[`atk_${this.atkStance}_${this.atkDir}_1`];
+        s.setFrame(this.t < 6 ? at(wind, (this.t * wind.length) / 6) : at(hit, (this.t - 6) / 2));
         break;
       }
       case 'throw': {
@@ -1654,11 +1663,11 @@ export class Player implements Body {
         s.setFrame(A.dash[this.t < 8 ? 0 : 1]);
         break;
       case 'slide':
-        s.setFrame(A.slide[0]);
+        s.setFrame(cyc(A.slide, 4));
         break;
       case 'hurt':
       case 'yank':
-        s.setFrame(A.hurt[0]);
+        s.setFrame(at(A.hurt, this.t / 6));
         break;
       case 'kneel':
         s.setFrame(A.crouch[0]);
@@ -1675,7 +1684,7 @@ export class Player implements Body {
         break;
       case 'hang': {
         const sw = this.theta * this.facing;
-        s.setFrame(Math.abs(this.theta) < 0.25 ? A.hang[0] : sw > 0 ? A.swingF[0] : A.swingB[0]);
+        s.setFrame(Math.abs(this.theta) < 0.25 ? cyc(A.hang, 10) : sw > 0 ? A.swingF[0] : A.swingB[0]);
         break;
       }
     }

@@ -2,7 +2,8 @@
 import type { Game } from '../game/game';
 import { drawText, drawBigText, textWidth } from '../gfx/font';
 import { VW, VH, SCREEN_COLS, SCREEN_ROWS } from '../config';
-import { ITEMS, ENEMY, PICKUP_NAMES, dropChance, DIFFICULTIES, SHOP } from '../game/data';
+import { ITEMS, ENEMY, PICKUP_NAMES, dropChance, DIFFICULTIES, SHOP, xpForLevel } from '../game/data';
+import { BOSSES } from '../game/bosses';
 import { drawHud, HUD_STYLES, HudStyle, loadHudStyle, saveHudStyle } from './hud';
 import { Hunter } from '../game/stats';
 import { REBINDABLE, keyLabel, PAD_NAMES, Action, ACTION_LABEL } from '../core/input';
@@ -14,6 +15,8 @@ import { startTest, testEntries, TestEntry } from '../game/test_chamber';
 
 /** The equipment slots on the EQUIP page, top to bottom. */
 type EquipSlot = 'whip' | 'shield' | 'armor' | 'acc1' | 'acc2';
+const EQUIP_SLOTS: EquipSlot[] = ['whip', 'shield', 'armor', 'acc1', 'acc2'];
+const SLOT_LABEL: Record<EquipSlot, string> = { whip: 'WHIP', shield: 'SHIELD', armor: 'ARMOR', acc1: 'ACCESSORY 1', acc2: 'ACCESSORY 2' };
 
 const ROOM_ROWS = 12; // rooms shown at once in the TEST ROOM list
 const TALK_SPEED = 1.2; // characters a frame the dialogue types out
@@ -29,6 +32,11 @@ const GOLD = '#d8b060';
 const PALE = '#e8dcc8';
 const DIM = '#8a7a90';
 const RED = '#e04050';
+const STAT_UP = '#58b0ff'; // EQUIP preview: a stat that would rise...
+const STAT_DOWN = '#ff5060'; // ...or fall
+
+/** The game-over menu. RETRY ROOM is a debug option (it rewinds to entering the room) and won't ship. */
+const GAMEOVER_OPTS = ['CONTINUE FROM LAST REST', 'RETRY ROOM (DEBUG)', 'RETURN TO TITLE'];
 
 type PauseTab = 'status' | 'equip' | 'items' | 'relics' | 'bestiary' | 'map' | 'controls' | 'sound' | 'title';
 const TABS: { id: PauseTab; label: string }[] = [
@@ -206,7 +214,7 @@ export class UI {
         this.endT++;
         if (this.endT < 60) return;
         if (inp.mUp || inp.mDown) {
-          this.endSel = 1 - this.endSel;
+          this.endSel = (this.endSel + (inp.mDown ? 1 : GAMEOVER_OPTS.length - 1)) % GAMEOVER_OPTS.length;
           g.audio.play('menu');
         }
         if (inp.confirm) {
@@ -214,6 +222,7 @@ export class UI {
           // a test run restarts in its test room instead of loading the real save
           const test = g.testRun && g.defs.find((d) => d.id === g.testRun);
           if (this.endSel === 0) test ? g.testRoom(test) : g.continueGame();
+          else if (this.endSel === 1) g.retryRoom();
           else this.enterTitle();
           inp.flush();
         }
@@ -386,7 +395,6 @@ export class UI {
           g.audio.play('confirm');
           return;
         }
-        if (tab === 'status') return;
         this.focus = 'panel';
         this.sel = 0;
         g.audio.play('confirm');
@@ -398,16 +406,26 @@ export class UI {
       this.focus = 'tabs';
       g.audio.play('cancel');
     };
+    if (tab === 'status') {
+      if (inp.cancel || inp.mLeft) return back();
+      if (inp.confirm) {
+        if (g.boss) return g.audio.play('cancel'); // the Mirror Heart copies the twin you play
+        g.switchHero();
+        g.audio.play('item');
+      }
+      return;
+    }
     if (tab === 'equip') {
-      const slots = ['whip', 'shield', 'armor', 'acc1', 'acc2'] as const;
+      const slots = EQUIP_SLOTS;
       if (this.focus === 'panel') {
         if (inp.cancel || inp.mLeft) return back();
         if (inp.mUp) this.sel = (this.sel + slots.length - 1) % slots.length;
         if (inp.mDown) this.sel = (this.sel + 1) % slots.length;
         if (inp.mUp || inp.mDown) g.audio.play('menu');
         if (inp.confirm) {
+          // the list opens on what's worn now
           this.focus = 'pick';
-          this.pickSel = 0;
+          this.pickSel = Math.max(0, this.equipChoices(slots[this.sel]).indexOf(h.equip[slots[this.sel]]));
           g.audio.play('confirm');
         }
       } else if (this.focus === 'pick') {
@@ -421,11 +439,7 @@ export class UI {
         if (inp.mDown) this.pickSel = (this.pickSel + 1) % list.length;
         if (inp.mUp || inp.mDown) g.audio.play('menu');
         if (inp.confirm) {
-          const id = list[this.pickSel];
-          const slot = slots[this.sel];
-          if (slot === 'acc1' && id && h.equip.acc2 === id) h.equip.acc2 = '';
-          if (slot === 'acc2' && id && h.equip.acc1 === id) h.equip.acc1 = '';
-          (h.equip as any)[slot] = id;
+          h.equip = this.equipWith(slots[this.sel], list[this.pickSel]);
           this.focus = 'panel';
           g.audio.play('item');
         }
@@ -467,7 +481,7 @@ export class UI {
       return;
     }
     if (tab === 'bestiary') {
-      const n = Object.keys(ENEMY).length;
+      const n = Object.keys(ENEMY).filter((k) => !ENEMY[k].test).length;
       if (inp.cancel || inp.mLeft) return back();
       if (inp.mUp) this.sel = (this.sel + n - 1) % n;
       if (inp.mDown) this.sel = (this.sel + 1) % n;
@@ -1141,21 +1155,16 @@ export class UI {
     drawText(c, 'PAUSED', 56, 16, GOLD, '#000', 'center');
     TABS.forEach((tb, i) => {
       const sel = i === this.tab;
-      if (sel) {
-        c.fillStyle = this.focus === 'tabs' ? '#4a1828' : '#2a1020';
-        c.fillRect(13, 31 + i * 15, 86, 12);
-      }
+      if (sel) this.selRow(13, 31 + i * 15, 86, 12, this.focus === 'tabs');
       drawText(c, tb.label, 18, 34 + i * 15, sel ? PALE : DIM);
     });
     if (this.quitConfirm) drawText(c, 'CONFIRM AGAIN', 56, 34 + TABS.length * 15 + 2, RED, '#000', 'center');
-    drawText(c, 'TIME ' + this.fmtTime(h.time), 56, VH - 34, DIM, '#000', 'center');
-    drawText(c, `EXPLORED ${this.explored()}%`, 56, VH - 22, DIM, '#000', 'center');
     const px = 110, py = 8, pw = VW - 118, ph = VH - 16;
     this.panel(px, py, pw, ph);
     const tab = TABS[this.tab].id;
     switch (tab) {
       case 'status':
-        return this.drawStatus(px, py);
+        return this.drawStatus(px, py, pw);
       case 'equip':
         return this.drawEquip(px, py, pw);
       case 'items':
@@ -1178,45 +1187,92 @@ export class UI {
     }
   }
 
-  drawStatus(x: number, y: number) {
-    const c = this.ctx, h = this.g.hunter;
-    // portrait and name
-    this.panel(x + 10, y + 12, 52, 56, 1);
-    const hero = this.g.sheets.hero;
-    const img = hero.tex.image as HTMLCanvasElement;
-    const f = hero.anims.idle[Math.floor(this.t / 20) % 4];
-    c.drawImage(img, (f % hero.cols) * hero.cw, Math.floor(f / hero.cols) * hero.ch, 48, 48, x + 12, y + 16, 48, 48);
-    drawText(c, this.g.text('{NAME} KORDER'), x + 72, y + 14, GOLD);
-    drawText(c, 'CHAIN-HUNTER', x + 72, y + 25, DIM);
-    /** Label on the left, value right-aligned at `right`. */
-    const row = (label: string, value: string, lx: number, right: number, ry: number, col = PALE) => {
-      drawText(c, label, lx, ry, DIM);
-      drawText(c, value, right, ry, col, '#000', 'right');
-    };
-    // level and vitals, then the stats beside them
-    const left: [string, string][] = [
-      ['LEVEL', String(h.level)],
-      ['EXP', String(h.xp)],
-      ['NEXT', String(Math.max(0, h.nextXp - h.xp))],
-      ['HP', `${h.hp}/${h.maxHp}`],
-      ['HEARTS', `${h.hearts}/${h.maxHearts}`],
-    ];
-    left.forEach(([l, v], i) => row(l, v, x + 72, x + 160, y + 40 + i * 11));
-    const right: [string, number][] = [
-      ['STR', h.str],
-      ['CON', h.con],
-      ['LCK', h.lck],
-      ['ATK', h.atk],
-      ['DEF', h.def],
-    ];
-    right.forEach(([l, v], i) => row(l, String(v), x + 180, x + 240, y + 40 + i * 11));
-    // a rule, then the tally
+  /** A soft inner card: dark fill and a thin border, with an optional title strip. */
+  card(x: number, y: number, w: number, h: number, title = '') {
+    const c = this.ctx;
+    c.fillStyle = 'rgba(28,14,34,0.9)';
+    c.fillRect(x, y, w, h);
     c.fillStyle = '#4a2a3a';
-    c.fillRect(x + 12, y + 102, 228, 1);
-    row('SUB-WEAPON', h.sub ? ITEMS[h.sub].name.toUpperCase() : '---', x + 12, x + 240, y + 110);
-    row('GOLD', String(h.gold), x + 12, x + 240, y + 122, '#f0d060');
-    row('SOUL SHARDS', String(h.shards), x + 12, x + 240, y + 134, '#c8b0ff');
-    row('ENEMIES SLAIN', String(h.kills), x + 12, x + 240, y + 146);
+    c.fillRect(x, y, w, 1);
+    c.fillRect(x, y + h - 1, w, 1);
+    c.fillRect(x, y, 1, h);
+    c.fillRect(x + w - 1, y, 1, h);
+    if (title) {
+      c.fillStyle = '#3a1828';
+      c.fillRect(x + 1, y + 1, w - 2, 11);
+      drawText(c, title, x + 5, y + 3, GOLD);
+    }
+  }
+  /** The highlight behind a selected row: a dark band with a gold edge on the left (dimmer when not focused). */
+  selRow(x: number, y: number, w: number, h: number, active: boolean) {
+    const c = this.ctx;
+    c.fillStyle = active ? '#4a1828' : '#2a1020';
+    c.fillRect(x, y, w, h);
+    c.fillStyle = active ? GOLD : '#6a4a2a';
+    c.fillRect(x, y, 2, h);
+  }
+  /** A 5x3 stat-change arrow (blue up, red down), outlined in black. */
+  statArrow(x: number, y: number, up: boolean) {
+    const c = this.ctx;
+    const rows = up ? [1, 3, 5] : [5, 3, 1];
+    c.fillStyle = '#000';
+    c.fillRect(x - 1, y - 1, 7, 5);
+    c.fillStyle = up ? STAT_UP : STAT_DOWN;
+    rows.forEach((n, r) => c.fillRect(x + (5 - n) / 2, y + r, n, 1));
+  }
+
+  /** The hero card: who's playing, level and vitals, the run's progress, and the twin switch. */
+  drawStatus(x: number, y: number, w: number) {
+    const g = this.g, c = this.ctx, h = g.hunter;
+    // left: the hero, idling, with the switch button under her
+    const lx = x + 8, lw = 92;
+    this.card(lx, y + 8, lw, 90);
+    const s = g.sheets.hero, a = s.anims.idle;
+    const f = a[Math.floor(this.t / 20) % a.length];
+    c.drawImage(s.tex.image as HTMLCanvasElement, (f % s.cols) * s.cw + 4, Math.floor(f / s.cols) * s.ch + 6, 40, 40, lx + 6, y + 13, 80, 80);
+    drawText(c, g.text('{NAME} KORDER'), lx + lw / 2, y + 103, GOLD, '#000', 'center');
+    drawText(c, 'CHAIN-HUNTER', lx + lw / 2, y + 113, DIM, '#000', 'center');
+    const sel = this.focus === 'panel';
+    const other: HeroId = h.hero === 'vesna' ? 'anzel' : 'vesna';
+    if (sel) this.selRow(lx, y + 126, lw, 14, true);
+    else this.card(lx, y + 126, lw, 14);
+    drawText(c, `PLAY AS ${HEROES[other].name}`, lx + lw / 2 + 1, y + 130, sel ? PALE : DIM, '#000', 'center');
+    if (sel) {
+      const busy = !!g.boss;
+      drawText(c, busy ? 'NOT DURING A' : 'CONFIRM: SWITCH', lx + lw / 2, y + 146, busy ? RED : DIM, '#000', 'center');
+      if (busy) drawText(c, 'BOSS FIGHT', lx + lw / 2, y + 156, RED, '#000', 'center');
+    }
+    // right: level, then the three bars
+    const rx = x + 108, rw = w - 116;
+    drawText(c, 'LEVEL', rx, y + 14, DIM);
+    drawBigText(c, String(h.level), rx + 48, y + 10, 2, GOLD, '#2a1408');
+    const vital = (label: string, now: number, max: number, yy: number, col: string, text: string) => {
+      drawText(c, label, rx, yy, DIM);
+      drawText(c, text, rx + rw, yy, PALE, '#000', 'right');
+      this.bar(rx, yy + 10, rw, 3, max ? now / max : 0, col);
+    };
+    const prev = h.level > 1 ? xpForLevel(h.level - 1) : 0;
+    vital('EXP', h.xp - prev, h.nextXp - prev, y + 32, '#7a9cff', `NEXT ${Math.max(0, h.nextXp - h.xp)}`);
+    vital('HP', h.hp, h.maxHp, y + 52, '#d03040', `${h.hp}/${h.maxHp}`);
+    vital('HEARTS', h.hearts, h.maxHearts, y + 72, '#e07090', `${h.hearts}/${h.maxHearts}`);
+    // the run so far
+    c.fillStyle = '#4a2a3a';
+    c.fillRect(rx, y + 90, rw, 1);
+    const bosses = Object.keys(BOSSES).filter((id) => h.beaten(id)).length;
+    const rows: [string, string, string][] = [
+      ['SUB-WEAPON', h.sub ? ITEMS[h.sub].name.toUpperCase() : '---', PALE],
+      ['GOLD', String(h.gold), '#f0d060'],
+      ['SOUL SHARDS', String(h.shards), '#c8b0ff'],
+      ['ENEMIES SLAIN', String(h.kills), PALE],
+      ['BOSSES BEATEN', String(bosses), PALE],
+      ['RELICS', String(h.relicsFound.length), PALE],
+      ['TIME', this.fmtTime(h.time), PALE],
+      ['EXPLORED', `${this.explored()}%`, PALE],
+    ];
+    rows.forEach(([l, v, col], i) => {
+      drawText(c, l, rx, y + 96 + i * 12, DIM);
+      drawText(c, v, rx + rw, y + 96 + i * 12, col, '#000', 'right');
+    });
   }
 
   /** Found relics, each with its icon, what it does, and whether it's switched on. */
@@ -1245,37 +1301,96 @@ export class UI {
     if (this.focus === 'panel') drawText(c, 'CONFIRM: SWITCH ON / OFF', x + w / 2, y + 190, GOLD, '#000', 'center');
   }
 
+  /** The stats an equipment set gives, as [label, value, unit]: what the EQUIP page compares. */
+  equipStats(equip: Hunter['equip']): [string, number, string][] {
+    // a stand-in hunter that shares everything but the equipment, so the getters do the math
+    const t: Hunter = Object.create(this.g.hunter);
+    t.equip = equip;
+    return [
+      ['ATK', t.atk, ''],
+      ['DEF', t.def, ''],
+      ['STR', t.str, ''],
+      ['CON', t.con, ''],
+      ['LCK', t.lck, ''],
+      ['BLOCK', Math.round(t.block * 100), '%'],
+    ];
+  }
+  /** The equipment the hero would wear after putting `id` in `slot` (an accessory moves, it isn't doubled). */
+  equipWith(slot: EquipSlot, id: string) {
+    const e = { ...this.g.hunter.equip, [slot]: id };
+    if (slot === 'acc1' && id && e.acc2 === id) e.acc2 = '';
+    if (slot === 'acc2' && id && e.acc1 === id) e.acc1 = '';
+    return e;
+  }
+
+  /**
+   * Slots (or, while picking, the items for one slot) on the left, the stats on the right,
+   * and what the highlighted thing is along the bottom. While picking, each stat the
+   * highlighted item would change gets an arrow and its new value.
+   */
   drawEquip(x: number, y: number, w: number) {
-    const c = this.ctx, h = this.g.hunter;
-    const slots: [string, EquipSlot][] = [['WHIP', 'whip'], ['SHIELD', 'shield'], ['ARMOR', 'armor'], ['ACC 1', 'acc1'], ['ACC 2', 'acc2']];
-    drawText(c, 'EQUIPMENT', x + 10, y + 10, GOLD);
-    slots.forEach(([lab, key], i) => {
-      const sel = this.focus !== 'tabs' && i === this.sel;
-      if (sel) {
-        c.fillStyle = this.focus === 'panel' ? '#4a1828' : '#2a1020';
-        c.fillRect(x + 6, y + 23 + i * 18, w - 12, 16);
-      }
-      drawText(c, lab, x + 10, y + 28 + i * 18, DIM);
-      const id = h.equip[key];
-      if (id) {
-        this.icon(this.g.sheets.items, ITEMS[id].icon, x + 54, y + 23 + i * 18);
-        drawText(c, ITEMS[id].name.toUpperCase(), x + 74, y + 28 + i * 18, PALE);
-      } else drawText(c, '---', x + 74, y + 28 + i * 18, DIM);
-    });
-    drawText(c, `ATK ${h.atk}   DEF ${h.def}   STR ${h.str}   CON ${h.con}   LCK ${h.lck}`, x + 10, y + 120, PALE);
-    if (this.focus === 'pick') {
-      const list = this.equipChoices(slots[this.sel][1]);
-      const bx = x + 20, by = y + 128;
-      this.panel(bx, by, w - 40, Math.min(list.length, 4) * 12 + 14, 1);
-      const start = Math.max(0, Math.min(this.pickSel - 1, list.length - 4));
-      list.slice(start, start + 4).forEach((id, j) => {
-        const i = start + j;
-        const sel = i === this.pickSel;
-        drawText(c, (sel ? '> ' : '  ') + (id ? ITEMS[id].name.toUpperCase() : 'NONE'), bx + 8, by + 8 + j * 12, sel ? PALE : DIM);
+    const c = this.ctx, h = this.g.hunter, items = this.g.sheets.items;
+    const lx = x + 8, lw = 150, rx = lx + lw + 6, rw = w - lw - 22;
+    const picking = this.focus === 'pick';
+    const slot = EQUIP_SLOTS[this.sel];
+    const list = picking ? this.equipChoices(slot) : [];
+    // left column
+    if (!picking) {
+      this.card(lx, y + 8, lw, 128, 'EQUIPMENT');
+      EQUIP_SLOTS.forEach((key, i) => {
+        const ry = y + 22 + i * 22;
+        if (this.focus === 'panel' && i === this.sel) this.selRow(lx + 1, ry, lw - 2, 21, true);
+        const id = h.equip[key];
+        drawText(c, SLOT_LABEL[key], lx + 26, ry + 2, '#6a5a70');
+        if (id) {
+          this.icon(items, ITEMS[id].icon, lx + 6, ry + 3);
+          drawText(c, ITEMS[id].name.toUpperCase(), lx + 26, ry + 12, PALE);
+        } else drawText(c, '---', lx + 26, ry + 12, '#5a4a60');
       });
-      const id = list[this.pickSel];
-      if (id) drawText(c, ITEMS[id].desc.toUpperCase(), x + w / 2, y + 196, GOLD, '#000', 'center');
-    } else if (this.focus === 'panel') drawText(c, 'CONFIRM: CHANGE   CANCEL: BACK', x + w / 2, y + 190, DIM, '#000', 'center');
+    } else {
+      this.card(lx, y + 8, lw, 128, SLOT_LABEL[slot]);
+      const rows = 5, start = Math.max(0, Math.min(this.pickSel - 2, list.length - rows));
+      const twin = slot === 'acc1' ? h.equip.acc2 : slot === 'acc2' ? h.equip.acc1 : '';
+      list.slice(start, start + rows).forEach((id, j) => {
+        const i = start + j, ry = y + 22 + j * 22;
+        if (i === this.pickSel) this.selRow(lx + 1, ry, lw - 2, 21, true);
+        if (id) this.icon(items, ITEMS[id].icon, lx + 6, ry + 3);
+        drawText(c, id ? ITEMS[id].name.toUpperCase() : 'REMOVE', lx + 26, ry + 7, i === this.pickSel ? PALE : DIM);
+        // an E tag on what's worn here (gold) or in the other accessory slot (dim)
+        if (id && (id === h.equip[slot] || id === twin)) {
+          c.fillStyle = id === h.equip[slot] ? GOLD : '#6a4a2a';
+          c.fillRect(lx + lw - 14, ry + 5, 9, 11);
+          drawText(c, 'E', lx + lw - 12, ry + 7, '#1a0a10', null);
+        }
+      });
+      // more above / below, at the end of the title strip
+      if (start > 0) this.statArrow(lx + lw - 18, y + 12, true);
+      if (start + rows < list.length) this.statArrow(lx + lw - 10, y + 12, false);
+    }
+    // right column: the stats, and the change the highlighted item would make
+    this.card(rx, y + 8, rw, 128, 'STATS');
+    const now = this.equipStats(h.equip);
+    const pickId = picking ? list[this.pickSel] ?? '' : '';
+    const after = picking ? this.equipStats(this.equipWith(slot, pickId)) : now;
+    now.forEach(([label, v, unit], i) => {
+      const ry = y + 24 + i * 18, nv = after[i][1];
+      drawText(c, label, rx + 6, ry, DIM);
+      drawText(c, v + unit, rx + 62, ry, nv === v ? PALE : DIM, '#000', 'right');
+      if (nv !== v) {
+        this.statArrow(rx + 68, ry + 2, nv > v);
+        drawText(c, nv + unit, rx + rw - 6, ry, nv > v ? STAT_UP : STAT_DOWN, '#000', 'right');
+      }
+    });
+    // bottom: what the highlighted thing is
+    const by = y + 142, bw = w - 16, bh = 58;
+    this.card(lx, by, bw, bh);
+    const id = picking ? pickId : h.equip[slot];
+    if (this.focus === 'tabs') drawText(c, 'CONFIRM: CHOOSE A SLOT TO CHANGE', lx + 6, by + 6, DIM);
+    else if (id) {
+      drawText(c, ITEMS[id].name.toUpperCase(), lx + 6, by + 6, GOLD);
+      wrapText(ITEMS[id].desc.toUpperCase(), Math.floor((bw - 12) / 6)).slice(0, 2).forEach((l, i) => drawText(c, l, lx + 6, by + 18 + i * 10, PALE));
+    } else drawText(c, picking ? 'LEAVE THIS SLOT EMPTY.' : 'NOTHING IN THIS SLOT.', lx + 6, by + 6, DIM);
+    if (this.focus !== 'tabs') drawText(c, picking ? 'CONFIRM: EQUIP   CANCEL: BACK' : 'CONFIRM: CHANGE   CANCEL: BACK', lx + bw - 6, by + bh - 11, '#5a4a60', '#000', 'right');
   }
 
   drawItems(x: number, y: number, w: number) {
@@ -1299,7 +1414,7 @@ export class UI {
   /** Enemy list on the left, details of the selected one on the right. Stats unlock after the first kill. */
   drawBestiary(x: number, y: number, w: number) {
     const c = this.ctx, g = this.g, h = g.hunter;
-    const kinds = Object.keys(ENEMY);
+    const kinds = Object.keys(ENEMY).filter((k) => !ENEMY[k].test);
     const found = kinds.filter((k) => h.bestiary[k]).length;
     drawText(c, 'BESTIARY', x + 10, y + 10, GOLD);
     drawText(c, `${found}/${kinds.length} RECORDED`, x + w - 10, y + 10, DIM, '#000', 'right');
@@ -1546,7 +1661,7 @@ export class UI {
     drawBigText(c, 'YOUR HUNT', VW / 2, 60, 3, '#c02030', '#200408');
     drawBigText(c, 'HAS ENDED', VW / 2, 90, 3, '#c02030', '#200408');
     if (this.endT >= 60) {
-      ['CONTINUE FROM LAST REST', 'RETURN TO TITLE'].forEach((o, i) => {
+      GAMEOVER_OPTS.forEach((o, i) => {
         const sel = i === this.endSel;
         drawText(c, (sel ? '> ' : '  ') + o, VW / 2, 140 + i * 14, sel ? PALE : DIM, '#000', 'center');
       });

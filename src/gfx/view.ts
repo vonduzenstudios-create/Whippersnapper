@@ -144,6 +144,8 @@ export interface Sheet {
   ay: number;
   anims: Record<string, number[]>;
   meta: Record<number, any>;
+  /** See SheetBuilder.rate: animations with in-betweens play this many times faster. */
+  rate?: Record<string, number>;
   W: number;
   H: number;
 }
@@ -156,7 +158,7 @@ export function buildSheet(b: SheetBuilder): Sheet {
   b.frames.forEach((f, i) => big.blit(f, (i % cols) * b.cw, Math.floor(i / cols) * b.ch));
   const tex = makeTexture(big);
   tex.userData.shared = true;
-  return { tex, cw: b.cw, ch: b.ch, cols, rows, ax: b.ax, ay: b.ay, anims: b.anims, meta: b.meta, W, H };
+  return { tex, cw: b.cw, ch: b.ch, cols, rows, ax: b.ax, ay: b.ay, anims: b.anims, meta: b.meta, rate: b.rate, W, H };
 }
 
 const toHex = (r: number, g: number, b: number) => '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
@@ -308,7 +310,7 @@ export class Sprite {
   anim(name: string, t: number, fps = 8, loop = true) {
     const a = this.sheet.anims[name];
     if (!a) return;
-    let k = Math.floor(t * fps);
+    let k = Math.floor(t * fps * (this.sheet.rate?.[name] || 1));
     k = loop ? k % a.length : Math.min(k, a.length - 1);
     this.setFrame(a[k]);
   }

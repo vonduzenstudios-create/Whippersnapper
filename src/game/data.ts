@@ -131,6 +131,8 @@ export interface EnemyStats {
    */
   shift?: { h: number; s: number; l: number };
   tune?: Tune;
+  /** A boss that only exists in the test chamber so far: kept out of the bestiary. */
+  test?: boolean;
 }
 
 /** One behavior knob shown in the enemy editor. */
@@ -203,7 +205,7 @@ export const ENEMY_TUNING: Record<string, TuneField[]> = {
     { key: 'mash', label: 'Presses to escape', kind: 'num', def: 10, step: 1, min: 1, help: 'Left, right or jump presses it takes to tear free of its bite. It keeps biting until you do' }],
   // the Ashen Library (0.6.0), see enemies_library.ts
   tome: [SPEED, SIGHT, COOL,
-    { key: 'dive', label: 'Dives', kind: 'bool', help: 'Rears back, then dives at you with its covers shut' }],
+    { key: 'spew', label: 'Spits pages', kind: 'bool', help: 'Rears back, opens wide, then spits a fan of five pages at you' }],
   chair: [SPEED, SIGHT, COOL,
     { key: 'charge', label: 'Charges', kind: 'bool', help: 'Tips back, then spins straight at you' },
     { key: 'stomp', label: 'Stomps', kind: 'bool', help: 'Rises over you and drops down legs first' }],
@@ -326,7 +328,7 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
   },
   tome: {
     hp: 24, atk: 14, def: 1, xp: 12, name: 'Rustling Tome', portrait: 'flap',
-    desc: 'A grimoire the Archivist chained to its shelf. It slept spine-out among the others until the ash woke it. A whole shelf tears loose together. Knock them out of the air, and watch for the dive.',
+    desc: 'A grimoire the Archivist chained to its shelf. It slept spine-out among the others until the ash woke it. A whole shelf tears loose together. Knock them out of the air, and when one hangs still and starts to glow, get out from in front of it.',
     drops: [{ item: 'heartS', chance: 25 }, { item: 'heartB', chance: 8 }, { item: 'potion', chance: 3 }],
   },
   chair: {
@@ -392,6 +394,57 @@ const BASE_ENEMY: Record<string, EnemyStats> = {
   archivist: {
     hp: 600, atk: 23, def: 3, xp: 1050, name: 'The Head Archivist', portrait: 'idle',
     desc: 'He never left his lectern, and he writes what happens next. Blot your name out of his sentence while the ink is wet and the story happens to him instead.',
+    drops: [],
+  },
+  // ---- the ten trial bosses (0.27.0): not placed in the world, fought from TEST ENEMY. 600 HP = 3 + 3 openings
+  castellan: {
+    hp: 600, atk: 24, def: 0, xp: 1100, name: 'The Pendulum Castellan', portrait: 'idle',
+    desc: "A clockwork knight who keeps the tower's hour. Bait his chop onto a floor gear, let the pendulum catch him mid-swing, or get behind him after his sweep and unwind the key in his back.",
+    drops: [],
+  },
+  marionette: {
+    hp: 600, atk: 23, def: 0, xp: 1100, name: 'Lady Marrow', portrait: 'idle',
+    desc: "A porcelain dancer on strings. Whip a string while it is pulled taut, or drop a sandbag on her. When the strings are gone, the hands that held them come down.",
+    drops: [],
+  },
+  saint: {
+    hp: 600, atk: 20, def: 0, xp: 1150, name: 'The Censer Saint', portrait: 'idle',
+    desc: "His sermon is a storm of cinders fed by four hanging censers. Snuff all four and he chokes; or strike his own censer at the end of its swing and send it back to him.",
+    drops: [],
+  },
+  stalker: {
+    hp: 600, atk: 25, def: 0, xp: 1150, name: 'The Umbral Stalker', portrait: 'prowl',
+    desc: "It cannot be struck in the dark and cannot bear the light. Swing a lantern over it, make it lunge into a lit patch of floor, or throw holy fire at its feet.",
+    drops: [],
+  },
+  reaper: {
+    hp: 600, atk: 25, def: 0, xp: 1150, name: 'The Harvest Reaper', portrait: 'idle',
+    desc: "A scarecrow with a scythe and a lantern for a heart. Crouch in the tall wheat and strike him from behind while he searches, or set the wheat alight under him. He cuts his own cover down.",
+    drops: [],
+  },
+  baron: {
+    hp: 600, atk: 24, def: 0, xp: 1200, name: 'The Powder Baron', portrait: 'idle',
+    desc: "The last gunner of the east rampart. Whip his bombs back before the fuse runs out, turn his rolling kegs round, or stand so his cannon hits his own powder.",
+    drops: [],
+  },
+  starreader: {
+    hp: 600, atk: 22, def: 0, xp: 1250, name: 'The Star-Reader', portrait: 'idle',
+    desc: "He reads the future in a brass orrery, so change it: stop each world at the bottom of its orbit to make an eclipse, or break his lens while it gathers light again.",
+    drops: [],
+  },
+  miller: {
+    hp: 600, atk: 25, def: 0, xp: 1200, name: 'The Gale Miller', portrait: 'idle',
+    desc: "He carries a storm in the bellows on his back. Strike the valve from above when he vents, pull the sail brake so a sail clips him, or let his own breath drag a millstone back into him.",
+    drops: [],
+  },
+  mawtoad: {
+    hp: 600, atk: 24, def: 0, xp: 1200, name: 'The Mawtoad', portrait: 'idle',
+    desc: "It swallows whatever its tongue touches. Drop a gas pod in the way, or dodge so the tongue sticks in a thorn stump. Swollen into a ball, it bursts on the same thorns.",
+    drops: [],
+  },
+  abbess: {
+    hp: 600, atk: 23, def: 0, xp: 1300, name: 'The Rose Abbess', portrait: 'idle',
+    desc: "Three root-hearts feed her and her walls of briar: one high, one in a crawlspace, one behind a thorn curtain that burns. Uprooted, her thorn whip can be caught on yours and torn away.",
     drops: [],
   },
 };

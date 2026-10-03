@@ -3,9 +3,12 @@ import { View, buildSheet, Sheet, makeTexture, disposeTree, recolorSheet, sheetC
 import { Input } from '../core/input';
 import { AudioEngine } from '../audio/audio';
 import { Music } from '../audio/music';
-import { HERO, HERO_M, buildHeroSheet, buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildWyrmSheet, buildLibrarianSheet } from '../gfx/art_chars';
+import { buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildLibrarianSheet } from '../gfx/art_folk';
+import { buildWyrmSheet, buildWyrmBodySheet } from '../gfx/art_wyrm';
 import { buildDogSheet, buildHarpySheet, buildWraithSheet, buildCrawlerSheet, buildHookjawSheet, buildDevourerSheet, buildEelSheet, buildCasterSheet, buildOozeSheet, buildGrubSheet, buildHandSheet, buildTomeSheet, buildChairSheet, buildSpiderSheet, buildMothSheet } from '../gfx/art_beasts';
-import { buildHoundSheet, buildCinderHoundSheet, buildBellMotherSheet } from '../gfx/art_bosses';
+import { buildHoundSheet, buildCinderHoundSheet } from '../gfx/art_hound';
+import { buildAnzelSheet, buildVesnaSheet } from '../gfx/art_hunter';
+import { buildBellMotherSheet } from '../gfx/art_bellmother';
 import { buildSerpentSheet, buildFigureSheet } from '../gfx/art_depths';
 import { buildLeviathanSheet, buildGorgonSheet, buildColossusSheet, buildYetiSheet, buildArchivistSheet, buildPropSheet, buildTallPropSheet } from '../gfx/art_bosses2';
 import { buildItemSheet, buildCandleSheet, buildFxSheet, buildFireSheet, buildRelicFxSheet, buildRingSheet } from '../gfx/art_items';
@@ -26,6 +29,7 @@ import { ChairProp } from './enemies_library';
 import { ENEMY } from './data';
 import { HeroId, heroText, Line, SCENES } from './story';
 import { buildPortraitSheet, buildPellSheet } from '../gfx/art_portraits';
+import { trialSheet } from '../gfx/art_trials';
 import { UI } from '../ui/ui';
 import { Editor } from '../editor/editor';
 import { VW, VH, TILE, CELL_W, CELL_H, STEP, SCREEN_COLS, SCREEN_ROWS } from '../config';
@@ -43,6 +47,7 @@ export interface Sheets {
   bat: Sheet;
   wisp: Sheet;
   wyrm: Sheet;
+  wyrmBody: Sheet;
   dog: Sheet;
   harpy: Sheet;
   wraith: Sheet;
@@ -130,6 +135,8 @@ export class Game {
   tideLevel = -1; // tidal rooms: 0 = low tide .. 1 = high tide (-1 = just entered)
   /** A boss has taken over this room's water (the Leviathan): the tide clock is ignored, see setWater. */
   tideHold = false;
+  /** The song's volume while nothing else is ducking it (1 = full). A boss lowers it so its bells can be heard. */
+  musicDuck = 1;
   /** Extra things drawn on the HUD canvas in world space during play (a boss's written words). Cleared with the room. */
   overlays: ((c: CanvasRenderingContext2D) => void)[] = [];
   tileCanvas: HTMLCanvasElement | null = null;
@@ -166,6 +173,8 @@ export class Game {
   cutscene: Cutscene | null = null;
   /** Where the hero entered the current room; the avalanche restarts her here. */
   entry = { x: 0, bottom: 0 };
+  /** The hunter as she walked into this room (a JSON copy), for RETRY ROOM on the game-over screen (debug). */
+  roomStart: { id: string; x: number; bottom: number; hunter: string; visited: string[] } | null = null;
   touring = false;
   /** Id of the room picked from TEST ROOM on the title ('' = a normal game). Blocks saving. */
   testRun = '';
@@ -180,7 +189,7 @@ export class Game {
 
   constructor() {
     const t0 = performance.now();
-    this.heroSheets = { vesna: buildSheet(buildHeroSheet(HERO)), anzel: buildSheet(buildHeroSheet(HERO_M)) };
+    this.heroSheets = { vesna: buildSheet(buildVesnaSheet()), anzel: buildSheet(buildAnzelSheet()) };
     const glass = (s: Sheet) => recolorSheet(s, Object.fromEntries(sheetColors(s).map((c) => [c.hex, shiftColor(c.hex, { glass: true })])));
     this.mirrorSheets = { vesna: glass(this.heroSheets.vesna), anzel: glass(this.heroSheets.anzel) };
     this.sheets = {
@@ -192,6 +201,7 @@ export class Game {
       bat: buildSheet(buildBatSheet()),
       wisp: buildSheet(buildWispSheet()),
       wyrm: buildSheet(buildWyrmSheet()),
+      wyrmBody: buildSheet(buildWyrmBodySheet()),
       dog: buildSheet(buildDogSheet()),
       harpy: buildSheet(buildHarpySheet()),
       wraith: buildSheet(buildWraithSheet()),
@@ -344,6 +354,34 @@ export class Game {
     this.state = 'play';
   }
 
+  /**
+   * RETRY ROOM (debug, game-over screen): rewind to the moment the hero walked into the
+   * room she died in. Everything in the hunter (HP, items, flags, bosses) goes back too,
+   * so a boss fight starts over.
+   */
+  retryRoom() {
+    const r = this.roomStart, def = r && this.defs.find((d) => d.id === r.id);
+    if (!r || !def) return this.continueGame();
+    this.cutscene = null;
+    this.input.script = null;
+    this.trans = null;
+    this.fade = 0;
+    const h = new Hunter();
+    Object.assign(h, JSON.parse(r.hunter));
+    this.hunter = h;
+    this.applyHero();
+    this.visited = new Set(r.visited);
+    this.loadRoom(def, r.x, r.bottom);
+    this.state = 'play';
+  }
+
+  /** Swap to the other twin (STATUS page). Only the looks and the story text change. */
+  switchHero() {
+    this.hunter.hero = this.hunter.hero === 'vesna' ? 'anzel' : 'vesna';
+    this.heroChoice = this.hunter.hero;
+    this.applyHero();
+  }
+
   /** One sheet per ENEMY entry: variants get a recolored copy of their base enemy's sheet. */
   buildEnemySheets() {
     this.enemySheets = {};
@@ -359,7 +397,7 @@ export class Game {
     }
   }
   enemySheet(kind: string): Sheet {
-    return this.enemySheets[kind] || (this.sheets as any)[ENEMY[kind]?.base || kind];
+    return this.enemySheets[kind] || (this.sheets as any)[ENEMY[kind]?.base || kind] || trialSheet(kind);
   }
 
   /** Map cell → room lookup. Call again after rooms move or change size. */
@@ -408,6 +446,7 @@ export class Game {
     }
     this.freezeT = 0;
     this.tideHold = false;
+    this.musicDuck = 1;
     this.overlays = [];
     this.view.roll = 0;
     if (this.player) this.player.mount = null;
@@ -509,6 +548,7 @@ export class Game {
     if (p.state === 'hang' || p.state === 'attack') p.set('normal');
     p.lastSafe = { x: p.x, y: p.y };
     this.entry = { x: px, bottom: pbottom };
+    this.roomStart = { id: def.id, x: px, bottom: pbottom, hunter: JSON.stringify(this.hunter.serialize()), visited: [...this.visited] };
     // the avalanche follows the hero through the chase rooms until it buries the pass
     this.avalanche = null;
     const chasing = !!def.chase && !this.touring && !flags.includes(CHASE_FLAG);
@@ -593,7 +633,7 @@ export class Game {
       this.music.setVolume(1 - 0.55 * near, 0.25);
     } else {
       if (this.saveMusic.current) this.saveMusic.stop(0.8);
-      this.music.setVolume(1, 0.3);
+      this.music.setVolume(this.musicDuck, 0.12);
     }
   }
 
@@ -897,6 +937,7 @@ export class Game {
     const id = this.room.def.boss || '';
     const info = BOSSES[id];
     const h = this.hunter;
+    this.musicDuck = 1;
     if (!h.flags.includes(`boss_${id}`)) h.flags.push(`boss_${id}`);
     if (id === 'wyrm') h.bossDefeated = true;
     // bosses never go through Enemy.die(), so award XP and the bestiary entry here
@@ -1153,19 +1194,38 @@ export class Game {
   }
 
   updateCamera() {
+    // how much room the camera leaves round the boss and the hero when it frames them both
+    const BOSS_PAD_X = 64, BOSS_PAD_Y = 60, HERO_PAD_X = 48, HERO_PAD_Y = 44;
     const p = this.player, r = this.room, v = this.view;
     // a boss can ask for the camera to pull back a touch while you fight it (Boss.camZoom);
     // it eases there slowly, keeping the middle of the view where it is
-    const wantZ = this.boss && !this.boss.dead ? this.boss.camZoom || 1 : 1;
+    const b = this.boss && !this.boss.dead ? this.boss : null;
+    let wantZ = b ? b.camZoom || 1 : 1;
+    // ...and the boss never leaves the picture (0.27.0): the camera pulls back as far as it
+    // must to hold the hero and the boss together, up to the whole room
+    const frame = b && !this.bossShow && !b.camFree ? { x: clamp(b.x, 0, r.W), y: clamp(b.y, 0, r.H) } : null;
+    if (frame) {
+      const cap = Math.max(wantZ, Math.min(2.2, Math.max(r.W / VW, r.H / VH)));
+      wantZ = clamp(Math.max((Math.abs(frame.x - p.x) + BOSS_PAD_X + HERO_PAD_X) / VW, (Math.abs(frame.y - p.y) + BOSS_PAD_Y + HERO_PAD_Y) / VH), wantZ, cap);
+    }
     if (v.zoom !== wantZ) {
-      const z = Math.abs(wantZ - v.zoom) < 0.002 ? wantZ : v.zoom + (wantZ - v.zoom) * 0.02;
+      // out quickly (so a lunge can't outrun it), back in slowly
+      const z = Math.abs(wantZ - v.zoom) < 0.002 ? wantZ : v.zoom + (wantZ - v.zoom) * (wantZ > v.zoom ? 0.08 : 0.02);
       v.camX -= (VW * z - v.viewW) / 2;
       v.camY -= (VH * z - v.viewH) / 2;
       v.zoom = z;
     }
     const VWz = v.viewW, VHz = v.viewH;
-    const tx = clamp(p.x - VWz / 2, 0, Math.max(0, r.W - VWz));
-    const ty = clamp(p.y - VHz / 2 - 8, 0, Math.max(0, r.H - VHz));
+    // the hero stays in the middle when the boss fits beside her; otherwise the view slides
+    // just far enough toward the boss to take it in
+    let fx = p.x, fy = p.y - 8;
+    if (frame) {
+      const rx = Math.max(0, VWz / 2 - BOSS_PAD_X), ry = Math.max(0, VHz / 2 - BOSS_PAD_Y);
+      fx = clamp(fx, frame.x - rx, frame.x + rx);
+      fy = clamp(fy, frame.y - ry, frame.y + ry);
+    }
+    const tx = clamp(fx - VWz / 2, 0, Math.max(0, r.W - VWz));
+    const ty = clamp(fy - VHz / 2, 0, Math.max(0, r.H - VHz));
     if (this.bossShow && this.boss) {
       // the camera follows the boss while it shows itself off, keeping it in the top two
       // thirds of the screen: its name goes across the lower third, the dialogue at the bottom

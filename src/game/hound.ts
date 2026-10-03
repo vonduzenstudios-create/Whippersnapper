@@ -94,11 +94,14 @@ export class Hound extends Ent implements Boss {
     if (this.flashT > 0) this.flashT--;
     const p = g.player, A = g.sheets.hound.anims, s = this.sprite!;
     const fast = this.form === 2 ? 1.35 : this.phase === 2 ? 1.25 : 1;
-    let frame = A.walk[Math.floor(g.frame / 8) % 4];
+    // every animation is a loop of in-betweens (gfx/art_hound.ts): `every` is game frames per sprite frame
+    const loop = (a: number[], every: number, t = g.frame) => a[Math.floor(t / every) % a.length];
+    const crouch = loop(A.crouch, 5), howl = loop(A.howl, 5);
+    let frame = loop(A.walk, 4);
     switch (this.pat) {
       case 'enter':
         this.vx = 0;
-        frame = A.howl[0];
+        frame = howl;
         if (this.pt === 20) {
           g.audio.play('howl');
           g.shake(3, 40);
@@ -108,23 +111,23 @@ export class Hound extends Ent implements Boss {
           // prowls toward her, slowly
           this.face();
           this.vx = this.facing * 0.8;
-          frame = A.walk[Math.floor(this.pt / 9) % 4];
+          frame = loop(A.walk, 5, this.pt);
         } else if (this.pt >= 170 && this.pt < 200) {
-          frame = A.crouch[0];
+          frame = crouch;
           if (this.pt === 170) g.audio.play('growl');
         } else if (this.pt >= 200 && this.pt < 230) {
           // both heads snap at the air
-          frame = this.pt % 10 < 5 ? A.bite[0] : A.crouch[0];
+          frame = loop(A.bite, 3, this.pt - 200); // a ten-frame snap, three times
           if (this.pt % 10 === 0) g.audio.play('bark');
           if (this.pt === 200) g.shake(2, 20);
-        } else if (this.pt >= 230 && this.pt < 260) frame = A.howl[0];
+        } else if (this.pt >= 230 && this.pt < 260) frame = howl;
         if (this.pt === 260) g.bossTalk();
         if (this.pt > 260) this.set('stalk');
         break;
       case 'stalk':
         this.face();
         this.vx = this.facing * 1.0 * fast;
-        frame = A.walk[Math.floor(this.pt / 7) % 4];
+        frame = loop(A.walk, this.form === 2 ? 3 : 4, this.pt);
         if (Math.abs(p.x - this.x) < 70 && this.pt > 20) this.set('bite');
         else if (this.pt > 90) this.next();
         break;
@@ -132,15 +135,15 @@ export class Hound extends Ent implements Boss {
         if (this.pt < 22) {
           this.vx = 0;
           this.face();
-          frame = A.crouch[0];
+          frame = crouch;
           if (this.pt === 1) g.audio.play('growl');
         } else if (this.pt < 32) {
           if (this.pt === 22) g.audio.play('bark');
           this.vx = this.facing * 4.2;
-          frame = A.bite[0];
+          frame = loop(A.bite, 3, this.pt - 22);
         } else {
           this.vx *= 0.8;
-          frame = A.walk[0];
+          frame = loop(A.walk, 4);
           if (this.pt > 54) this.next();
         }
         break;
@@ -148,13 +151,13 @@ export class Hound extends Ent implements Boss {
         if (this.pt < 40) {
           this.vx = 0;
           this.face();
-          frame = A.crouch[0];
+          frame = crouch;
           if (this.pt === 1) g.audio.play('growl');
           if (this.pt % 6 === 0) g.fx.burst(this.x - this.facing * 20, this.bottom - 2, 'dust', 1, 4);
         } else {
           if (this.pt === 40) g.audio.play('roar');
           this.vx = this.facing * 6 * fast;
-          frame = A.charge[Math.floor(this.pt / 4) % 2];
+          frame = loop(A.charge, 2, this.pt);
           if (this.pt % 3 === 0) g.fx.burst(this.x - this.facing * 24, this.bottom - 3, 'dust', 1, 4);
           // slammed into the wall: reel, and shake masonry loose from the ceiling
           if (this.data.hit || this.pt > 240) {
@@ -171,22 +174,22 @@ export class Hound extends Ent implements Boss {
         break;
       case 'stun':
         this.vx = 0;
-        frame = A.stun[0];
+        frame = loop(A.stun, 6);
         if (this.pt > (this.data.long ? 170 : 80)) this.next();
         break;
       case 'leap':
         if (this.pt < 18) {
           this.vx = 0;
           this.face();
-          frame = A.crouch[0];
+          frame = crouch;
         } else if (this.pt === 18) {
           this.vy = -8.4;
           this.vx = clamp((p.x - this.x) / 46, -5, 5);
           this.onGround = false;
           g.audio.play('bark');
-          frame = A.leap[0];
+          frame = loop(A.leap, 3);
         } else if (!this.data.landed) {
-          frame = A.leap[0];
+          frame = loop(A.leap, 3);
           if (this.onGround) {
             this.data.landed = true;
             this.vx = 0;
@@ -197,14 +200,14 @@ export class Hound extends Ent implements Boss {
             if (this.form === 2) for (const d of [-1, 1]) g.spawn(new EnemyShot(g, this.x, this.bottom - 12, d * 2.2, -4, 'fireball', 14, 0.18));
           }
         } else {
-          frame = A.crouch[0];
+          frame = crouch;
           this.data.rest = (this.data.rest || 0) + 1;
           if (this.data.rest > 26) this.next();
         }
         break;
       case 'howl':
         this.vx = 0;
-        frame = A.howl[0];
+        frame = howl;
         if (this.pt === 1) this.face();
         if (this.pt === 10) {
           g.audio.play('howl');
@@ -221,7 +224,7 @@ export class Hound extends Ent implements Boss {
           this.face();
           g.audio.play('growl');
         }
-        frame = this.pt < 26 ? A.crouch[0] : A.bite[0];
+        frame = this.pt < 26 ? crouch : loop(A.bite, 4, this.pt - 26);
         if (this.pt === 26 || this.pt === 40) {
           g.audio.play('fire');
           const mx = this.x + this.facing * 40, my = this.y - 20;
@@ -272,7 +275,7 @@ export class Hound extends Ent implements Boss {
       case 'rise':
         // howling while its HP bar fills back up; can't be hurt until it's done
         this.vx = 0;
-        frame = A.howl[0];
+        frame = howl;
         this.hp = Math.min(this.maxHp, this.hp + this.maxHp / 60);
         if (this.pt % 6 === 0) g.fx.burst(this.x + rand(-30, 30), this.y + rand(-20, 10), 'spark', 1, 4);
         if (this.pt === 1) this.face();
@@ -287,7 +290,7 @@ export class Hound extends Ent implements Boss {
       case 'dying': {
         this.deathT++;
         this.vx = 0;
-        frame = A.stun[0];
+        frame = loop(A.stun, 6);
         if (this.deathT % 8 === 0) {
           g.fx.burst(this.x + rand(-26, 26), this.y + rand(-16, 16), 'burst', 2, 8, { fps: 10 });
           g.audio.play('explode');

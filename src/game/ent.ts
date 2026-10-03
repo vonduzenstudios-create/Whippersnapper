@@ -25,6 +25,8 @@ export interface Boss extends Ent {
   readonly gone: boolean;
   /** How far the camera pulls back during the fight (1 = not at all; see View.zoom). */
   readonly camZoom?: number;
+  /** True while the camera should not try to keep it in view (it has left the room on purpose). */
+  readonly camFree?: boolean;
 }
 
 export abstract class Ent {

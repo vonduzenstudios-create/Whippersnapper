@@ -27,7 +27,7 @@ export class Serpent extends Enemy {
     const dx = p.x - this.x, dist = Math.abs(dx), level = Math.abs(p.y - this.y) < 40;
     this.st++;
     if (this.cool > 0) this.cool--;
-    let frame = A.slither[Math.floor(this.t / 8) % 4];
+    let frame = A.slither[Math.floor((this.t * A.slither.length) / 32) % A.slither.length]; // one loop every 32 frames, however many frames it has
     if (this.stun > 0) {
       if (this.state !== 'slither') this.go('slither');
     } else if (this.state === 'slither') {

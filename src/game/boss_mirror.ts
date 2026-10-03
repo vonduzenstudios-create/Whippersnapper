@@ -310,7 +310,7 @@ export class MirrorHeart extends BossBase {
         return;
       }
       f.visible = this.pat !== 'rage';
-      f.setFrame(HA.idle[Math.floor(g.frame / 12) % 4]);
+      f.setFrame(HA.idle[Math.floor(g.frame / 12) % HA.idle.length]);
       f.place(m.fx, this.floorY - 18, i % 2 === 0);
       f.opacity = 0.85;
       // only while it shows itself can you tell which one is the Heart

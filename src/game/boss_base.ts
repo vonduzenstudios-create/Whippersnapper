@@ -4,12 +4,12 @@
 // number of SEGMENTS of 100, and a blow takes a fixed bite out of the current one (`strike`).
 import * as THREE from 'three';
 import { Sprite, Sheet } from '../gfx/view';
-import { Ent, HitKind, Boss } from './ent';
+import { Ent, HitKind, Boss, DmgType } from './ent';
 import type { Game } from './game';
 import { ENEMY } from './data';
 import { EnemyShot, Rockfall } from './objects';
 import { Shockwave } from './enemies_expansion';
-import { rand, Box } from '../core/util';
+import { rand, Box, overlap } from '../core/util';
 
 /** One HP segment: a boss's HP is a whole number of these. */
 export const SEG = 100;
@@ -31,6 +31,11 @@ export function prop(g: Game, sheet: 'props' | 'tallprops', anim: string, x: num
   s.place(x, y);
   return s;
 }
+
+/** The frame of a one-shot animation at progress k (0..1). */
+export const frameAt = (anim: number[], k: number) => anim[Math.max(0, Math.min(anim.length - 1, Math.floor(k * anim.length)))];
+/** The frame of a looping animation, one step every `every` game frames. */
+export const frameLoop = (anim: number[], t: number, every: number) => anim[Math.floor(t / every) % anim.length];
 
 /** A glowing straight beam between two world points (a gaze, a flame jet). Call set() every frame it shows. */
 export class Beam {
@@ -209,6 +214,28 @@ export abstract class BossBase extends Ent implements Boss {
       return true;
     }
     return this.windowDmg >= SEG;
+  }
+  /**
+   * A blow outside a window on a part that isn't armored: it only chips (5 HP), and can never
+   * take the last of a segment. That still needs a window, where a blow is worth five of these.
+   */
+  chip(g: Game, x: number, y: number, amount = 5) {
+    if (g.frame - this.clankT < 10) return;
+    this.clankT = g.frame;
+    amount = Math.min(amount, this.hp - (Math.floor((this.hp - 1) / SEG) * SEG + 1));
+    if (amount <= 0) return this.clank(g, x, y);
+    this.hp -= amount;
+    this.flashT = 4;
+    g.damageNumber(x, y - 16, Math.round(amount), '#b0b0b0');
+    g.audio.play('clink');
+    g.fx.burst(x, y, 'spark', 1, 6);
+  }
+  /** One of its blows lands in `box`: the hero takes it if she's there. Returns true if it hit her. */
+  smite(g: Game, box: Box, type: DmgType = 'melee', dmg = this.atk) {
+    const p = g.player;
+    if (!p.alive || p.invuln > 0 || !overlap(box, p)) return false;
+    p.takeDamage(dmg, this.x, false, true, type, box.y);
+    return true;
   }
   /** Remove its projectiles from the room (and its own actors too, when it dies). */
   clearShots(g: Game, minions = false) {

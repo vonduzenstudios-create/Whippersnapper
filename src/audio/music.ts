@@ -980,7 +980,7 @@ export class Music {
     this.gain.connect(a.musicBus);
     this.wet = ctx.createGain();
     this.wet.gain.value = 1;
-    this.wet.connect(a.reverbSend);
+    this.wet.connect(a.musicVerb);
     this.t0 = ctx.currentTime + 0.1;
     this.nextStep = 0;
     const gainNode = this.gain, wetNode = this.wet;

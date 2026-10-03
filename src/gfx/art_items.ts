@@ -1,5 +1,6 @@
 // Procedural item, pickup and effect sprites.
 import { PixelCanvas, SheetBuilder, hex, RGBA } from './pixel';
+import { FormCanvas, ramp } from './form';
 
 const O = hex('#120a12');
 
@@ -336,6 +337,9 @@ export function buildCandleSheet(): SheetBuilder {
   return b;
 }
 
+/** Ice left by the Frost Crawler, deep shadow to glint. */
+const FROST = ramp('#2e6a98', '#5e9cc8', '#96cdec', '#c8ecff', '#ffffff');
+
 export function buildFxSheet(): SheetBuilder {
   const b = new SheetBuilder(16, 16, 8, 8);
   const add = (name: string, n: number, fn: (p: PixelCanvas, i: number) => void, outline: RGBA | null = null) => {
@@ -464,20 +468,32 @@ export function buildFxSheet(): SheetBuilder {
     for (let k = 0; k < 4; k++) p.line(3 + k * 3, 15, 4 + k * 3, 15 - (4 + ((k + i) % 2) * 5), c, 1.5);
     p.line(1, 15, 15, 15, hex('#8a70d0'), 2);
   });
-  // a patch of a Frost Crawler's ice trail, glazed over the floor (bottom rows of the cell)
+  // a patch of a Frost Crawler's trail, glazed over the floor (bottom rows of the cell): a skin
+  // of meltwater frozen as it ran, thick in the middle, with a ripple caught in it
   add('iceSlick', 2, (p, i) => {
-    p.rect(0, 13, 16, 3, hex('#9ad0ec', 200));
-    p.rect(1, 12, 14, 1, hex('#c8ecff', 220));
-    p.line(2 + i * 5, 13, 5 + i * 5, 13, hex('#ffffff'));
-    p.set(11 - i * 6, 14, hex('#ffffff'));
-    p.set(7 + i * 4, 11, hex('#e0f6ff', 200)); // a little frost crystal
+    const f = new FormCanvas(16, 16);
+    f.poly([[0, 12.6], [16, 12.6], [16, 16], [0, 16]], FROST, (x, y) => 0.42 + (y < 14 ? 0.22 : 0) + Math.sin((x + i * 5) * 0.8) * 0.1 - (y > 14 ? 0.14 : 0));
+    // it stands a little proud of the floor, in low swells
+    for (let k = 0; k < 3; k++) f.ball(2.5 + k * 5.5 + i * 2, 12.6, 2.6, 1.3, FROST, 0, 0.7);
+    f.stroke(2 + i * 5, 12, 5 + i * 5, 12, FROST, 0.99); // light skating on it
+    f.dot(11 - i * 6, 14, FROST, 0.99);
+    // a frost flower
+    const cx = 7 + i * 4;
+    f.dot(cx, 10, FROST, 0.99);
+    f.dot(cx - 1, 11, FROST, 0.8);
+    f.dot(cx + 1, 11, FROST, 0.8);
+    p.blit(f.resolve({ outline: false }), 0, 0);
   });
   // an icicle growing from a Frost Crawler's ceiling trail, point down (its root on row 0)
   add('icicle', 1, (p) => {
-    p.poly([[5, 0], [11, 0], [9, 7], [8, 14], [7, 7]], hex('#8ac4e4'));
-    p.poly([[6, 0], [8, 0], [8, 11], [7, 6]], hex('#e0f6ff'));
-    p.line(10, 1, 9, 6, hex('#5890c0'));
-  }, hex('#1a3a58'));
+    const f = new FormCanvas(16, 16);
+    f.ball(8, 0.6, 3.6, 1.8, FROST);
+    f.limb(8, 1, 8.2, 9, 2.6, 1.2, FROST);
+    f.limb(8.2, 9, 8, 14.4, 1.2, 0.3, FROST);
+    f.groove(7, 1, 7.4, 10, 0.2); // the light running down it
+    f.dot(9, 4, FROST, 0.2); // an air bubble frozen inside
+    p.blit(f.resolve({ ink: hex('#12283e') }), 0, 0);
+  });
   // the Devourer's tongue: fleshy segments that overlap into one long tongue, and its barbed tip
   add('tongueSeg', 1, (p) => {
     p.ellipse(8, 8, 3.2, 2.4, hex('#a83848'));

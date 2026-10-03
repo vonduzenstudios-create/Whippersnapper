@@ -396,7 +396,8 @@ const ICICLE_EVERY = [90, 150]; // frames between icicles growing from a crawler
 const ICICLE_GROW = 50; // frames an icicle grows (and wobbles at the end) before it falls
 
 /**
- * A patch of a Frost Crawler's ice trail, on a floor or (`ceil`) a ceiling. Standing on
+ * A patch of a Frost Crawler's ice trail, on a floor, (`ceil`) a ceiling, or (`wall`) a wall.
+ * Wall ice is only a mark of where it went: it chills nobody and grows no icicles. Standing on
  * floor ice chills the hero (see Player.chill): she slows down, then freezes solid. Ceiling
  * ice grows icicles that fall and leave more floor ice (see Crawler.dripIcicle). It thaws
  * away after a while. `surfY` is the floor's or ceiling's y.
@@ -404,24 +405,31 @@ const ICICLE_GROW = 50; // frames an icicle grows (and wobbles at the end) befor
 export class IcePatch extends Ent {
   t = 0;
   icicle = false; // an icicle is growing from it (ceiling ice only)
-  constructor(g: Game, x: number, public surfY: number, public ceil = false, public owner: Crawler | null = null) {
+  /**
+   * `wall`: 0, or which side of the patch the wall is on (+1 = the wall is to its right). For a
+   * wall patch, `x` is the wall's face and `surfY` is how high up it the patch sits.
+   */
+  constructor(g: Game, x: number, public surfY: number, public ceil = false, public owner: Crawler | null = null, public wall = 0) {
     super();
-    this.x = x;
-    this.y = ceil ? surfY + 2 : surfY - 2;
-    this.hw = 5;
-    this.hh = 2;
+    this.x = wall ? x - wall * 2 : x;
+    this.y = wall ? surfY : ceil ? surfY + 2 : surfY - 2;
+    this.hw = wall ? 2 : 5;
+    this.hh = wall ? 5 : 2;
     const s = (this.sprite = new Sprite(g.sheets.fx, g.view.sprites, 7)); // over the tiles, under everyone
     s.setFrame(g.sheets.fx.anims.iceSlick[Math.random() < 0.5 ? 0 : 1]);
     // the glaze is drawn on the cell's bottom rows; turned over, it hangs from a ceiling
-    if (ceil) s.mesh.rotation.z = Math.PI;
-    s.place(x, ceil ? surfY + 8 - 1 : surfY - 8 + 1, Math.random() < 0.5);
+    // (and turned a quarter, it clings to a wall)
+    if (wall) s.mesh.rotation.z = (wall * Math.PI) / 2;
+    else if (ceil) s.mesh.rotation.z = Math.PI;
+    if (wall) s.place(x - wall * 7, surfY, Math.random() < 0.5);
+    else s.place(x, ceil ? surfY + 8 - 1 : surfY - 8 + 1, Math.random() < 0.5);
   }
   update(g: Game) {
     const p = g.player;
     if (++this.t >= ICE_LIFE) this.dead = true;
     this.sprite!.opacity = Math.min(1, this.t / 10, (ICE_LIFE - this.t) / 120) * 0.9;
     // her feet are on it
-    if (!this.ceil && p.onGround && Math.abs(p.bottom - this.surfY) < 3 && Math.abs(p.x - this.x) < this.hw + 2) p.onIce = true;
+    if (!this.ceil && !this.wall && p.onGround && Math.abs(p.bottom - this.surfY) < 3 && Math.abs(p.x - this.x) < this.hw + 2) p.onIce = true;
   }
 }
 
@@ -511,6 +519,7 @@ export class Crawler extends Enemy {
   ty = 0;
   rot = 0; // the sprite's drawn angle, easing round corners
   iceX = NaN; // where it laid its last patch of ice
+  iceY = NaN;
   icicleT = rand(ICICLE_EVERY[0], ICICLE_EVERY[1]); // frames to the next icicle
   constructor(g: Game, kind: string, x: number, bottom: number) {
     super(g, kind, x, bottom, 8, 6);
@@ -587,11 +596,26 @@ export class Crawler extends Enemy {
       }
     }
   }
-  /** Lay a patch of ice trail at surface y `surfY` every ICE_STEP px it walks (floors and ceilings only). */
-  layIce(g: Game, surfY: number, ceil: boolean) {
-    if (!this.can('trail') || Math.abs(this.x - this.iceX) < ICE_STEP) return;
-    this.iceX = this.x;
-    g.spawn(new IcePatch(g, this.x, surfY, ceil, this));
+  /**
+   * It moves like a slug: a surge forward as its body stretches out, then almost a stop while
+   * it draws its tail up. In step with its 'crawl' animation (one stride every 48 frames), and
+   * averaging its old steady speed.
+   */
+  surge() {
+    return 0.4 + 1.9 * Math.max(0, Math.sin((this.t / 48) * Math.PI * 2));
+  }
+  /**
+   * Lay a patch of ice trail every ICE_STEP px it crawls. On a floor or ceiling, `surfY` is
+   * the surface's y. On a wall (`wall` = +1 if the wall is to its right, -1 to its left) the
+   * patch goes on the wall's face at (`surfX`, `surfY`).
+   */
+  layIce(g: Game, surfY: number, ceil: boolean, wall = 0, surfX = this.x) {
+    const at = wall ? this.fy : this.x, last = wall ? this.iceY : this.iceX;
+    if (!this.can('trail') || Math.abs(at - last) < ICE_STEP) return;
+    // turning a corner starts the other axis afresh, so the trail has no gap there
+    this.iceX = wall ? NaN : this.x;
+    this.iceY = wall ? this.fy : NaN;
+    g.spawn(new IcePatch(g, surfX, surfY, ceil, this, wall));
   }
   /** Every so often an icicle grows from a bit of its ceiling trail (not right where it is). */
   dripIcicle(g: Game) {
@@ -605,7 +629,7 @@ export class Crawler extends Enemy {
     const s = this.sprite!;
     this.hw = 8;
     this.hh = 6;
-    this.vx = this.stun > 0 ? 0 : this.facing * CRAWL_SPEED * this.num('speed');
+    this.vx = this.stun > 0 ? 0 : this.facing * CRAWL_SPEED * this.num('speed') * this.surge();
     this.vy = 0;
     const r = moveBody(g.room, this, true);
     if (r.hitX || this.stopsAt(g, this.x + this.facing * 9, this.y)) this.facing = -this.facing;
@@ -622,7 +646,7 @@ export class Crawler extends Enemy {
     }
     this.layIce(g, Math.round(this.bottom), false);
     this.rot = 0;
-    s.anim('crawl', this.t / 60, 10);
+    s.anim('crawl', this.t / 60, 5);
     s.mesh.rotation.z = 0;
     s.place(this.x, this.bottom - CRAWL_LIFT, this.facing < 0);
   }
@@ -630,7 +654,7 @@ export class Crawler extends Enemy {
     this.baseUpdate(g);
     const p = g.player, s = this.sprite!, A = this.anims;
     if (this.mode === 'fall') {
-      this.iceX = NaN; // a fresh trail where it lands
+      this.iceX = this.iceY = NaN; // a fresh trail where it lands
       this.hw = 8;
       this.hh = 6;
       this.vy = Math.min(this.vy + GRAVITY, MAX_FALL);
@@ -651,7 +675,7 @@ export class Crawler extends Enemy {
       return;
     }
     if (this.mode === 'ledge') return this.walkLedge(g);
-    if (this.stun <= 0) this.crawl(g, CRAWL_SPEED * this.num('speed'));
+    if (this.stun <= 0) this.crawl(g, CRAWL_SPEED * this.num('speed') * this.surge());
     this.syncBody();
     this.vx = this.tx * CRAWL_SPEED; // (for anything that reads which way it's going)
     if (this.onCeiling && this.can('drop') && p.alive && Math.abs(p.x - this.x) < 18 && p.y > this.y && p.y - this.y < 200 * this.num('sight')) {
@@ -661,9 +685,13 @@ export class Crawler extends Enemy {
       this.facing = this.tx < 0 ? -1 : 1;
       g.audio.play('bone');
     }
-    // its ice trail on floors (not in water) and ceilings; walls stay bare
-    if (this.ny > 0 && !g.room.inWater(this.x, this.fy - 2)) this.layIce(g, Math.round(this.fy), false);
+    // its ice trail on every surface it crawls (not under water). Only floor ice chills her
+    // and only ceiling ice grows icicles; on a wall it is just the mark of where it went
+    if (g.room.inWater(this.fx - this.nx * 2, this.fy - this.ny * 2)) {
+      // no trail in water
+    } else if (this.ny > 0) this.layIce(g, Math.round(this.fy), false);
     else if (this.ny < 0) this.layIce(g, Math.round(this.fy), true);
+    else if (this.nx !== 0) this.layIce(g, Math.round(this.fy), false, this.nx > 0 ? 1 : -1, Math.round(this.fx));
     this.dripIcicle(g);
     // the sprite stands on the surface: turned so its feet point into it, easing round corners
     const want = Math.atan2(this.nx, this.ny); // 0 on a floor, pi on a ceiling, +-pi/2 on a wall
@@ -673,7 +701,7 @@ export class Crawler extends Enemy {
     // its local "right" on screen is (cos, -sin) in game coordinates (three.js is y-up)
     const flip = this.tx * c - this.ty * sn < 0;
     this.facing = flip ? -1 : 1;
-    s.anim('crawl', this.t / 60, 10);
+    s.anim('crawl', this.t / 60, 5);
     s.mesh.rotation.z = this.rot;
     s.place(this.fx - sn * CRAWL_LIFT, this.fy - c * CRAWL_LIFT, flip);
   }

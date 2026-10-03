@@ -174,6 +174,12 @@ export class SheetBuilder {
   frames: PixelCanvas[] = [];
   anims: Record<string, number[]> = {};
   meta: Record<number, any> = {};
+  /**
+   * Animations drawn with in-betweens: `rate[name]` = how many frames there are now for each
+   * one the game's timing was written for. Sprite.anim() plays those that many times faster,
+   * so a smoother cycle still takes the same time.
+   */
+  rate: Record<string, number> = {};
   constructor(public cw: number, public ch: number, public ax: number, public ay: number) {}
   add(name: string, ...frames: PixelCanvas[]) {
     const idx: number[] = [];
@@ -183,6 +189,11 @@ export class SheetBuilder {
     }
     this.anims[name] = idx;
     return idx;
+  }
+  /** Add a looping animation that has `rate` times the frames its playback speed was tuned for. */
+  smooth(name: string, rate: number, ...frames: PixelCanvas[]) {
+    this.rate[name] = rate;
+    return this.add(name, ...frames);
   }
   canvas() {
     return new PixelCanvas(this.cw, this.ch);

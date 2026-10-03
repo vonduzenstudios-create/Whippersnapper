@@ -11,6 +11,7 @@ import { Yeti } from './boss_yeti';
 import { Colossus, FurnaceHeart } from './boss_colossus';
 import { MirrorHeart } from './boss_mirror';
 import { Archivist } from './boss_archivist';
+import { Castellan } from './boss_castellan';
 
 export interface BossInfo {
   /** Banner when the fight starts. */
@@ -35,4 +36,6 @@ export const BOSSES: Record<string, BossInfo> = {
   colossus: { name: 'The Hollow Colossus', sub: 'armor that outlived its knight', flag: 'deep_door', after: 'FAR BELOW, THE BLACK DOOR GRINDS OPEN', make: (g, x) => (g.room.def.id === 'fg_heart' ? new FurnaceHeart(g) : new Colossus(g, x)) }, // one boss, two rooms: the armor, then inside it
   mirror: { name: 'The Mirror Heart', sub: 'it has been waiting to meet you', make: (g) => new MirrorHeart(g) },
   archivist: { name: 'The Head Archivist', sub: 'keeper of every story but his own', make: (g, x, bottom) => new Archivist(g, x, bottom) },
+  // the ten trial bosses (0.27.0): no room in the world has them yet. TEST ENEMY builds each one's chamber (world/rooms_trials.ts)
+  castellan: { name: 'The Pendulum Castellan', sub: 'he keeps the hour, and the hour keeps him', make: (g, x) => new Castellan(g, x) },
 };

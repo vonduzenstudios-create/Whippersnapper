@@ -490,7 +490,7 @@ export class EnemyShot extends Ent {
   grav: number;
   t = 0;
   frames: number[];
-  constructor(g: Game, x: number, y: number, vx: number, vy: number, kind: 'bone' | 'fireball' | 'bigfire' | 'feather' | 'rock' | 'book' | 'web' | 'icicle' | 'glass' | 'slime', dmg: number, grav = 0) {
+  constructor(g: Game, x: number, y: number, vx: number, vy: number, kind: 'bone' | 'fireball' | 'bigfire' | 'feather' | 'rock' | 'book' | 'page' | 'web' | 'icicle' | 'glass' | 'slime', dmg: number, grav = 0) {
     super();
     this.x = x;
     this.y = y;

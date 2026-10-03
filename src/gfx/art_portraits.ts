@@ -1,6 +1,7 @@
 // Dialogue portraits: anime-style busts, 64x64, drawn in code. One frame per speaker and
 // expression, named `<speaker>_<face>` (e.g. 'vesna_angry'). Faces are drawn looking
 // slightly to the right; the dialogue box mirrors the ones that stand on the right.
+import { trialPortraits } from './art_trials';
 import { PixelCanvas, SheetBuilder, RGBA, hex, shade } from './pixel';
 import { depthPortraits, glassPortrait } from './art_depths';
 
@@ -388,6 +389,7 @@ export function buildPortraitSheet(): SheetBuilder {
   put('hound_angry', houndFace(true));
   // the 0.18.0 bosses (art_depths.ts); the Mirror Heart is each twin's own bust, in glass
   for (const [name, src] of Object.entries(depthPortraits())) put(name, src);
+  for (const [name, src] of Object.entries(trialPortraits())) put(name, src); // the ten trial bosses: cut from their puppets
   for (const who of ['vesna', 'anzel']) for (const f of ['neutral', 'smile', 'angry'] as Face[]) put(`mirror_${who}_${f}`, glassPortrait(bust(HUMANS[who][0], f, true)));
   return b;
 }

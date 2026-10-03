@@ -10,6 +10,7 @@ import { ENEMY } from './data';
 import { rand, clamp, pointInBox } from '../core/util';
 import { EnemyShot } from './objects';
 import type { Box } from '../core/util';
+import { wyrmDir, WYRM_SIZES } from '../gfx/art_wyrm';
 
 const SEGS = 15;
 const GAP0 = 30;
@@ -40,7 +41,8 @@ export class Wyrm extends Ent implements Boss {
   hy: number;
   dir = Math.PI;
   trail: { x: number; y: number }[] = [];
-  segs: { x: number; y: number; a: number; s: Sprite; r: number }[] = [];
+  /** `anim` is the segment's animation in the body sheet: one frame per heading (see gfx/art_wyrm.ts). */
+  segs: { x: number; y: number; a: number; s: Sprite; r: number; anim: string }[] = [];
   head: Sprite;
   pat: Pattern = 'enter';
   pt = 0;
@@ -66,16 +68,16 @@ export class Wyrm extends Ent implements Boss {
     this.hy = 300;
     // trail seeded far outside the right wall
     for (let i = 0; i < 400; i++) this.trail.push({ x: W + 80 + (400 - i) * 2, y: 300 });
-    const sh = g.sheets.wyrm;
     for (let i = 0; i < SEGS; i++) {
-      const s = new Sprite(sh, g.view.sprites, 5);
+      const s = new Sprite(g.sheets.wyrmBody, g.view.sprites, 5);
       const last = i === SEGS - 1;
-      s.setFrame(last ? sh.anims.tail[0] : sh.anims.vert[i % 3 === 0 ? 0 : 1]);
       const sc = last ? 1 : 1 - i * 0.035;
-      s.mesh.scale.set(sh.cw * sc, sh.ch * sc, 1);
-      this.segs.push({ x: this.hx, y: this.hy, a: 0, s, r: last ? 8 : 12 * sc });
+      // the vertebrae shrink down the body in a few drawn sizes; every third one carries ribs
+      const size = Math.min(WYRM_SIZES.length - 1, Math.floor(i / 3.5));
+      const anim = last ? 'tail' : (i % 3 === 0 ? 'rib' : 'plain') + size;
+      this.segs.push({ x: this.hx, y: this.hy, a: 0, s, r: last ? 8 : 12 * sc, anim });
     }
-    this.head = new Sprite(sh, g.view.sprites, 5);
+    this.head = new Sprite(g.sheets.wyrm, g.view.sprites, 5);
     this.x = this.hx;
     this.y = this.hy;
     this.hw = 22;
@@ -515,22 +517,21 @@ export class Wyrm extends Ent implements Boss {
   }
 
   render() {
-    const sh = this.g.sheets.wyrm;
+    const sh = this.g.sheets.wyrm, body = this.g.sheets.wyrmBody;
     const burn = this.phase === 2;
     const fl = this.flashT > 0 ? (this.flashT % 4 < 2 ? 0.9 : 0.3) : 0;
     for (let i = 0; i < SEGS; i++) {
       const s = this.segs[i];
       if (this.pat !== 'dying' || s.s.visible) s.s.visible = true;
+      s.s.setFrame(body.anims[s.anim][wyrmDir(s.a)]);
       s.s.place(s.x, s.y);
-      s.s.mesh.rotation.z = -s.a;
       s.s.flash = this.hitSeg === i ? fl : fl * 0.3;
       if (burn) s.s.tint(1.25, 0.8, 0.6);
     }
-    const flip = Math.cos(this.dir) < 0;
-    const f = sh.anims.skull[this.jaw > 0.9 ? 2 : this.jaw > 0.3 ? 1 : 0];
-    this.head.setFrame(f);
-    this.head.place(this.hx, this.hy, flip);
-    this.head.mesh.rotation.z = flip ? -(this.dir - Math.PI) : -this.dir;
+    // the skull is drawn for every heading (and keeps its horns on top), so nothing is turned or flipped
+    const jaw = this.jaw > 0.9 ? 3 : this.jaw > 0.55 ? 2 : this.jaw > 0.15 ? 1 : 0;
+    this.head.setFrame(sh.anims['jaw' + jaw][wyrmDir(this.dir)]);
+    this.head.place(this.hx, this.hy);
     this.head.flash = this.hitSeg === -1 ? fl : 0;
     if (burn) {
       this.head.tint(1.3, 0.85, 0.65);

@@ -1,16 +1,40 @@
 // Web Audio engine: every sound is synthesized at runtime.
+
+// The volumes are a setting of this browser, not of the save (like the HUD style).
+const VOL_KEY = 'noa_volume';
+
 export class AudioEngine {
   ctx: AudioContext | null = null;
   master!: GainNode;
   musicBus!: GainNode;
   sfxBus!: GainNode;
   reverb!: ConvolverNode;
+  /** Sound effects send their echo here; it goes through the effects volume. */
   reverbSend!: GainNode;
+  /** The music's echo, through the music volume (so a slider at 0 silences the echo too). */
+  musicVerb!: GainNode;
   noiseBuf!: AudioBuffer;
-  musicVol = 0.55;
-  sfxVol = 0.8;
+  musicVol = 0.5;
+  sfxVol = 0.5;
   private dist: Map<number, Float32Array> = new Map();
   private lastPlay: Record<string, number> = {};
+
+  constructor() {
+    try {
+      const v = JSON.parse(localStorage.getItem(VOL_KEY) || 'null');
+      if (typeof v?.music === 'number') this.musicVol = v.music;
+      if (typeof v?.sfx === 'number') this.sfxVol = v.sfx;
+    } catch {
+      // storage blocked or garbled: keep the defaults
+    }
+  }
+  private saveVol() {
+    try {
+      localStorage.setItem(VOL_KEY, JSON.stringify({ music: this.musicVol, sfx: this.sfxVol }));
+    } catch {
+      // storage blocked: the volumes last until the page closes
+    }
+  }
 
   init() {
     if (this.ctx) {
@@ -42,9 +66,16 @@ export class AudioEngine {
       for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2) * (i < 200 ? i / 200 : 1);
     }
     this.reverb.buffer = ir;
+    // both echo sends pass through their own volume before the shared reverb
+    const verbIn = ctx.createGain();
+    verbIn.gain.value = 0.32;
+    verbIn.connect(this.reverb).connect(this.master);
     this.reverbSend = ctx.createGain();
-    this.reverbSend.gain.value = 0.32;
-    this.reverbSend.connect(this.reverb).connect(this.master);
+    this.reverbSend.gain.value = this.sfxVol;
+    this.reverbSend.connect(verbIn);
+    this.musicVerb = ctx.createGain();
+    this.musicVerb.gain.value = this.musicVol;
+    this.musicVerb.connect(verbIn);
     // white noise
     this.noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const nd = this.noiseBuf.getChannelData(0);
@@ -53,11 +84,17 @@ export class AudioEngine {
 
   setMusicVol(v: number) {
     this.musicVol = v;
-    if (this.ctx) this.musicBus.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
+    this.saveVol();
+    if (!this.ctx) return;
+    this.musicBus.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
+    this.musicVerb.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
   }
   setSfxVol(v: number) {
     this.sfxVol = v;
-    if (this.ctx) this.sfxBus.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
+    this.saveVol();
+    if (!this.ctx) return;
+    this.sfxBus.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
+    this.reverbSend.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
   }
 
   distCurve(k: number) {
@@ -473,6 +510,17 @@ const SFX: Record<string, Sfx> = {
   note: (a, p) => {
     a.tone({ type: 'sine', f0: 440 * p, dur: 0.7, vol: 0.12, out: a.reverbSend });
     a.tone({ type: 'triangle', f0: 880 * p, dur: 0.35, vol: 0.05 });
+  },
+  // a struck bronze bell at pitch p (1 = A4), loud and close: the Bell-Mother's three song bells.
+  // A hard clapper strike, then the hum, its octave and the sour partials a real bell has
+  bell: (a, p) => {
+    const f = 440 * p;
+    for (const [m, v, d] of [[1, 0.36, 1.5], [2.0, 0.17, 1.1], [2.76, 0.1, 0.8], [5.4, 0.05, 0.35]]) {
+      a.tone({ type: 'sine', f0: f * m, dur: d, vol: v, attack: 0.002 });
+      a.tone({ type: 'sine', f0: f * m, dur: d, vol: v * 0.7, attack: 0.002, out: a.reverbSend });
+    }
+    a.tone({ type: 'triangle', f0: f, dur: 0.5, vol: 0.14, attack: 0.002 });
+    a.noise({ dur: 0.05, vol: 0.3, type: 'bandpass', f0: 2600, q: 1.4 });
   },
   chime: (a) => {
     [1568, 2093].forEach((f, i) => a.tone({ type: 'sine', f0: f, dur: 0.5, vol: 0.06, t: i * 0.12, out: a.reverbSend }));

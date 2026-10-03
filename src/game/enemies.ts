@@ -6,7 +6,7 @@ import { ENEMY, Tune, defaultTune } from './data';
 import { sign, clamp, rand, overlap } from '../core/util';
 import { GRAVITY, MAX_FALL } from '../config';
 import { EnemyShot, rollEnemyDrop } from './objects';
-import { KNIGHT_TURN_FRAMES } from '../gfx/art_chars';
+import { KNIGHT_TURN_FRAMES } from '../gfx/art_folk';
 
 /** Frames a Throwing Knife's mark lasts if nothing else hits the enemy (5 s). */
 const EXPOSE_TIME = 300;

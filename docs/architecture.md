@@ -11,7 +11,12 @@ src/
   gfx/pixel.ts      PixelCanvas software painter + SheetBuilder (all sprites drawn here)
   gfx/art_chars.ts  2D bone rig (Pose → pixels) for the heroes (HERO = Vesna, HERO_M = Anzel), zombie, skeleton, knight, drowned; bat, wisp, wyrm
   gfx/art_beasts.ts expansion creatures: wild dog, harpy, bell wraith, frost crawler; experimental: hookjaw, mire eel, gloomcaster, rot ooze, grave grub, gravehand; Library: rustling tome, restless chair (also the prop chair); the bone librarian is in art_chars.ts (a skeleton sheet with a cap)
-  gfx/art_bosses.ts expansion bosses: Gnarlfang (flayed and cinder forms), the Bell-Mother. Preview on /bosses.html
+  gfx/art_folk.ts   form-shaded zombie, skeleton, librarian, knight, drowned (one shared puppet, `figure()`), bat, wisp
+  gfx/art_hunter.ts the twins as form-shaded puppets: one skeleton and set of poses, a `Look` each (Anzel's coat and short hair, Vesna's skirt, thigh boots and ponytail)
+  gfx/art_hound.ts  Gnarlfang (flayed and cinder forms) as a form-shaded puppet: a Pose, IK legs, looping animations. Preview on /bosses.html
+  gfx/form.ts       FormCanvas: form shading for big sprites (volumes, material ramps, contact shadows, rim light, tinted outline)
+  gfx/art_wyrm.ts   the Ossuary Wyrm: skull and vertebrae drawn once per heading (32), so the boss never rotates a sprite. Sheets `wyrm` and `wyrmBody`
+  gfx/art_bellmother.ts the Bell-Mother as a jointed puppet: a skeleton, a Pose, and animations that are poses computed from a clock
   gfx/art_items.ts  item icons (incl. gold, gold pile, soul shard), candles/torch/save altar, fx sheet (incl. feather, rock, shockwave, hook, hex, ice slick, icicle), fire sheet, relicfx sheet (glide wings, shield bubble, ice block), ring sheet (bell toll)
   gfx/art_portraits.ts  dialogue portraits (64x64 anime busts, `<speaker>_<face>`: vesna, anzel, pell, bellmother, wyrm, hound) and Pell's world sprite
   gfx/tiles.ts      paints a whole room's tile layer into one canvas (bricks, edges, moss, spikes, ledges)
@@ -145,6 +150,7 @@ World flags in use: `crypt_drained` (Flooded Crypt lever), `pass_buried` (the av
 - Themes `graveyard`, `deeps`, `temple`, `gaol`, `forge`, `crystal` (tile palettes in `tiles.ts`; the last five share one cavern backdrop in `backdrops.ts`, dressed per theme). Zones `lichyard`, `deeps`, `temple`, `gaol`, `forge`, `vault`, `heights`, `archive`.
 - `view.ts` `shiftColor()` moves a color in HSL space. `Game.buildEnemySheets` uses it for code variants (`EnemyStats.shift`), and for the glass copies of the hero sheets.
 - Two `Music` players: `Game.music` (the zone's song) and `Game.saveMusic` (the save theme near a save room's door). `Music.setVolume` eases a player's own gain.
+- Volume (0.26.0): `AudioEngine.reverbSend` (effects' echo) and `musicVerb` (music's echo) each pass through their bus volume before the shared reverb, so a slider at 0 silences the echo too. Volumes persist in localStorage (`noa_volume`).
 - Save aura: `Game.findSaveDoors()` runs in `loadRoom` and lists the doorways whose far side is a `save` room; `updateSaveAura()` runs each play frame.
 
 ## Added in 0.19.0

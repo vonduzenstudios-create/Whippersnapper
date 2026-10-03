@@ -21,6 +21,7 @@ import { Enemy } from './enemies';
 import { spawnEnemy } from './spawn';
 import { ENEMY, ENEMY_LETTER, EnemyEdits, buildEnemies } from './data';
 import { BOSSES } from './bosses';
+import { TRIAL_ROOMS } from '../world/rooms_trials';
 import { TILE, TEST_EDITS_KEY } from '../config';
 
 export const LAB_ID = 'lab';
@@ -108,8 +109,10 @@ function applyEditorCopy(g: Game) {
 }
 
 /** Every enemy id that can be tested in the chamber (bases and variants), in bestiary order. */
+/** Every enemy and variant the chamber can spawn, in alphabetical order by name ('The Drowned' files under D). */
 function testable() {
-  return Object.keys(ENEMY).filter((id) => ENEMY_LETTER[ENEMY[id].base || id]);
+  const key = (id: string) => ENEMY[id].name.replace(/^the /i, '');
+  return Object.keys(ENEMY).filter((id) => ENEMY_LETTER[ENEMY[id].base || id]).sort((a, b) => key(a).localeCompare(key(b)));
 }
 
 /** One line of the title menu's TEST ENEMY list. `arg` is what startTest() takes. */
@@ -118,11 +121,13 @@ export interface TestEntry {
   name: string;
   tag: string; // BOSS, VARIANT, or blank
 }
-/** Everything the TEST ENEMY list offers: the bosses first, then every enemy and variant. */
+/** Everything the TEST ENEMY list offers: the bosses first, then every enemy and variant, each group in alphabetical order. */
 export function testEntries(): TestEntry[] {
   const bosses = Object.keys(BOSSES).map((id) => ({ arg: `boss:${id}`, name: ENEMY[id]?.name || BOSSES[id].name, tag: 'BOSS' }));
   const enemies = testable().map((id) => ({ arg: id, name: ENEMY[id].name, tag: ENEMY[id].base && ENEMY[id].base !== id ? 'VARIANT' : '' }));
-  return [...bosses, ...enemies];
+  const key = (e: TestEntry) => e.name.replace(/^the /i, ''); // 'The Drowned' files under D
+  const byName = (a: TestEntry, b: TestEntry) => key(a).localeCompare(key(b));
+  return [...bosses.sort(byName), ...enemies.sort(byName)];
 }
 
 /**
@@ -148,8 +153,16 @@ export function startTest(g: Game, arg: string) {
 
 /** The boss's own arena, fought for real (but with the test hunter's 999 HP). */
 function startBossTest(g: Game, id: string) {
-  const def = g.defs.find((d) => d.boss === id) || g.defs.find((d) => d.boss === 'wyrm')!;
-  g.loadRoom(def, 200, def.h * 14 * TILE - 32);
+  let def = g.defs.find((d) => d.boss === id);
+  if (!def && TRIAL_ROOMS[id]) {
+    // a trial boss: its chamber is not part of the world, so it is built here, off the map
+    def = TRIAL_ROOMS[id]();
+    g.defs.push(def);
+    g.rebuildGrid();
+  }
+  def = def || g.defs.find((d) => d.boss === 'wyrm')!;
+  const at = def.ents.find((e) => e.t === 'P');
+  g.loadRoom(def, at ? at.x * TILE + 8 : 200, at ? (at.y + 1) * TILE : def.h * 14 * TILE - 32);
   g.startBoss();
   g.message(`TEST: ${(BOSSES[def.boss!]?.name || id).toUpperCase()}`, 240);
 }

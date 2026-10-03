@@ -8,8 +8,10 @@
 import { baseEnemies, BASE_ENEMIES, ENEMY_TUNING, EnemyStats, EnemyEdits, Drop, ITEMS, PICKUP_NAMES, defaultTune, Tune } from './game/data';
 import ENEMY_EDITS from './game/enemy_edits.json';
 import { buildSheet, sheetColors, recolorSheet, Sheet } from './gfx/view';
-import { buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildLibrarianSheet, buildWyrmSheet } from './gfx/art_chars';
-import { buildHoundSheet, buildBellMotherSheet } from './gfx/art_bosses';
+import { buildZombieSheet, buildSkeletonSheet, buildKnightSheet, buildDrownedSheet, buildBatSheet, buildWispSheet, buildLibrarianSheet } from './gfx/art_folk';
+import { buildWyrmSheet } from './gfx/art_wyrm';
+import { buildHoundSheet } from './gfx/art_hound';
+import { buildBellMotherSheet } from './gfx/art_bellmother';
 import { buildSerpentSheet } from './gfx/art_depths';
 import { buildLeviathanSheet, buildGorgonSheet, buildColossusSheet, buildYetiSheet, buildArchivistSheet } from './gfx/art_bosses2';
 import { TEST_EDITS_KEY } from './config';

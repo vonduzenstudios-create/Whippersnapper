@@ -364,7 +364,9 @@ export class Devourer extends Hookjaw implements Holder {
         if (!g.room.solidPx(tx, p.y)) p.x = tx;
         p.facing = -this.facing as 1 | -1;
         const chomp = this.st % BITE_EVERY;
-        s.setFrame(A.bite[chomp < 8 ? 1 : 0]);
+        // the sheet's bite is two halves, chewing then clamped, each a loop of its tentacles thrashing
+        const half = A.bite.length / 2;
+        s.setFrame(A.bite[(chomp < 8 ? half : 0) + (Math.floor(this.st / 4) % half)]);
         if (chomp === 0) {
           p.chew(Math.round(this.atk * 0.4));
           g.audio.play('bite');
@@ -728,8 +730,14 @@ export class Ooze extends Enemy {
       g.fx.burst(this.x, this.bottom - 2, 'slime', 2, this.hw, { vy: -1, grav: 0.15, life: 18 });
     }
     if (this.landT > 0) this.landT--;
+    // squashed as it lands and as it gathers to hop; otherwise it sits and pulses
+    const pulse = A[name + 'Pulse'];
     if (!this.onGround) s.setFrame(A[name + 'Air'][0]);
-    else s.setFrame(A[name][this.landT > 0 || this.hopT < 8 ? 1 : 0]);
+    else if (this.landT > 0 || this.hopT < 8) s.setFrame(A[name][1]);
+    else s.setFrame(pulse[Math.floor(this.t / 5) % pulse.length]);
+    // a bead of gel: a little see-through, with a slow glow from inside
+    s.opacity = 0.84;
+    s.glow = 0.2 + 0.12 * Math.sin(this.t * 0.09);
     this.place();
   }
   die(g: Game) {

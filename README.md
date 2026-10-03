@@ -103,6 +103,102 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 
 The same number is in `package.json`. Newest version first.
 
+### 0.26.0 (2026-10-03)
+
+Pause menu overhaul, volume fixes, and a debug retry after death.
+
+- **Volume**: the music slider at 0 now silences the music completely. The music's echo went straight into the shared reverb and skipped the slider; each bus now has its own echo send that follows its volume (`AudioEngine.musicVerb`). Music and effects start at half volume, and both volumes are remembered by the browser (`noa_volume`).
+- **STATUS** is now a hero card: the hero at 2x, level, bars for EXP (toward the next level), HP and hearts, then the run so far (sub-weapon, gold, soul shards, kills, bosses beaten, relics, time, explored). The stats moved off it, and TIME / EXPLORED moved off the tab column onto it. A **PLAY AS ...** button swaps to the other twin (looks and story text only; not during a boss fight, since the Mirror Heart copies the twin you play).
+- **EQUIP** redesigned: slots with icons on the left, a STATS card on the right (ATK, DEF, STR, CON, LCK, BLOCK), the highlighted item's description along the bottom. Picking a slot turns the left side into that slot's item list (it opens on what's worn, with an E tag); every stat the highlighted item would change shows a blue up or red down arrow and the new value.
+- **RETRY ROOM (DEBUG)** on the game-over screen rewinds to the moment the hero walked into the room she died in (HP, items, flags and bosses all go back), so a boss fight starts over. For testing only; it won't ship.
+
+### 0.25.0 (2026-10-03)
+
+Vesna redrawn as a form-shaded puppet, like her twin, with a look of her own.
+
+- **One puppet, two looks** (`gfx/art_hunter.ts`). Vesna and Anzel share the skeleton, every pose and every in-between (168 frames each), so they play identically; a `Look` says how each is dressed and built.
+- **Vesna**: slighter than her brother, in a crimson jacket with a short flared skirt that kicks out as she moves, a thin gold sash, and boots that come up over the knee. Her silver hair is tied high with the red band in a long ponytail that streams behind her the way his scarf does (heavier, so it hangs lower and swings slower), with a fringe swept across her brow and a lock falling past her cheek. Her scarf is short.
+- **Anzel** is unchanged: the slate-blue coat with two tails, short swept-back hair, the headband across his brow.
+- The old flat-color rig is gone. `gfx/art_chars.ts` now only holds what the puppets share (the `Pose` type and the hunters' cell).
+
+### 0.24.3 (2026-10-03)
+
+- The Frost Crawler leaves its ice trail on walls too, so the trail no longer breaks off where it climbs. Wall ice is only a mark of where it went: it chills nobody and grows no icicles (`IcePatch.wall`).
+
+### 0.24.2 (2026-10-03)
+
+A second round of fixes to the redrawn enemies.
+
+- **Devourer**: the arm is gone; it is a mouth on tentacles and nothing else. While it has the hero in its jaws, its front tentacles let go of the floor and thrash in the air (the `bite` animation is now two halves of four frames, chewing and clamped). The whirl flings its tentacles out about 50 px each way, where it used to be 30, and thicker; the cell is 116 px wide to hold them. The whirl still hits at the same range as before (40 px).
+- **Gloomcaster**: slender now. A narrow gown that widens only at the hem, which breaks into points hung with beaded tassels; a peaked hood with a long tip, a short pointed mantle, sleeves that trail to a point, a gilt sash with long ends. All of it sways.
+- **Rot Ooze**: where it rests, its weight piles it up in rolls on the floor, each sagging wider than the one above, and more so as it lands.
+- **Frost Crawler**: a slug of meltwater instead of a six-legged beetle. It moves like one, surging forward as its body stretches and nearly stopping as it draws its tail up (`Crawler.surge`, in step with a 12-frame `crawl`, averaging its old speed). Its spikes are a crest of half-melted ice that curls over like the lip of a wave and beads at the tips. Two eye stalks.
+- **Its ice**: the floor trail (`iceSlick`) and the icicles that grow from its ceiling trail (`icicle`) are redrawn with the same shading.
+
+### 0.24.1 (2026-10-03)
+
+Fixes from the first look at the redrawn enemies.
+
+- **TEST ENEMY list** is alphabetical (bosses first, then enemies; "The Drowned" files under D), and `[` / `]` in the chamber step through the same order.
+- **Wild dog** (and its variants): each leg now steps on its own in a four-beat lope, placed by its paw with the joint found by IK, instead of the legs swinging in pairs. 12 frames.
+- **Rustling Tome**: flying, it is now seen from its pages (two page blocks meeting at the gutter, eyes on the pages), not from its spine. The dive is gone. Instead it rears back, opens a glowing maw down its gutter and **spits a fan of five pages** at you (`spew`; an `EnemyShot` of kind `page`). The editor's knob is renamed `spew`.
+- **Harpy**: the legs have knees and dangle, swinging behind the wing beat with the toes opening and curling.
+- **Hookjaw**: a new look. A gaunt butcher bent under his own shoulders, his head in a stitched sack with one eyehole, a heavy underslung jawbone with two hooked tusks, a bloodied apron on a strap, rag-wrapped forearms, legs that bend at the knee. His hands are where they were, so the hook and the chop land the same.
+- **Devourer**: the arm is a short jointed one (shoulder, elbow, a three-clawed hand) tucked under its jaw, and every tentacle ripples from hip to tip as it walks.
+- **Gloomcaster**: the robe bells out to a wide hem that billows in a wave, with a trim of sigils; sparks circle the orb and drift up off the robe, twinkling; the staff is gnarled, bound in gilt, with a claw of two horns cradling the orb and a charm on a thread. 8 frames.
+- **Rot Ooze**: no feet or drips. A bead of gel lit from inside, with bubbles; it pulses while it sits (`<size>Pulse`), and its sprite is drawn slightly see-through with a slow glow.
+- **Gallows Spider** on the floor: redrawn, with arched legs that step in two sets, each foot lifting as it swings forward.
+- **Hollow Knight**: its knees fold as each leg swings forward. 12 frames.
+
+### 0.24.0 (2026-10-03)
+
+Every minor enemy redrawn with form shading, in the same style as the bosses and Anzel: 23 enemies in all.
+
+- **The two-legged dead share one puppet** (`gfx/art_folk.ts`): the Risen, the Bone Thrower, the Bone Librarian, the Hollow Knight and the Drowned use the old rig's joints and poses, drawn as shaded volumes. The bat and the wisp are in the same file.
+- **The beasts** (`gfx/art_beasts.ts`, `gfx/art_beasts2.ts`): wild dog, harpy, bell wraith, frost crawler, Hookjaw, Devourer, mire eel, Gloomcaster, Rot Ooze, Grave Grub and its moth, Gravehand, Rustling Tome, Restless Chair, Gallows Spider. The Temple Asp is in `gfx/art_depths.ts`. Each keeps its cell, anchor, design and animation names.
+- **Smoother loops without touching the enemies' timing.** Anything the game plays as a loop (a walk, a flap, a crawl, a swim) has twice the frames it had. `SheetBuilder.smooth(name, rate, ...)` records that, and `Sprite.anim()` plays those animations that many times faster, so each cycle takes as long as before. Frames the game picks by number (a wind-up, a bite, the knight's about-face) are the same count as before.
+- `FormCanvas` gained `disc()` (a flat glow, for fire and magic) and `resolve({ outline: false })`.
+- The two variants saved from the enemy editor with their own colors (`wisp_variant`, `drowned_variant` in `enemy_edits.json`) had color maps keyed to the old palettes, so they were moved to the new ones: each new color is shifted the way its nearest old color was. Variants written in code recolor by hue and needed nothing.
+- Not redrawn: Vesna, the six newer bosses (`art_bosses2.ts`) and the Archivist's storybook figures.
+
+### 0.23.0 (2026-10-03)
+
+Anzel, the male twin, redrawn as a form-shaded puppet with fluid animation (`gfx/art_hunter.ts`). Vesna is unchanged for now.
+
+- **Same skeleton, same poses, new drawing.** He keeps the old rig's joints and `Pose` (so every pose the game had still means the same thing, and the 48×48 cell, the hitbox and the whip's hand point are untouched), but he is drawn as shaded volumes in hand-picked ramps: a slate-blue coat cut away in front with two tails behind, dark trousers, knee boots with a turned-down top, gloves with a brass cuff button, spiked silver hair over a red headband, the gold scarf.
+- **In-betweens.** 168 frames where there were 62: a 16-frame idle (two breaths and a blink), 12-frame walk and sprint cycles, a three-stage jump (push-off, climb, easing over the top), a fluttering fall, a three-stage landing, and on every whip stroke a two-frame wind-up and a three-frame stroke that overshoots and settles.
+- **Loose things trail.** The scarf, the coat tails, the hair spikes and the headband's knot follow a wind direction per pose: hanging down his back at rest, streaming behind in a sprint, thrown upward in a fall.
+- **The somersault is drawn turned**, 12 frames, instead of one frame rotated by the GPU.
+- `Player.render` no longer assumes how many frames an animation has, so the twins' sheets can differ. `FormCanvas.resolve` gained `contour`: a dark line beside any part that overlaps another of the same color (an arm across the coat).
+
+### 0.22.0 (2026-10-03)
+
+Gnarlfang, both forms, redrawn as a form-shaded puppet (`gfx/art_hound.ts`).
+
+- The same skeleton as before (hips, a hump of shoulder, legs placed by their feet with two-bone IK, two necks and heads, a tail), now drawn as shaded volumes: muscle that rounds into shadow, veins with a lit edge, bone spurs, iron. The heads can **tilt**, so it howls with both muzzles at the sky.
+- **In-betweens everywhere**: a 12-frame prowl with the hump rolling and the heads swinging out of step, an 8-frame gallop that gathers and stretches, a shaking crouch, a heaving howl, a four-frame snap of the jaws, and a dazed sway with stars circling its head. 51 frames per form (152×112 cells), where there were 12.
+- The Cinder form keeps its look (black hide, veins and drool of fire, horns, the skull head, a ribcage open over embers, iron spikes), with the fire drawn at a fixed brightness so it glows in shadow.
+- `gfx/art_bosses.ts` is gone (it only held this). `turned()`, the puppet-piece helper, moved from the Wyrm's file into `gfx/form.ts`.
+
+### 0.21.0 (2026-10-03)
+
+The Ossuary Wyrm, redrawn in the same 16-bit style as the Bell-Mother (`gfx/art_wyrm.ts`).
+
+- **No more rotated sprites.** The Wyrm's skull and vertebrae used to be one drawing each, turned and scaled by the GPU, which smeared the pixels and turned the shading with them. Now every piece is drawn again for each of 32 headings (`WYRM_DIRS`), so the pixels stay crisp and the light always falls from the same side of the screen. The boss picks the frame nearest to a piece's heading (`wyrmDir`) and never rotates, flips or scales a sprite.
+- **The skull**: form-shaded bone (ivory in the light, bruised violet-brown in shadow), ringed horns, cracks, a long front fang, a fire in the eye socket, and four jaw positions instead of three. Heading left it is mirrored top to bottom as it is drawn, so the horns stay on top.
+- **The body**: vertebrae seen flat like a snake's skeleton (a spool with a ridge, ribs or spurs swept back on both sides), so the body never looks upside down. Drawn at four sizes down the tail instead of being scaled.
+- The fight itself is unchanged. The old sheet is gone from `gfx/art_chars.ts`; there is a second sheet, `wyrmBody`. `/bosses.html?only=wyrm` shows both.
+
+### 0.20.0 (2026-10-03)
+
+A first try at 16-bit quality boss art, on the Bell-Mother only (the other bosses follow if this look is right).
+
+- **Form shading** (`gfx/form.ts`). `FormCanvas` paints rounded volumes instead of flat colors: each pixel remembers its material and how much light falls on it, and becomes a color at the end, picked from the material's hand-made ramp (five or six steps, shadows leaning violet, lights leaning warm). On top of that it adds a contact shadow where one part overlaps another, a cool rim light on the edge away from the key light, and an outline tinted by the material it borders.
+- **The Bell-Mother is a jointed puppet** (`gfx/art_bellmother.ts`). She has a skeleton (spine, neck, arms, bird legs, two wings of three bones each with flight feathers and coverts hung from them) and every frame is a pose computed from a clock. The wing beat is 12 in-between frames: a hard stroke down with the wing spread, then it folds at the wrist and lifts, with feather tips, hair, tail and legs trailing behind the motion and her body riding the beat. 40 frames in all (192×152 cells): `fly`, `cast`, `dive`, `fall`, `stunned`.
+- Her look now matches her portrait: pale lilac skin, violet-black plumage with ash tips, gold eyes, a feather crest, the bronze bell at her throat.
+- In the fight she keeps beating her wings while she sings, tumbles with her wings torn upward when her voice breaks, and slumps on the floor heaving for breath while stunned (the old sprite was one frame turned on its side).
+- The old Bell-Mother drawing code is gone from `gfx/art_bosses.ts`. `/bosses.html?only=bell` shows the new sheet.
+
 ### 0.19.0 (2026-10-03)
 
 Every boss but the Wyrm reworked, after the first playtest of 0.18.0 found them repetitive: long health bars, minion swarms, things raining from the sky, targets floating out of reach. Now each fight is a cycle you learn that opens a short window, and only blows landed in a window count (a boss's HP is a few segments, four blows each).

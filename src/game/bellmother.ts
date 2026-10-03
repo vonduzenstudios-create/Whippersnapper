@@ -17,8 +17,8 @@ import { EnemyShot } from './objects';
 import { Shockwave } from './enemies_expansion';
 import { clamp, rand } from '../core/util';
 
-const PITCH = [0.75, 1, 1.26]; // the three bells' notes (low, middle, high)
-const NOTE_GAP = 38; // frames between the notes of her phrase
+const PITCH = [0.667, 1, 1.5]; // the three bells' notes (low, middle, high), a fifth apart so no two sound alike
+const NOTE_GAP = 48; // frames between the notes of her phrase
 const STUNNED = 330; // frames she lies stunned
 const RESING = 780; // frames until she sings the phrase again
 
@@ -28,6 +28,7 @@ export class BellMother extends BossBase {
   song: number[] = [];
   at = 0; // how many notes of the phrase the hunter has rung back
   sinceSong = 0;
+  ringT = 0; // frames since a bell last sounded: the music stays ducked a moment after it
   constructor(g: Game) {
     super(g, 'bellmother', g.sheets.bellmother, 20, 24, 11);
     const W = g.room.W;
@@ -55,9 +56,10 @@ export class BellMother extends BossBase {
     return this.pat === 'swoop' ? 'melee' : 'touch';
   }
   ring(g: Game, i: number) {
-    this.bells[i].lit = 22;
-    g.audio.play('note', PITCH[i]);
-    g.fx.burst(this.bells[i].x, this.bells[i].y + 10, 'star', 3, 10, { life: 26, fade: true, glow: 1 });
+    this.bells[i].lit = 30;
+    this.ringT = 50;
+    g.audio.play('bell', PITCH[i]);
+    g.fx.burst(this.bells[i].x, this.bells[i].y + 10, 'star', 6, 12, { speed: 1.2, life: 30, fade: true, glow: 1 });
   }
   /** A new phrase of `n` notes (never the same bell twice running, so each note is heard apart). */
   compose(n: number) {
@@ -118,11 +120,19 @@ export class BellMother extends BossBase {
     const p = g.player, A = g.sheets.bellmother.anims, s = this.sprite!, d = this.data;
     const W = g.room.W, fy = this.floorY;
     const fast = this.phase === 2 ? 1.2 : 1;
-    let frame = A.fly[Math.floor(g.frame / 5) % A.fly.length];
-    s.mesh.rotation.z = 0;
+    // she keeps to the lower belfry now (0.27.0), where the camera can hold her and the hunter
+    // together: `roost` is where she sings and tolls, `over` is a little above the hunter's head
+    const roost = fy - 196, over = clamp(p.y - 118, roost - 20, fy - 130);
+    // the song has to be heard: the music drops right down while she sings, and whenever a bell sounds
+    if (this.ringT > 0) this.ringT--;
+    g.musicDuck = this.pat === 'dying' ? 1 : this.pat === 'sing' ? 0.18 : this.ringT > 0 ? 0.35 : 1;
+    // her sheet is a puppet's poses (gfx/art_bellmother.ts): every animation is a loop of in-betweens
+    const loop = (a: number[], every: number) => a[Math.floor(g.frame / every) % a.length];
+    const cast = loop(A.cast, 4);
+    let frame = loop(A.fly, this.phase === 2 ? 3 : 4);
     switch (this.pat) {
       case 'enter':
-        this.y += (110 - this.y) * 0.03;
+        this.y += (roost - this.y) * 0.03;
         if (this.pt === 40) {
           g.audio.play('screech');
           g.shake(4, 60);
@@ -132,7 +142,7 @@ export class BellMother extends BossBase {
           g.audio.play('toll');
           g.shake(4, 50);
         }
-        if (this.pt > 150) frame = A.cast[0];
+        if (this.pt > 150) frame = cast;
         if (this.pt === 190) g.bossTalk();
         if (this.pt > 190) {
           this.compose(3);
@@ -142,9 +152,9 @@ export class BellMother extends BossBase {
         break;
       case 'sing': {
         // under the great bell, singing her phrase: each bell lights as its note sounds
-        this.steer(W / 2, 80, 2.4);
+        this.steer(W / 2, roost, 2.4);
         this.facing = p.x < this.x ? -1 : 1;
-        frame = A.cast[0];
+        frame = cast;
         s.glow = 0.35;
         const k = (this.pt - 50) / NOTE_GAP;
         if (this.pt >= 50 && Number.isInteger(k) && k < this.song.length) this.ring(g, this.song[k]);
@@ -156,7 +166,7 @@ export class BellMother extends BossBase {
         break;
       }
       case 'hover': {
-        const tx = clamp(p.x + Math.sin(this.pt * 0.02) * 140, 60, W - 60), ty = 110 + Math.sin(this.pt * 0.05) * 16;
+        const tx = clamp(p.x + Math.sin(this.pt * 0.02) * 140, 60, W - 60), ty = over + Math.sin(this.pt * 0.05) * 12;
         this.steer(tx, ty, 2 * fast);
         this.facing = p.x < this.x ? -1 : 1;
         if (this.pt > 110 / fast) this.next();
@@ -168,30 +178,30 @@ export class BellMother extends BossBase {
           d.sx = d.side > 0 ? W - 60 : 60;
         }
         if (this.pt < 60) {
-          this.steer(d.sx, 90, 4);
+          this.steer(d.sx, over, 4);
           this.facing = -d.side;
           if (this.pt === 40) g.audio.play('screech');
         } else {
           if (this.pt === 60) {
             d.x0 = this.x;
             d.y0 = this.y;
-            d.low = clamp(p.y - 4, 140, fy - 26); // dives to your height
+            d.low = clamp(p.y - 4, roost, fy - 26); // dives to your height
             d.len = 80 / fast;
           }
           const t = Math.min(1, (this.pt - 60) / d.len);
           const x1 = d.side > 0 ? 60 : W - 60;
           this.x = d.x0 + (x1 - d.x0) * t;
           this.y = d.y0 + (d.low - d.y0) * Math.sin(t * Math.PI);
-          frame = A.dive[0];
+          frame = loop(A.dive, 3);
           if (this.pt % 4 === 0) g.fx.burst(this.x - this.facing * 20, this.y, 'smoke', 1, 6, { life: 20, fade: true });
           if (t >= 1) this.pick('hover');
         }
         break;
       }
       case 'feathers': {
-        this.steer(clamp(p.x, 80, W - 80), 80, 2.4);
+        this.steer(clamp(p.x, 80, W - 80), over, 2.4);
         this.facing = p.x < this.x ? -1 : 1;
-        frame = A.cast[0];
+        frame = cast;
         const every = 40;
         if (this.pt % every === 0 && this.pt <= every * 2) {
           const base = Math.atan2(p.y - this.y, p.x - this.x);
@@ -206,8 +216,8 @@ export class BellMother extends BossBase {
       }
       case 'toll':
         // the great bell: one shockwave rolls in from each wall
-        this.steer(W / 2, 70, 3);
-        frame = A.cast[0];
+        this.steer(W / 2, roost, 3);
+        frame = cast;
         s.glow = this.pt < 50 ? (this.pt / 50) * 0.6 : 0.2;
         if (this.pt === 50) {
           g.audio.play('toll');
@@ -221,8 +231,7 @@ export class BellMother extends BossBase {
         // her voice broken, she drops like a stone
         this.vy = Math.min(this.vy + 0.35, 7);
         this.y += this.vy;
-        frame = A.dive[0];
-        s.mesh.rotation.z = this.pt * 0.2;
+        frame = loop(A.fall, 3);
         if (this.y >= fy - 22) {
           this.y = fy - 22;
           this.vy = 0;
@@ -233,14 +242,13 @@ export class BellMother extends BossBase {
         }
         break;
       case 'stunned':
-        frame = A.dive[0];
-        s.mesh.rotation.z = this.facing * 1.4 + Math.sin(this.pt * 0.2) * 0.05;
+        frame = loop(A.stunned, 6); // slumped on the floor, heaving for breath
         if (this.pt % 20 === 0) g.fx.burst(this.x + rand(-16, 16), this.y - 20, 'star', 1, 4, { life: 24, fade: true });
         if (this.pt > STUNNED) this.pick('rise');
         break;
       case 'rise':
         // back up into the vault, and a longer phrase
-        this.steer(W / 2, 80, 3, 0.2);
+        this.steer(W / 2, roost, 3, 0.2);
         if (this.pt === 1) {
           if (this.hp <= this.maxHp / 2 && this.phase === 1) {
             this.phase = 2;
@@ -256,9 +264,9 @@ export class BellMother extends BossBase {
         break;
       case 'rage':
         // her second wind (a scene): she rings the great bell with her own body
-        this.steer(W / 2, 80, 2.5);
+        this.steer(W / 2, roost, 2.5);
         this.facing = p.x < this.x ? -1 : 1;
-        frame = this.pt < 50 ? A.fly[Math.floor(g.frame / 4) % A.fly.length] : A.cast[0];
+        frame = this.pt < 50 ? loop(A.fly, 3) : cast;
         if (this.pt === 30) {
           g.audio.play('screech');
           g.shake(5, 40);
@@ -278,8 +286,7 @@ export class BellMother extends BossBase {
         break;
       case 'dying':
         this.y = Math.min(fy - 20, this.y + 0.8);
-        frame = A.dive[0];
-        s.mesh.rotation.z = Math.sin(this.deathT * 0.3) * 0.2;
+        frame = loop(A.fall, 3);
         if (this.deathT % 7 === 0) g.fx.burst(this.x, this.y, 'smoke', 2, 16, { vy: 0.8, life: 40, fade: true }); // falling feathers
         if (this.deathT === 150) g.audio.play('toll');
         if (this.dyingTick(g, 160, 24)) return;
@@ -297,6 +304,7 @@ export class BellMother extends BossBase {
       if (b.lit > 0) b.lit--;
       b.s.setFrame((b.lit > 0 ? P.bellLit : P.bell)[i]);
       b.s.place(b.x + (b.lit > 0 ? Math.sin(b.lit * 0.8) * 2 : 0), b.y);
+      b.s.glow = b.lit > 0 ? 0.25 + (b.lit / 30) * 0.5 : 0;
     });
   }
 }
