@@ -1,5 +1,6 @@
 // /bosses.html: the expansion boss sprites, animated, with every frame listed (click one to play it).
 import { SheetBuilder } from './gfx/pixel';
+import { MINI_ART } from './gfx/minis';
 import { buildHoundSheet, buildCinderHoundSheet } from './gfx/art_hound';
 import { buildBellMotherSheet } from './gfx/art_bellmother';
 import { buildWyrmSheet, buildWyrmBodySheet } from './gfx/art_wyrm';
@@ -54,6 +55,18 @@ groups.push({
     { name: 'Old Rimehide (puppet)', note: 'Form-shaded puppet: bare-handed, with an ice pillar, and with a mammoth tusk.', sheet: buildRimehideSheet(), anim: 'walk' },
     { name: 'His dens', note: 'Snow boulder, the frozen falls, rubble, ice pillar, vent, ribs, the hanging tusk, a carcass, the mammoth skull.', sheet: buildRimePropSheet(), anim: 'rib' },
   ],
+});
+
+// the mini-bosses (0.28.0): enemies, not in any room yet. Built only when shown (?only=<name>), they are many frames.
+const ONLY = new URLSearchParams(location.search).get('only')?.toLowerCase();
+groups.push({
+  title: 'Mini-bosses (0.28.0, enemy editor only)',
+  options: Object.entries(MINI_ART)
+    .filter(([id]) => !ONLY || ONLY === 'mini' || id.includes(ONLY))
+    .flatMap(([id, a]) => [
+      { name: id, note: a.note, sheet: a.sheet(), anim: 'idle' },
+      { name: id + ' props', note: 'What it throws.', sheet: a.props(), anim: Object.keys(a.props().anims)[0] },
+    ]),
 });
 
 const root = document.getElementById('root')!;
