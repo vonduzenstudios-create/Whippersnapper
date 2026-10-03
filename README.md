@@ -103,6 +103,10 @@ Every batch of changes gets a version number, `MAJOR.MINOR.PATCH`:
 
 The same number is in `package.json`. Newest version first.
 
+### 0.28.1 (2026-10-03)
+
+- Removed the abandoned `art_exchange/` folder (hand-off art for an outside redesign of the Bell-Mother) and the `npm run export:sprites` tool that fed it. Nothing in the game changed.
+
 ### 0.28.0 (2026-10-03)
 
 **NEW GAME +: the Drowned Abbey.** A second, separate game on the title menu, with its own story, its own 120-room map and its own save slot. The original game and its map are untouched.

@@ -59,4 +59,4 @@ the real game is safe while it is unfinished.
 - Dev-server ports already taken in `.claude/launch.json`: `dev` 5273, `dev-alt` 5274,
   `dev-trial` 5276, `dev-bosses` 5283, `dev-minis` 5291 (mini-boss branch), `dev-abbey` 5295.
 - Commit when a feature reaches a safe point, and check `npm run typecheck` and `npm run build`
-  pass first. Never commit `art_exchange/` (abandoned).
+  pass first.
